@@ -1,0 +1,28 @@
+path	note
+uv.lock	메인 Django 앱
+services/llm-gateway/uv.lock	
+services/stripe-mock/uv.lock	
+common/ingestion/acceptance_tests/requirements.txt	`==`로 고정한 직접 의존 9개만. 전이 의존은 잠금 파일이 없어 세지 않았다
+services/llm-gateway/benchmarks/requirements.txt	버전 없는 이름 3개(`openai`, `anthropic`, `python-dotenv`). 벤치마크 스크립트용
+tools/infra-scripts/clitools/requirements.txt	`-c constraints.txt`와 `posthog>=7.67.1` 한 줄. 고정 버전이 없다
+pnpm-lock.yaml	루트 워크스페이스(`frontend`, `nodejs`, `products/*` 등)
+products/desktop/pnpm-lock.yaml	독립 워크스페이스. 루트 `pnpm-workspace.yaml:20~22`가 `'!products/desktop'`로 뺀다. Electron 앱과 모바일 앱
+packages/agent/pnpm-lock.yaml	에이전트 런타임(`packages/agent/package.json`의 설명 "The PostHog agent runtime and the packages it bundles")
+nodejs/src/ingestion/pipelines/sessionreplay/ml-mirror-image-scrub-sidecar/pnpm-lock.yaml	세션 리플레이 이미지 가림 처리 사이드카(`package.json`의 `description`)
+frontend/@posthog/lemon-ui/pnpm-lock.yaml	잠금 파일 형식 5.4
+tools/hedgebox-dummy/pnpm-lock.yaml	데모 데이터용 Hedgebox 앱(`tools/hedgebox-dummy/README.md:3`)
+products/canvas/packages/canvas_builder/package-lock.json	
+products/visual_review/cli/package-lock.json	
+.github/actions/paths-filter/package-lock.json	CI 액션
+.depot/actions/paths-filter/package-lock.json	위와 같은 액션의 사본
+rust/batch-import-worker/scripts/package-lock.json	패키지 4개
+rust/Cargo.lock	Rust 서비스 워크스페이스
+cli/Cargo.lock	`posthog-cli` 바이너리
+funnel-udf/Cargo.lock	크레이트 이름 `funnels`
+rust/common/hogvm/node/Cargo.lock	
+livestream/go.mod	
+bin/hobby-installer/go.mod	
+tools/phrocs/go.mod	
+clickhouse-udfs/util/go.mod	
+services/hogql-language-service/go.mod	외부 모듈 1개
+packages/agent/agent-shadow/go.mod	`require`가 없다(외부 모듈 0개)
