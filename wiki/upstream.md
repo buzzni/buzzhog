@@ -200,8 +200,9 @@ grep -n 'ee/' LICENSE
 ```
 
 `git ls-files`의 결과가 비어 있지 않으면 업스트림이 해당 경로를 다시 넣은 것이다.
-추가한 파일은 지우고, 왜 들어왔는지(업스트림의 FOSS 동기화가 중단됐는지 등)를 동기화 PR 설명에 적는다.
-non-FOSS 파일을 받아들이기로 결정이 바뀌었다면 새 ADR을 쓰고 [ADR 0001](adr/0001-remove-non-foss.md)의 상태를 `대체됨`으로 바꾼다.
+다시 들어온 파일은 지우고, 왜 들어왔는지(업스트림의 FOSS 동기화가 중단됐는지 등)를 동기화 PR 설명에 적는다.
+non-FOSS 파일을 받아들이는 등 [ADR 0001](adr/0001-remove-non-foss.md)의 결정을 바꾸면 새 ADR을 쓰고, ADR 0001의 상태를 `대체됨(ADR NNNN)`으로 바꾼다.
+`NNNN`은 새 ADR의 번호다.
 채택한 ADR 본문은 [고치지 않는다](adr/README.md#작성법).
 
 `grep`의 결과가 비어 있지 않으면 업스트림이 `LICENSE`의 `ee/` 단락을 되돌린 것이다.
