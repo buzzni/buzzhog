@@ -48,40 +48,69 @@ hobby compose는 `SECRET_KEY_FALLBACKS`, `JWT_SIGNING_KEY_FALLBACKS`, `INTERNAL_
 
 ## 위험: hobby 객체 스토리지 고정 키와 /posthog 프록시
 
-hobby 설치에서 객체 스토리지 접근 키는 저장소에 공개된 고정값이고, 그 스토리지의 `/posthog/*` 경로가 인터넷에 열려 있다. 코드로 확인한 사실과 추정을 나눠 적는다.
+hobby 설치에서 객체 스토리지 접근 키는 저장소에 공개된 고정값이다.
+그 스토리지의 `/posthog/*` 경로가 인터넷에 열려 있다.
+코드로 확인한 사실과 추정을 나눠 적는다.
 
 ### 확인한 사실
 
-- 키는 `object_storage_root_user` / `object_storage_root_password`이고 설치마다 같다. 설치 스크립트가 무작위로 바꾸지 않는다. 근거: `docker-compose.hobby.yml`(`x-` 공통 환경, `web`·`worker`·`plugins`), `.env.services`
-- `objectstorage` 시작 스크립트가 이 키를 `posthog` 신원에 `Admin` 권한으로 등록한다. 근거: `docker-compose.hobby.yml`(`objectstorage.entrypoint`의 `s3.configure`)
-- `proxy`(Caddy)는 `/posthog`, `/posthog/`, `/posthog/*`를 `objectstorage:19000`으로 넘긴다. 포트 80/443이 호스트에 열려 있다. 근거: `docker-compose.base.yml`(`proxy`의 `@objectstorage`), `docker-compose.hobby.yml`(`proxy.ports`)
-- `OBJECT_STORAGE_PUBLIC_ENDPOINT`가 `https://$DOMAIN`이다. 브라우저가 서명 URL로 이 경로에 직접 접근하기 때문에 경로를 없애면 이 기능이 깨진다. 근거: `docker-compose.hobby.yml`
-- hobby는 개발용 부트스트랩이 만드는 `anonymous` 신원(권한 있음)을 만들지 않는다. 서명 없는 요청은 거부된다. 근거: `docker-compose.hobby.yml` 주석, `docker-compose.base.yml`
-- `objectstorage`의 19000, `seaweedfs`의 8333·9333 포트는 `127.0.0.1`에만 바인딩된다. 근거: `docker-compose.hobby.yml`
+- 키는 `object_storage_root_user` / `object_storage_root_password`이고 설치마다 같다.
+  설치 스크립트가 무작위로 바꾸지 않는다. `bin/deploy-hobby`가 만드는 비밀값은 `POSTHOG_SECRET`, `ENCRYPTION_SALT_KEYS`, `BROWSERLESS_SECRET`, `INTERNAL_REQUEST_TOKEN`뿐이다.
+  근거: `docker-compose.hobby.yml`(`web`, `worker`, `plugins`, `x-hypercache-s3`), `.env.services`, `bin/deploy-hobby`, `bin/hobby-installer/core/env.go`(`dedicatedSecretKeys`)
+- `objectstorage` 시작 스크립트가 이 키를 `posthog` 신원에 `Admin` 권한으로 등록한다.
+  근거: `docker-compose.hobby.yml`(`objectstorage.entrypoint`의 `s3.configure`)
+- `proxy`(Caddy)는 `/posthog`, `/posthog/`, `/posthog/*`를 `objectstorage:19000`으로 넘긴다.
+  포트 80/443이 호스트에 열려 있다. `CADDY_HOST`가 `'$DOMAIN, http://, https://'`라서 이 경로는 어떤 Host에도, 평문 HTTP에도 응답한다.
+  근거: `docker-compose.base.yml`(`proxy`의 `@objectstorage`), `docker-compose.hobby.yml`(`proxy`)
+- `OBJECT_STORAGE_PUBLIC_ENDPOINT`가 `https://$DOMAIN`이다.
+  Django는 이 주소로 서명 URL을 만들고, 브라우저와 posthog-cli가 그 URL로 `/posthog/*`에 직접 접근한다. 내보내기 다운로드, 업로드 미디어, 오류 추적 심볼 세트 업로드가 이 경로를 쓴다.
+  경로를 없애면 이 기능들이 깨진다.
+  근거: `docker-compose.hobby.yml`, `posthog/storage/object_storage.py`(`presigned_client`), `products/exports/backend/models/exported_asset.py`, `posthog/api/uploaded_media.py`, `products/error_tracking/backend/logic/symbol_sets.py`
+- hobby는 개발용 부트스트랩이 만드는 `anonymous` 신원(`Admin` 권한)을 만들지 않는다.
+  서명 없는 요청은 거부된다(compose 주석 기준, 요청으로 확인하지 않음).
+  근거: `docker-compose.hobby.yml` 주석, `docker-compose.base.yml`
+- `objectstorage`의 19000, `seaweedfs`의 8333·9333 포트는 `127.0.0.1`에만 바인딩된다.
+  근거: `docker-compose.hobby.yml`
 
 ### 위험 (추정, 실제 요청으로 검증하지 않음)
 
-- 서명 요청에는 비밀 키가 필요하지만 이 키는 공개돼 있다. 누구든 `https://<도메인>/posthog/...`에 이 키로 서명한 S3 요청을 보낼 수 있다고 본다. Caddy는 Host 헤더를 바꾸지 않으므로 서명 검증이 통과할 것으로 추정한다.
-- 이 경우 `posthog` 버킷의 객체를 읽고 쓰고 지울 수 있다. 버킷에 무엇이 들어 있는지는 이 조사에서 목록으로 정리하지 않았다(미확인). 코드상 세션 리플레이, 내보내기 파일, 소스맵 등이 후보다.
+- 서명에는 비밀 키가 필요하지만 이 키는 공개돼 있다.
+  Django가 `https://$DOMAIN`용으로 이 키로 만든 서명 URL이 이 Caddy 경로를 거쳐 검증되도록 설계돼 있다. 공격자가 공개 키로 만든 서명은 Django가 만든 것과 구별되지 않는다.
+  따라서 누구든 `https://<도메인>/posthog/...`에 서명한 S3 요청을 보낼 수 있다고 본다.
+  Caddy가 어떤 Host에도 응답하므로 도메인을 모르고 IP만 알아도, Host를 IP로 서명하면 통할 것으로 추정한다.
+- 맨 `/posthog` 경로도 프록시되고 신원이 `Admin`이라서, 버킷 수준 요청(목록 조회, 일괄 삭제, 버킷 삭제)도 닿을 것으로 추정한다.
+  목록을 볼 수 있으면 모든 객체를 읽는 것이 쉬워진다.
+  그래서 `posthog` 버킷의 객체를 목록 보고, 읽고, 쓰고, 지울 수 있다고 본다.
+- 버킷 내용을 목록으로 확인하지는 않았다(미확인).
+  `posthog/settings/object_storage.py`의 폴더는 `exports/`, `media_uploads/`, `symbolsets/`, `query_cache/`, `tasks/`, `legal_documents/`다.
 - `ai-blobs` 버킷은 경로가 `/posthog`로 시작하지 않아 프록시로는 닿지 않는다.
-- `seaweedfs`(8333)의 키와 신원 설정은 읽지 않았다(미확인).
+- 세션 리플레이 v2는 `objectstorage`가 아니라 `seaweedfs:8333`을 쓴다.
+  `seaweedfs`는 신원이 없는 open-access 모드이고 hobby 클라이언트는 `'any'` / `'any'` 키를 쓴다(compose 기준).
+  Caddy 경로가 없고 포트가 `127.0.0.1`에만 열려 있어 인터넷에서는 닿지 않는다.
+  호스트나 docker 네트워크 안에서는 키 없이 읽고 쓸 수 있다고 본다(요청으로 미검증).
 
 ### 완화 방법
 
-지금 설정을 고치지 않고 운영자가 할 수 있는 것부터 적는다.
+지금 설정을 고치지 않고 운영자가 할 수 있는 것을 적는다.
 
-1. 호스트 방화벽이나 클라우드 보안 그룹으로 80/443 접근을 믿는 주소로 제한한다. 세션 리플레이 등 일반 이용자 트래픽도 막히므로 내부용 설치에만 맞다.
-2. 공개 설치라면 아래 "결정 필요" 항목이 처리되기 전까지 `posthog` 버킷에 민감한 데이터가 쌓인다고 가정한다.
+1. 클라우드 보안 그룹이나 iptables `DOCKER-USER` 체인으로 80/443 접근을 신뢰하는 주소로 제한한다.
+   ufw 같은 INPUT 체인 방화벽은 Docker가 연 포트에 적용되지 않는다.
+   일반 이용자 트래픽(캡처 등)도 막히므로 내부용 설치에만 맞다.
+2. 공개 설치라면 아래 "결정 필요" 항목이 처리되기 전까지 `posthog` 버킷의 내용을 외부에서 읽고, 바꾸고, 지울 수 있다고 가정한다.
 
 ### 결정 필요 (설정 변경이 필요해 이 조사에서는 고치지 않음)
 
 | 선택지 | 내용 | 비용 |
 | --- | --- | --- |
-| A. 설치마다 무작위 키 | 설치 스크립트가 키를 `.env`에 만들고 `objectstorage` 시작 스크립트와 모든 서비스(`web`, `worker`, `plugins`, `cymbal` 등)가 그 값을 쓴다 | 가장 근본적. `bin/deploy-hobby`, `bin/upgrade-hobby`, compose, `.env.services` 수정. 기존 설치는 신원을 다시 등록해야 한다 |
-| B. 신원 권한 축소 | `Admin` 대신 필요한 권한(읽기·쓰기·목록)만 준다 | 버킷 삭제 같은 관리 작업은 막지만 객체 읽기·쓰기는 그대로다 |
-| C. Caddy에서 제한 | `/posthog/*`를 서명 쿼리(`X-Amz-Signature`)가 있는 요청과 허용 메서드로 좁힌다 | 공격자가 직접 서명한 URL도 같은 형식이라 효과가 작다 |
+| A. 설치마다 무작위 키 | 설치 스크립트가 키를 `.env`에 만들고 `objectstorage` 시작 스크립트와 이 키를 쓰는 모든 서비스가 그 값을 쓴다. 쓰는 서비스: `web`, `worker`, `plugins`, `feature-flags`, `hypercache-server`(`x-hypercache-s3`), `ingestion-general`(`AI_BLOB_S3_*`), `temporal-django-worker`와 `asyncmigrationscheck`(`.env.services`). `cymbal`은 `seaweedfs`와 `'any'` 키를 쓰므로 대상이 아니다 | 가장 근본적. `bin/deploy-hobby`, `bin/upgrade-hobby`, `bin/hobby-installer/core/env.go`(`dedicatedSecretKeys`), compose, `.env.services` 수정. 시작 스크립트에는 셸 변수를 둘 수 없으므로(`envsubst` 때문) compose 수준 `$VAR`로 넘겨야 한다. 기존 설치는 새 키가 자동 등록되지만 옛 공개 키가 신원에 남아 있을 수 있어 지워야 한다(예: `s3.configure -user=posthog -access_key=object_storage_root_user -delete -apply`, 미확인) |
+| B. 신원 권한 축소 | `Admin` 대신 `Read`, `Write`, `List`, `Tagging`만 준다(필요한 목록은 미확인. `object_storage.tag()`를 쓰는 코드가 있다) | 버킷 삭제 같은 관리 작업은 막지만 객체 읽기, 쓰기, 삭제는 그대로다 |
+| C. Caddy에서 요청 형태 제한 | `/posthog`의 메서드와 경로를 좁힌다. 예: `/posthog/<키>`에는 GET/HEAD/PUT, 맨 `/posthog`에는 쿼리 없는 POST만 | 서명을 요구하는 조건은 효과가 없다(공격자도 서명한다). presigned POST는 서명이 폼 본문에 있어 쿼리 조건을 걸면 업로드가 깨진다. 목록과 삭제는 막지만 키를 아는 객체 읽기와 덮어쓰기는 남는다 |
+| D. Caddy에서 접속 주소 제한 | `/posthog*` 경로에만 `remote_ip` 매처를 건다. 캡처 트래픽은 이 경로를 쓰지 않고 로그인한 앱 사용자와 posthog-cli만 쓴다 | 내부 팀 설치에는 A보다 훨씬 싸다. 사용자 주소를 미리 알아야 하고, 접속 주소가 바뀌는 사용자는 서명 URL 기능을 못 쓴다 |
 
-권장은 A다. B는 A와 함께 적용할 수 있다. C만으로는 막지 못한다.
+권장은 A다.
+B는 A와 함께 적용할 수 있다.
+C만으로는 막지 못한다.
+접속자가 고정된 내부용 설치라면 D로 먼저 막을 수 있다.
 
 ## 값이 정해지는 방식
 
