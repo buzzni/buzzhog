@@ -51,7 +51,7 @@ E=(':!*.md' ':!*.mdx' ':!docs/**' ':!**/migrations/**' ':!*lock.yaml' ':!*.lock'
 노출 조건:
 법률 문서 API는 `IsCloudOrDevDeployment`가 막는다(`products/legal_documents/backend/presentation/permissions.py:13~26`). `is_cloud()` 또는 `is_dev_mode()`일 때만 열린다.
 화면도 같은 조건을 본다(`products/legal_documents/frontend/scenes/LegalDocumentsScene.tsx:84`, `LegalDocumentNewScene.tsx:88`의 `isCloudOrDev`).
-`is_cloud()`는 `settings.CLOUD_DEPLOYMENT`로 정해지고, `is_dev_mode()`는 `settings.DEBUG`다(`posthog/cloud_utils.py:_run_mode`, `:32~37`).
+`is_cloud()`는 `settings.CLOUD_DEPLOYMENT`로 정해지고, `is_dev_mode()`는 `settings.DEBUG`다(`posthog/cloud_utils.py:is_cloud`(`:32~33`), `is_dev_mode`(`:36~37`), `_run_mode`(`:20~27`)).
 따라서 하비(셀프호스팅) 기본값에서는 화면이 막히지만, 포크가 클라우드 모드로 운영하면 이 문서들이 PostHog Inc. 명의로 나간다. 삭제 증명서는 이 조건 없이 관리자 화면에서 만들어진다.
 
 검색 범위: `git grep -n -E 'PostHog,? Inc' -- products/legal_documents posthog/templates`가 위 표의 줄만 낸다.
@@ -94,7 +94,7 @@ desktop 앱(Electron)과 모바일 앱(Expo)은 실제로 배포되는 산출물
 | `frontend/public/email/` | `invite-email-welcome.png`와 화살표 아이콘 4개 | 이메일 본문 이미지 | `git ls-files frontend/public/email/`(5개) |
 | `frontend/public/posthog-ai-onboarding/` | `connect`, `delegate`, `meet`, `skills`, `start`의 `.jpg`와 `.mp4` | PostHog AI 온보딩 영상·이미지 | `git ls-files 'frontend/public/posthog-ai-onboarding/*'`(10개) |
 | `frontend/public/` | `plan_enterprise.png`, `plan_teams.png`, `plan_free.svg`, `plan_paid.svg`, `plan_startup.svg`, `plan_yc.svg` | 과금 요금제 배지. `plan_enterprise.png`에는 PostHog 로고와 글자가 들어 있다 | `git ls-files 'frontend/public/plan_*'`(6개), `plan_enterprise.png`를 열어 확인 |
-| `frontend/src/lib/components/Hogfetti/hogs/` | 헤지호그 일러스트 PNG. `@posthog/brand`에서 복사해 줄인 것이라고 주석이 적는다(`Hogfetti.tsx:21`). 라이선스 쟁점은 [licenses.md](licenses.md)의 "글꼴과 이미지" | 축하 효과(Hogfetti) | `git ls-files 'frontend/src/lib/components/Hogfetti/hogs/*.png'`(15개) |
+| `frontend/src/lib/components/Hogfetti/hogs/` | 헤지호그 일러스트 PNG. `@posthog/brand`에서 복사해 줄인 것이라고 주석이 적는다(`Hogfetti.tsx:21`). 라이선스 쟁점은 [licenses.md](licenses.md)의 "독점 또는 소스 공개형(오픈소스 아님)" 표 | 축하 효과(Hogfetti) | `git ls-files 'frontend/src/lib/components/Hogfetti/hogs/*.png'`(15개) |
 | `frontend/src/scenes/onboarding/shared/flappy-hog/` | `flappy-hog-splash.png`, `robot-hog.png` | 온보딩 미니게임의 헤지호그 일러스트 | `git ls-files`(2개), `flappy-hog-splash.png`를 열어 확인 |
 | `frontend/src/lib/brand/` | `index.tsx`, `hoggies.tsx`, `Logo.stories.tsx` | 앱 전체의 로고·헤지호그 진입점. `@posthog/brand/logo`를 감싼다 | `frontend/src/lib/brand/index.tsx:1~6` |
 | `frontend/src/toolbar/bar/AnimatedLogomark.tsx` | 툴바의 움직이는 로고마크 | 툴바 | `:3`(`@posthog/brand/logo` import) |
@@ -180,7 +180,7 @@ PostHog 상표가 아니라 다른 회사의 로고다. 연동 대상을 보여 
 
 패키지명, 이미지명, 서비스 이름, 외부로 보내는 User-Agent와 헤더는 산출물이 배포되거나 외부에 요청을 보낼 때 상표 사용이 된다.
 "바꿀 것"과 "내부용으로 둘 것"의 구분은 이 문서의 **권고**다. 법적 판단은 법무 몫이다.
-이 포크에는 `.github/workflows`가 없어서(`git ls-files .github/workflows | wc -l`이 0) 실제로 무엇을 게시하는지는 워크플로로 확인할 수 없다.
+이 포크에는 `.github/workflows`가 없다(`git ls-files .github/workflows | wc -l`이 0). Depot CI 워크플로 4개는 `.depot/workflows/`에 남아 있다. 그중 `actions-outage-image-build.yml`은 수동 실행(`workflow_dispatch`)으로 이미지를 빌드해 ECR 저장소 `posthog-cloud-prs`에 올린다(`push: true`). npm 패키지를 게시하는 워크플로는 이 4개 안에서 찾지 못했다.
 
 ### 바꿀 것 (권고)
 
@@ -193,7 +193,7 @@ PostHog 상표가 아니라 다른 회사의 로고다. 연동 대상을 보여 
 | CLI | 크레이트 이름 `posthog-cli`, 설명 `The command line interface for PostHog 🦔`, `authors`에 PostHog 직원 주소 3개, 요청 헤더 `User-Agent: posthog-cli` | 사용자가 설치하는 산출물이고, 접속하는 서버가 이름을 본다 | `cli/Cargo.toml:6~17`, `cli/src/api/client.rs:259` |
 | MCP 서버 | 서버 이름 `MCP_SERVER_NAME = 'PostHog'`, npm 이름 `@posthog/mcp`, 설명 `PostHog MCP server` | MCP 클라이언트(AI 도구) 화면에 이 이름이 뜬다 | `services/mcp/src/lib/constants.ts:22`, `services/mcp/package.json:2~4` |
 | Stripe 앱 | `id: "com.posthog.stripe"`, `name: "PostHog"`, 아이콘 `logomark.png`, 연동 주소 `https://us.posthog.com/api/partners/stripe/` | Stripe 마켓플레이스에 게시하는 앱 정의다 | `services/stripe-app/stripe-app.json:3~9` |
-| 하비 설치의 이미지 | 기본 레지스트리 `REGISTRY_URL="posthog/posthog"`(Docker Hub). 앱과 `-node` 이미지를 여기서 받는다 | 포크가 아니라 업스트림 이미지를 받는다. 설치 스크립트의 다른 기본값은 [external-calls.md](external-calls.md)의 하비 설치 절 | `bin/deploy-hobby:127~130`, `docker-compose.hobby.yml:140`, `:164`, `:221` |
+| 하비 설치의 이미지 | 기본 레지스트리 `REGISTRY_URL="posthog/posthog"`(Docker Hub). 앱과 `-node` 이미지를 여기서 받는다. Rust·Go 서비스 12개는 `REGISTRY_URL`과 상관없이 하드코딩된 `ghcr.io/posthog/posthog/<이름>:master` 이미지 9종을 받는다(`capture`, `capture-logs`, `property-defs-rs`, `livestream`, `personhog-replica`, `personhog-router`, `feature-flags`, `hypercache-server`, `cymbal`) | 포크가 아니라 업스트림 이미지를 받는다. 설치 스크립트의 다른 기본값은 [external-calls.md](external-calls.md)의 하비 설치 절 | `bin/deploy-hobby:127~130`, `docker-compose.hobby.yml:140`, `:164`, `:221`, `:734`, `:778`, `docker-compose.base.yml:379~748`의 `image:` 줄 |
 | 외부 API로 보내는 User-Agent | OAuth 토큰 교환 `PostHog/1.0 by PostHogTeam`, CDP 대상 요청 `PostHog.com/1.0`, 데이터 웨어하우스 소스(예: `PostHog Data Warehouse (support@posthog.com)`, `posthog-data-warehouse (https://posthog.com; hey@posthog.com)`) | 제3자 서버가 PostHog의 요청으로 인식하고, 일부는 PostHog 연락처를 싣는다 | `posthog/models/integration/oauth.py:1001`, `:1497`, `nodejs/src/cdp/services/native-destination-executor.service.ts:106`, `products/warehouse_sources/backend/temporal/data_imports/sources/cliniko/cliniko.py:37`, `crates_io/crates_io.py:25`. 같은 줄에 `User-Agent`와 `PostHog`가 함께 있는 파일은 `git grep -I -l -i -E 'user[-_]agent.{0,40}posthog' -- '*.py' '*.ts' '*.rs' '*.go' "${E[@]}"`로 60개, 그중 `products/warehouse_sources` 26개다. 상수가 다른 줄에 있는 경우는 빠진다 |
 | 세션 리플레이 이미지 크롤러 | `user-agent: PostHogImageFetcherBot/1.0 (+https://posthog.com/docs/ai-research/image-fetcher-bot)`, `referer: https://us.posthog.com/`, 서명 에이전트 `https://us.posthog.com/.well-known/http-message-signatures-directory` | AI 학습을 켠 조직의 리플레이에 나온 외부 이미지를 내려받는 크롤러다(README `:16`, `:22`). 포크가 그대로 돌리면 외부 사이트에 PostHog 크롤러로 자신을 밝힌다. 동작과 끄는 방법은 [external-calls.md](external-calls.md) | `nodejs/src/ingestion/pipelines/sessionreplay/ml-mirror-image-fetch/request-identity.ts:1~7`, `web-bot-auth.ts:3`, `README.md:1~7` |
 | 고객 웹훅으로 보내는 헤더 | `X-PostHog-Webhook-Version` | 알림 웹훅이 고객 엔드포인트로 보낸다 | `products/alerts/backend/logic/destination_configs.py:27`, `products/alerts_platform/backend/delivery/webhook.py:94`, `:110` |
@@ -208,7 +208,7 @@ PostHog 상표가 아니라 다른 회사의 로고다. 연동 대상을 보여 
 | 워크스페이스 npm 패키지 이름 | `package.json` 162개 중 155개가 `@posthog/*`. `publishConfig`가 없는 것은 게시하지 않는 작업 공간 패키지다 | import 경로라서 바꾸면 수정 범위가 넓다. 게시하지 않으면 외부에 드러나지 않는다 | `git ls-files ':(glob)**/package.json'`(162개)을 JSON으로 읽어 최상위 `name`을 셌다. 나머지 7개는 `paths-filter` 2, `posthog-agent-workspace`, `posthog-code`, `hedgebox-demo-app`, `pi-clickhouse-autoresearch`, 이름 없음 1 |
 | Python 패키지·모듈 이름 | `posthog`(예: `import posthog`) | 코드 식별자다 | 저장소 구조 |
 | Go 모듈 경로 | `github.com/posthog/posthog/...`와 `github.com/PostHog/posthog/...` 6개 | 라이브러리로 게시하지 않는 내부 빌드용 경로다. 다만 저장소 주소를 가리키므로 포크 저장소로 옮길 때 함께 바꾼다 | `git ls-files ':(glob)**/go.mod'`의 `module` 줄(`bin/hobby-installer`, `clickhouse-udfs/util`, `livestream`, `packages/agent/agent-shadow`, `services/hogql-language-service`, `tools/phrocs`) |
-| 개발·CI용 컨테이너 이미지 | `ghcr.io/posthog/*` 이미지 27종(예: `docker-compose.base.yml:379`의 `ghcr.io/posthog/posthog/capture:master`) | 개발 환경이 업스트림 이미지를 받는 설정이다. 포크가 이미지를 게시하면 포크 레지스트리로 바꾼다 | `git grep -I -h -o -E 'ghcr\.io/posthog/[A-Za-z0-9._/-]+' -- "${E[@]}" \| sed -E 's/:.*//' \| sort -u \| wc -l`(27종), `-l`로 16개 파일 |
+| 개발·CI용 컨테이너 이미지 | `ghcr.io/posthog/*` 이미지 27종(예: `docker-compose.dev.yml`, `Dockerfile.node`, `products/tasks/backend/sandbox/images/`의 이미지). 하비 스택이 받는 9종은 이 표가 아니라 위 "바꿀 것" 표의 하비 설치 행에 있다 | 개발 환경이 업스트림 이미지를 받는 설정이다. 포크가 이미지를 게시하면 포크 레지스트리로 바꾼다 | `git grep -I -h -o -E 'ghcr\.io/posthog/[A-Za-z0-9._/-]+' -- "${E[@]}" \| sed -E 's/:.*//' \| sort -u \| wc -l`(27종, 하비 9종 포함), `-l`로 15개 파일 |
 | 서비스 사이 `x-posthog-*` 헤더 | 서로 다른 헤더 이름 73개(예: `x-posthog-session-id`, `x-posthog-mcp-consumer`) | 대부분 자체 서비스 사이의 헤더로 보인다. 외부로 나가는지 하나씩 가르지는 않았고, 확인한 것은 위의 웹훅 헤더뿐이다(미확인) | `git grep -I -h -o -i -E "['\"]x-posthog-[a-z0-9-]+['\"]" -- "${E[@]}" \| tr 'A-Z' 'a-z' \| tr -d "'\"" \| sort -u \| wc -l`(73). 접두사만 있는 항목도 한 개로 센다 |
 
 ## 도메인
@@ -269,6 +269,8 @@ MIT 라이선스는 저작권 고지와 허가 문구를 보존하라고 요구�
 | `products/logs/backend/vendor/drain3/drain.py`, `masking.py` | `Copyright (c) 2020-2022 International Business Machines` (drain3 0.9.11에서 가져옴) | MIT (`SPDX-License-Identifier: MIT`) | 각 파일 `:1~28` |
 | `products/logs/backend/vendor/drain3/simple_profiler.py` | 원저작 SimpleProfiler, David Ohana (drain3 0.9.11 경유) | Apache-2.0 (`SPDX-License-Identifier: Apache-2.0`) | `:1~6` |
 | `products/logs/backend/vendor/drain3/__init__.py` | 위 세 파일의 출처와 라이선스를 요약한다 | | `:1~4` |
+| `frontend/src/toolbar/vendor/finder/index.ts` | `Copyright (c) 2018 Anton Medvedev` (`@medv/finder` 4.0.2에서 가져옴) | MIT | `:27~29` |
+| `frontend/src/vendor/bintrees/index.ts` | `Copyright (C) 2011 by Vadim Graboys` (`bintrees` 1.0.2에서 가져옴) | MIT | `:4` |
 
 ## 미확인
 

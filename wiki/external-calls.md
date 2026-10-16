@@ -19,15 +19,16 @@
 | 사용량 보고 이벤트 (매일 03:45 UTC) | `https://us.i.posthog.com` (SDK 기본 호스트), 하드코딩 공개 토큰 | 켜짐. 조직명, 사이트 주소, 비클라우드면 사용자 이메일·이름 포함 | 설정으로 못 끔. 코드 수정 필요(예약 작업 제거 또는 `get_ph_client` 교체). 유일한 차단은 PostHog 클라우드 쪽 플래그 |
 | AI observability 사용량 보고 (매일 04:15 UTC) | 같음 | 켜짐(AI 이벤트가 있는 조직만) | 위와 같음 |
 | 서버 텔레메트리, `web` 프로세스 | `https://us.i.posthog.com` | 꺼짐. compose가 넘기는 문자열 `"false"`도 끄는 값으로 읽힌다 | 환경변수 `OPT_OUT_CAPTURE`(비어 있지 않은 아무 값) |
-| 서버 텔레메트리, `worker`(Celery와 beat)·`temporal-django-worker`·비동기 마이그레이션 | 같음 | 켜짐. compose가 이 서비스들에 `OPT_OUT_CAPTURE`를 넘기지 않는다 | compose 수정 필요(각 서비스 `environment`에 추가) |
+| 서버 텔레메트리, `worker`(Celery와 beat, UI에서 시작한 비동기 마이그레이션 포함)·`temporal-django-worker` | 같음 | 켜짐. compose가 이 서비스들에 `OPT_OUT_CAPTURE`를 넘기지 않는다 | compose 수정 필요(각 서비스 `environment`에 추가) |
 | 원격 플래그 평가 | `https://us.i.posthog.com/flags` | 서버 SDK가 켜진 프로세스에서 켜짐. PostHog 클라우드의 플래그 값이 포크의 일부 동작을 정한다 | 그 프로세스의 서버 SDK를 끔 |
 | 브라우저 텔레메트리 (앱 페이지, 공유·임베드 페이지) | `https://internal-cf.posthog.com` | 켜짐. 이메일, 조직명·슬러그, 프로젝트명 포함 | `web`의 `OPT_OUT_CAPTURE`를 `true`·`1`·`yes` 같은 참 값으로. `"false"`는 끄지 못함 |
 | 툴바 인증 페이지 (`layout.html`) | `https://internal-cf.posthog.com`, `stackpath.bootstrapcdn.com` | 켜짐. `OPT_OUT_CAPTURE`를 보지 않음 | 코드 수정 필요 |
 | 고객 사이트에서 도는 툴바 | `https://internal-cf.posthog.com`, 하드코딩 공개 토큰 | 앱의 실행 링크로 열면 켜짐(사용자 이메일 포함) | 코드 수정 필요 |
+| 앱 페이지가 만드는 툴바 posthog-js 인스턴스 | `OPT_OUT_CAPTURE`가 참이면 SDK 기본 호스트(`https://us.i.posthog.com`)의 assets 주소, 하드코딩 공개 토큰 | 앱 페이지마다 원격 설정을 요청한다. `OPT_OUT_CAPTURE`를 참으로 두어도 남는다(코드로 확인, 실행하지 않음) | 코드 수정 필요 |
 | 기본으로 요청하는 제3자 자원 | Gravatar, Cloudinary(PostHog 계정), `posthog.com` | 켜짐 | 코드 수정 필요 |
 | 커뮤니티 스킬 카탈로그 동기화 (매시간) | `raw.githubusercontent.com/PostHog/community-skills` | 켜짐. 받은 내용이 DB에 들어간다 | 설정 못 찾음. 코드 수정 필요 |
 | MCP 레지스트리 동기화 (매일) | `registry.modelcontextprotocol.io`, 등록된 MCP 서버들 | PostHog 클라우드 플래그 `mcp-registry`가 정함 | 서버 SDK를 끄면 꺼짐(평가 실패 시 꺼짐) |
-| 하비 설치·업그레이드 스크립트 | `us.i.posthog.com/batch/`, 업스트림 GitHub 저장소, Docker Hub `posthog/posthog`, `mmdbcdn.posthog.net`, Let's Encrypt | 설치·업그레이드 때. 이 포크가 아니라 업스트림을 설치한다 | 스크립트 수정 필요. 판매 전에 바꿀 기본값 |
+| 하비 설치·업그레이드 스크립트 | `us.i.posthog.com/batch/`, 업스트림 GitHub 저장소, Docker Hub `posthog/posthog`, `ghcr.io/posthog/posthog/*:master`, `mmdbcdn.posthog.net`, Let's Encrypt | 설치·업그레이드 때. 이 포크가 아니라 업스트림을 설치한다 | 스크립트 수정 필요. 판매 전에 바꿀 기본값 |
 | GeoIP 파일 내려받기 | `https://mmdbcdn.posthog.net/` | 이미지 빌드·설치·업그레이드 때 | 스크립트·Dockerfile 수정 |
 | desktop 앱 업데이트 확인 (매시간) | `https://desktop-releases.posthog.com/stable` | 패키징된 macOS·Windows 빌드에서 켜짐 | 환경변수 `ELECTRON_DISABLE_AUTO_UPDATE`. 피드 주소는 코드 수정 |
 | desktop 앱 텔레메트리 | `https://internal-c.posthog.com` | 빌드 때 `VITE_POSTHOG_API_KEY`가 없으면 꺼짐 | 빌드 때 키를 넣지 않음 |
@@ -43,7 +44,7 @@
 
 | 항목 | 내용 | 근거 |
 | --- | --- | --- |
-| 판별 | `is_cloud()`는 `derive_run_mode(settings.CLOUD_DEPLOYMENT, settings.DEBUG)`의 결과로 정한다. `CLOUD_DEPLOYMENT`가 `US`·`EU`·`DEV`·`E2E`가 아니면 `DEBUG`일 때 `LOCAL`, 아니면 `HOBBY`다 | `posthog/cloud_utils.py:is_cloud`(32행), `posthog/run_mode.py:derive_run_mode`(46~65행) |
+| 판별 | `is_cloud()`는 `derive_run_mode(settings.CLOUD_DEPLOYMENT, settings.DEBUG)`의 결과로 정한다. `CLOUD_DEPLOYMENT`가 `US`·`EU`·`DEV`·`E2E`면 그 모드이고, `LOCAL`이면 `LOCAL`이다. 그 밖의 값이면 `DEBUG`일 때 `LOCAL`, 아니면 `HOBBY`다 | `posthog/cloud_utils.py:is_cloud`(32행), `posthog/run_mode.py:derive_run_mode`(46~65행) |
 | 스위치 | 클라우드 경로 전체를 가르는 값은 `CLOUD_DEPLOYMENT` 하나다. 하비 compose는 이 값을 넣지 않는다 | 같음, `docker-compose.hobby.yml` |
 | 수집 호스트 | `get_api_host()`는 `SITE_URL`이 `https://us.posthog.com`이면 `https://us.i.posthog.com`, `https://eu.posthog.com`이면 `https://eu.i.posthog.com`을 돌려준다. 그 밖에는 `SITE_URL` 자신을 돌려준다 | `posthog/cloud_utils.py:get_api_host`(103~108행) |
 | 지역 | `get_instance_region()`은 `settings.CLOUD_DEPLOYMENT`를 그대로 돌려준다. 하비에서는 `None` | `posthog/utils.py:get_instance_region` |
@@ -127,7 +128,8 @@
 
 `docker-compose.hobby.yml:183`은 `web`에 `OPT_OUT_CAPTURE: ${OPT_OUT_CAPTURE:-false}`를 준다.
 그래서 하비 기본 설치의 `web`은 서버 SDK가 꺼지고(문자열 `"false"`), 브라우저 로더는 켜진다(`str_to_bool("false")`는 거짓).
-`.env`에 `OPT_OUT_CAPTURE=true`를 넣으면 `web`의 서버 SDK와 브라우저 로더가 모두 꺼진다.
+`.env`에 `OPT_OUT_CAPTURE=true`를 넣으면 `web`의 서버 SDK와 `head.html`의 브라우저 로더가 꺼진다.
+다만 앱 페이지가 따로 만드는 툴바 posthog-js 인스턴스는 남는다(아래 "`head.html` 차단을 거치지 않는 경로").
 
 ### 프로세스별로 받는 값
 
@@ -136,7 +138,8 @@
 | `web` | 받음 | 기본 설치에서 꺼짐 | `docker-compose.hobby.yml:183` |
 | `worker` (Celery 작업자와 beat) | 받지 않음 | 켜짐 | `docker-compose.hobby.yml:95~155`, `docker-compose.base.yml:358~370`(`env_file: .env.services`) |
 | `temporal-django-worker` | 받지 않음 | 켜짐 | `docker-compose.hobby.yml:505~559`, `docker-compose.base.yml:841~847` |
-| `asyncmigrationscheck`, `migrate` | 받지 않음 | 켜짐 | `docker-compose.hobby.yml:458~466`, `docker-compose.base.yml:755~773` |
+| `asyncmigrationscheck`, `migrate` | 받지 않음 | 돌지 않음. base가 두 서비스에 `deploy.replicas: 0`을 준다(763·770행). `migrate`는 하비 compose에 없다 | `docker-compose.hobby.yml:458~466`, `docker-compose.base.yml:755~773` |
+| `web`의 시작 스크립트(`compose/start` → `./bin/migrate`) | 받음(`web` 컨테이너 안) | 기본 설치에서 꺼짐. no-op 비동기 마이그레이션을 여기서 마친다(`run_async_migrations --complete-noop-migrations`) | `bin/deploy-hobby`(207~212행), `bin/migrate`(213행) |
 
 `.env.services`에도 `OPT_OUT_CAPTURE`는 없다.
 docker compose는 `.env`를 변수 치환에만 쓰므로, `.env`에 넣어도 `web` 밖의 서비스에는 닿지 않는다.
@@ -176,7 +179,7 @@ docker compose는 `.env`를 변수 치환에만 쓰므로, `.env`에 넣어도 `
 
 | 이벤트 | 담기는 내용 | 실행 위치 | 근거 |
 | --- | --- | --- | --- |
-| `Async migration start`, `Async migration completed` 등 | 마이그레이션 이름, 첫 활성 사용자의 현재 조직명(`organization_name`), `groups={"instance": SITE_URL, "organization": ...}`, `distinct_id=get_machine_id()` | 비동기 마이그레이션을 도는 프로세스(`OPT_OUT_CAPTURE` 못 받음) | `posthog/async_migrations/utils.py:send_analytics_to_posthog`(35~42행), 호출 `runner.py:53`, `utils.py:213`, `utils.py:298` |
+| `Async migration start`, `Async migration completed` 등 | 마이그레이션 이름, 첫 활성 사용자의 현재 조직명(`organization_name`), `groups={"instance": SITE_URL, "organization": ...}`, `distinct_id=get_machine_id()` | UI에서 시작한 마이그레이션은 Celery `worker`에서 돈다(`OPT_OUT_CAPTURE` 못 받음, `posthog/async_migrations/utils.py:trigger_migration`). 시작 때 `web`이 마치는 no-op 마이그레이션의 `Async migration completed`는 `web`에서 나가므로 기본 설치에서 꺼짐 | `posthog/async_migrations/utils.py:send_analytics_to_posthog`(35~42행), 호출 `runner.py:53`, `utils.py:213`, `utils.py:298` |
 | `user signed up` | 가입 경로, 역할, 유입 경로 자유 입력, `$set`에 `get_analytics_metadata()`(이메일은 `anonymize_data`가 아닐 때), `instance_url` | 요청을 받은 프로세스(하비 기본 `web`은 꺼짐) | `posthog/event_usage.py:report_user_signed_up`(35~90행), `posthog/models/user.py:get_analytics_metadata` |
 | `report_user_action`이 보내는 이벤트 | `$set_once`에 사용자 이메일. 이 함수는 `anonymize_data`를 보지 않는다 | 같음 | `posthog/event_usage.py:report_user_action`(644~653행) |
 | 그룹 | `groups()`가 `instance`(SITE_URL), `organization`, `project`(팀 UUID)를 붙인다 | 같음 | `posthog/event_usage.py:groups`(751~763행) |
@@ -185,7 +188,7 @@ docker compose는 `.env`를 변수 치환에만 쓰므로, `.env`에 넣어도 `
 
 - 사용량 보고 두 가지(별도 클라이언트, 위 절).
 - `web` 밖의 프로세스(compose가 값을 넘기지 않음).
-- 툴바 인증 페이지와 고객 사이트의 툴바(아래 "브라우저 텔레메트리").
+- 툴바 인증 페이지, 고객 사이트의 툴바, 앱 페이지가 만드는 툴바 인스턴스(아래 "브라우저 텔레메트리").
 - 기본 제3자 자원, 커뮤니티 스킬 동기화, 하비 스크립트, desktop 앱 업데이트 확인.
 
 ## 브라우저 텔레메트리 (`posthog-js`)
@@ -201,7 +204,7 @@ docker compose는 `.env`를 변수 치환에만 쓰므로, `.env`에 넣어도 `
 | 보내는 데이터 | 로그인하면 `posthog.identify(user.distinct_id)`, `people.set({email, realm})`(이메일은 `anonymize_data`면 `null`), `group('project', ...)`에 프로젝트 이름·UUID·시간대, `group('organization', ...)`에 조직 이름·슬러그·생성일·구성원 수·프로젝트 수·조직 메타데이터, `customer_id`가 있으면 `group('customer', ...)`. 여기에 자동 캡처 이벤트와 세션 녹화가 더해진다 | `frontend/src/scenes/userLogic.ts`(742~781행), `loadPostHogJS.tsx` |
 | 공유·임베드 페이지 | 공개 공유 링크와 임베드(`exporter`), 쿼리 렌더 페이지도 `head.html`을 넣고 `loadPostHogJS()`를 부른다. 로그인하지 않은 열람자도 같은 클라우드 프로젝트로 추적된다 | `frontend/src/exporter/index.html`(`{% include "head.html" %}`), `frontend/src/exporter/index.tsx`(21행), `frontend/src/render-query/index.tsx`(16행) |
 | 원격으로 제어되는 것 | 플래그와 원격 설정을 클라우드 프로젝트에서 받는다. `opt_in_site_apps: true`라 클라우드 프로젝트가 정한 site app 스크립트가 포크 UI에 실릴 수 있고, `disable_surveys`는 가장한 세션에서만 참이라 클라우드 설문이 뜰 수 있다. 실제로 무엇을 내려받아 실행하는지는 SDK 동작이라 미확인 | `loadPostHogJS.tsx`(90~92행) |
-| 플래그 게이트 | 자체 호스팅(클라우드도 디버그도 자기 캡처도 아님)에서는 `featureFlagLogic`이 posthog-js가 받은 플래그 값을 버리고 환경변수 `PERSISTED_FEATURE_FLAGS` 목록만 쓴다. 그래서 대부분의 UI 게이트는 클라우드가 정하지 못한다. 예외로 `posthog.getFeatureFlag()`를 직접 읽는 곳(예: `frontend/src/lib/holidays.tsx`, `frontend/src/products.tsx:511`)은 클라우드 값을 쓴다. 처음 호출된 플래그마다 `$feature_flag_called` 이벤트를 보낸다 | `frontend/src/lib/logic/featureFlagLogic.ts:areClientFeatureFlagsHonored`, `spyOnFeatureFlags`, `notifyFlagIfNeeded`, `posthog/settings/feature_flags.py:PERSISTED_FEATURE_FLAGS` |
+| 플래그 게이트 | 자체 호스팅(클라우드도 디버그도 자기 캡처도 아님)에서는 `featureFlagLogic`이 posthog-js가 받은 플래그 값을 버리고 서버가 넘긴 목록만 쓴다. 그 목록은 환경변수 `PERSISTED_FEATURE_FLAGS`에, 서버 SDK가 로컬 HyperCache에서 읽은 플래그 정의 중 조건 없이 100% 배포된 것을 더한 것이다. 하비 기본 설치의 `web`은 서버 SDK가 꺼져 있어 환경변수 목록만 남는다. 그래서 대부분의 UI 게이트는 클라우드가 정하지 못한다. 예외로 `posthog.getFeatureFlag()`를 직접 읽는 곳(예: `frontend/src/lib/holidays.tsx`, `frontend/src/products.tsx:511`)은 클라우드 값을 쓴다. 처음 호출된 플래그마다 `$feature_flag_called` 이벤트를 보낸다 | `frontend/src/lib/logic/featureFlagLogic.ts:areClientFeatureFlagsHonored`, `spyOnFeatureFlags`, `notifyFlagIfNeeded`, `posthog/settings/feature_flags.py:PERSISTED_FEATURE_FLAGS`, `posthog/utils.py:get_persisted_feature_flags_for_app_context`, `_build_flag_provider`, `products/feature_flags/backend/persisted_flags.py:get_dynamic_persisted_feature_flags` |
 
 ### `head.html` 차단을 거치지 않는 경로
 
@@ -209,6 +212,7 @@ docker compose는 `.env`를 변수 치환에만 쓰므로, `.env`에 넣어도 `
 | --- | --- | --- | --- |
 | 툴바 인증 페이지 | `layout.html`이 `head.html`을 넣은 뒤, `opt_out_capture`를 보지 않고 따로 `posthog.init(js_posthog_api_key, ...)`을 부른다. 기본 분기에서는 `https://internal-cf.posthog.com/static/1/array.js`를 외부 스크립트로 넣는다. 같은 파일이 `https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css`를 불러온다. 이 레이아웃은 `authorize_and_redirect.html`, `authorize_and_link.html`이 쓰고 `posthog/api/oauth/toolbar_views.py`(64~72행)가 렌더한다 | `frontend/src/layout.html`(7~26행) | 코드 수정 필요 |
 | 고객 사이트의 툴바 | PostHog 앱 밖(`window.POSTHOG_APP_CONTEXT`가 없는 페이지)에서 돌면 하드코딩 `DEFAULT_API_KEY`와 `https://internal-cf.posthog.com`으로 초기화한다. `instrument`가 참이면 `opt_in_capturing()`, `identify(distinctId, {email})`, `toolbar loaded` 이벤트를 보낸다 | `frontend/src/toolbar/toolbarPosthogJS.ts`(6~45행), `frontend/src/toolbar/toolbarConfigLogic.ts:initInstrumentation`(701~725행) | 코드 수정 필요 |
+| 앱 페이지의 툴바 인스턴스 | 웹 앱이 툴바 모듈을 import해서 앱 페이지마다 이 인스턴스가 만들어진다(`toolbarPosthogJS.ts:22~23` 주석). 앱 안에서는 `window.JS_POSTHOG_API_KEY`와 `window.JS_POSTHOG_HOST`를 쓴다. `OPT_OUT_CAPTURE`가 참이면 `head.html`이 이 둘을 넣지 않으므로(`POSTHOG_APP_CONTEXT`는 그대로 넣는다) 키는 `DEFAULT_API_KEY`가 되고, 호스트는 SDK 기본값 `https://us.i.posthog.com`이 된다. `opt_out_capturing_by_default`라 이벤트는 보내지 않는다. 그러나 posthog-js 1.438.8은 초기화 끝에 동의 여부와 상관없이 원격 설정(`/array/<토큰>/config.js`)을 요청하고, `advanced_disable_flags`일 때만 건너뛴다. 이 인스턴스는 그 값을 주지 않는다. 브라우저로 실행해 확인하지는 않았다 | `frontend/src/toolbar/toolbarPosthogJS.ts`(6~45행), `posthog/templates/head.html`(44·72~74행), posthog-js 1.438.8 `dist/module.js`의 원격 설정 로더 | 코드 수정 필요(`advanced_disable_flags: true`를 주거나, 키가 없으면 초기화하지 않음) |
 | 툴바 실행 경로별 `instrument` | 서버 경로 `redirect_to_site`는 원시 `OPT_OUT_CAPTURE`가 비어 있을 때만 `instrument`와 이메일을 넣는다(하비 기본 설치에서는 넣지 않음). 앱의 실행 링크 `directToolbarUrl`과 실행 코드 복사 `copyLaunchCode`는 늘 `instrument: true`와 사용자 이메일을 넣는다 | `posthog/api/user.py:redirect_to_site`(2149~2152행), `frontend/src/lib/components/AuthorizedUrlList/authorizedUrlListLogic.ts:directToolbarUrl`(180~201행), `copyLaunchCode`(673~682행) | 코드 수정 필요 |
 
 ## 기본으로 요청하는 제3자 자원 (브라우저)
@@ -225,12 +229,12 @@ docker compose는 `.env`를 변수 치환에만 쓰므로, `.env`에 넣어도 `
 ## 프런트엔드 외부 origin (CSP)
 
 `CSPMiddleware`가 HTML 응답마다 정책을 만든다.
-하비(자체 호스팅)에서는 앱 정책을 `Content-Security-Policy-Report-Only`로 보낸다. 브라우저는 위반을 막지 않고 보고만 한다. 강제되는 것은 `frame-ancestors`뿐이다.
+하비(자체 호스팅)에서는 앱 정책을 `Content-Security-Policy-Report-Only`로 보낸다. 브라우저는 위반을 막지 않는다. 하비는 `CSP_REPORT_ENDPOINT`가 비어 있어 `report-uri`도 붙지 않으므로, 위반은 어디로도 보고되지 않고 브라우저 콘솔에만 남는다. 강제되는 것은 `frame-ancestors`뿐이다.
 그래서 자체 호스팅에서 CSP는 외부 호출을 막는 장치가 아니다. 아래 목록은 "허용하는 범위"로만 읽는다.
 
 | 항목 | 내용 | 근거 |
 | --- | --- | --- |
-| 헤더 종류 | 하비면 report-only, 그 밖(클라우드)은 강제. `/exporter`와 `/external_surveys/`는 어디서나 report-only | `posthog/csp_middleware.py:app_csp_header_name`(123~130행), 503~505행 |
+| 헤더 종류 | 하비면 report-only, 그 밖(클라우드, E2E, `DEBUG`로 도는 자체 호스팅의 `LOCAL` 모드)은 강제. 토큰 없는 `/exporter`와 `/external_surveys/<id>`는 어디서나 report-only다(`REPORT_ONLY_ROUTES`, 103행, `fullmatch`). 공유 페이지 `/exporter/<token>`은 여기에 들지 않는다 | `posthog/csp_middleware.py:app_csp_header_name`(123~130행), 503~505행 |
 | PostHog 와일드카드 | `resource_url = "https://*.posthog.com"`(DEBUG·TEST·`.dev.posthog.dev`가 아닐 때). 이 값이 `style-src`, `script-src`, `font-src`, `img-src`, `connect-src`에 들어간다. 좁힌 정책은 `is_cloud()`일 때만 쓴다. 이 포크 도메인으로 바꾸려면 292행을 고쳐야 한다 | 같은 파일 292·322·346·352·391·393·419행 |
 | `script-src` | `'self'`, nonce, `'wasm-unsafe-eval'`, PostHog 와일드카드, `https://*.i.posthog.com`, `https://js.stripe.com`, `https://challenges.cloudflare.com`, `https://editor.unlayer.com/embed.js`. `unsafe-eval`은 없다 | 346행 |
 | `style-src` | `'self'`, `'unsafe-inline'`, PostHog 와일드카드, `https://fonts.googleapis.com` | 322행 |
@@ -251,7 +255,7 @@ CSP를 바꾸려면 코드 수정이 필요하다. 이 포크 도메인을 쓰�
 
 | 작업 | 동작 | 근거 | 끄는 방법 |
 | --- | --- | --- | --- |
-| 커뮤니티 스킬 카탈로그 | 매시 20분에 `sync_community_skills`를 등록한다. `https://raw.githubusercontent.com/PostHog/community-skills/main/registry.json`을 `posthog/egress/` GitHub 전송으로 받아 DB의 `CommunitySkill` 카탈로그에 반영하고, 목록에 없는 항목은 지운다(soft delete). 조건은 없다. 제3자 저장소의 내용이 매시간 이 포크 DB로 들어온다 | `posthog/tasks/scheduled.py`(703~709행), `products/skills/backend/tasks.py:sync_community_skills`, `products/skills/backend/api/community_skill_sync.py:sync_community_skills_from_github`(285행~, 주소 69~73행) | 설정을 찾지 못함(`posthog/egress/`에 끄는 설정 없음). 코드 수정 필요(예약 등록 제거) |
+| 커뮤니티 스킬 카탈로그 | 매시 20분에 `sync_community_skills`를 등록한다. `https://raw.githubusercontent.com/PostHog/community-skills/main/registry.json`을 `posthog/egress/` GitHub 전송으로 받아 DB의 `CommunitySkill` 카탈로그에 반영하고, 목록에 없는 항목은 지운다(soft delete). 조건은 없다. 제3자 저장소의 내용이 매시간 이 포크 DB로 들어온다 | `posthog/tasks/scheduled.py`(703~709행), `products/skills/backend/tasks.py:sync_community_skills`, `products/skills/backend/api/community_skill_sync.py:sync_community_skills_from_github`(287행~, 주소 69~73행) | 설정을 찾지 못함(`posthog/egress/`에 끄는 설정 없음). 코드 수정 필요(예약 등록 제거) |
 | MCP 레지스트리 | 매일 `run_mcp_registry_sync`를 등록한다. 플래그 `mcp-registry`가 켜지면 `https://registry.modelcontextprotocol.io/v0/servers`를 크롤링하고 등록된 서버를 탐침한다 | `posthog/tasks/scheduled.py`(1219~1223행), `products/mcp_registry/backend/constants.py:OFFICIAL_REGISTRY_BASE_URL`, `crawl.py`(46행), `probe.py:probe_stalest_servers` | 워커의 서버 SDK를 끄면 플래그 평가가 실패해 꺼진다 |
 
 ## 하비(자체 호스팅) 설치 스크립트
@@ -265,6 +269,7 @@ CSP를 바꾸려면 코드 수정이 필요하다. 이 포크 도메인을 쓰�
 | `bin/hobby-installer/core/telemetry.go:SendInstallStartEvent`, `SendInstallCompleteEvent` | Go 설치기도 `posthog-go`로 같은 엔드포인트에 같은 두 이벤트를 보낸다(`install.go` 41·213행) | 끄는 설정 없음. `OPT_OUT`·`DO_NOT_TRACK` 검색 결과 없음 |
 | `bin/deploy-hobby`(87행), `bin/hobby-installer/core/git.go:posthogRepoURL`(11행) | `https://github.com/PostHog/posthog.git`을 clone한다. `bin/upgrade-hobby`(357행)는 그 checkout에서 `git pull`한다 | 업스트림 코드와 compose 파일을 받는다 |
 | `bin/deploy-hobby`(10·127~130행), `bin/upgrade-hobby`(14~19·252행), `bin/hobby-installer/core/env.go`(48~50행) | `REGISTRY_URL`이 비면 Docker Hub `posthog/posthog`, 태그 기본값은 `latest`(업그레이드 후반은 `latest-release`) | 업스트림 이미지가 돈다 |
+| `docker-compose.base.yml`(379~748행), `docker-compose.hobby.yml`(734·778행) | Rust·Go 서비스 12개(`capture`, `capture-logs`, `replay-capture`, `property-defs-rs`, `property-defs-ai`, `livestream`, `personhog-replica`, `personhog-router`, `feature-flags`, `hypercache-server`, `cymbal`, `cymbal-resolution`)는 `ghcr.io/posthog/posthog/<이름>:master` 이미지를 받는다. 주소가 하드코딩이라 `REGISTRY_URL`로 바뀌지 않고, 태그 `master`는 고정 버전이 아니다 | 업스트림 이미지가 돈다 |
 | `bin/deploy-hobby`(178행), `docker-compose.hobby.yml` `proxy` | Caddy가 `$DOMAIN`을 맡는다. 인증서를 ACME로 자동 발급하는 것은 Caddy 기본 동작이다(저장소 밖 동작, 미확인). 세 번째 인자를 주면 `acme_ca`를 Let's Encrypt staging으로 바꾼다(124행) | 제3자 인증 기관 |
 | `bin/deploy-hobby`(344행) | 업그레이드 명령으로 `raw.githubusercontent.com/posthog/posthog/HEAD/bin/upgrade-hobby`를 안내한다 | 업스트림 스크립트 |
 | `bin/deploy-hobby`(18·32행) | 안내 문구에 `posthog.com` 문서와 Docker Hub 태그 주소 | 출력만 |
@@ -320,6 +325,7 @@ desktop 앱은 PostHog 업데이트 피드를 확인한다(위 절).
 | `us.i.posthog.com/flags?v=2` | 플래그 정의를 동기화하는 관리 명령 | `posthog/management/commands/sync_feature_flags_from_api.py` |
 | `us.posthog.com` | 사용자 설정 동기화 관리 명령 | `posthog/management/commands/sync_user_settings.py` |
 | `app.posthog.com/batch` | 팀 이전 관리 명령 | `posthog/management/commands/migrate_team.py` |
+| `us.i.posthog.com`(SDK 기본 호스트) | Helm 설치 알림 관리 명령. 하드코딩 공개 토큰으로 `helm_install` 이벤트를 보낸다. 보내기 전에 `posthoganalytics.disabled`를 `False`로 바꾸므로 `OPT_OUT_CAPTURE`를 무시한다. 이 저장소 안에서 이 명령을 부르는 곳은 없다 | `posthog/management/commands/notify_helm_install.py` |
 | `us.i.posthog.com/batch/`, `eu.i.posthog.com/batch/` | 배치 내보내기 HTTP 목적지 허용 목록 | `products/batch_exports/backend/temporal/destinations/http_batch_export.py:172` |
 | `mcp.posthog.com` | MCP 리소스 허용 | `posthog/settings/web.py` (1284행 주석), `posthog/api/oauth/mcp_resource_scopes.py` |
 | `agent-proxy.us.posthog.com` | 에이전트 프록시 | `posthog/settings/access.py` (137행 주석) |
@@ -355,13 +361,14 @@ desktop 앱은 PostHog 업데이트 피드를 확인한다(위 절).
 | `OPT_OUT_CAPTURE` 해석이 둘로 갈림 | `posthog/apps.py:ready`(101행), `posthog/ph_client.py:get_client`(231행), `posthog/api/user.py:redirect_to_site`(2149행)이 `settings.OPT_OUT_CAPTURE`를 읽게 하거나, compose 기본값을 바꿈 |
 | 워커에 `OPT_OUT_CAPTURE`가 닿지 않음 | `docker-compose.hobby.yml`의 `worker`, `temporal-django-worker`, `asyncmigrationscheck`, 또는 `.env.services` |
 | 툴바 인증 페이지의 무조건 초기화와 Bootstrap CDN | `frontend/src/layout.html`(9~26행) |
-| 고객 사이트 툴바의 하드코딩 키·호스트, 늘 켜는 `instrument` | `frontend/src/toolbar/toolbarPosthogJS.ts`(6~10행), `frontend/src/lib/components/AuthorizedUrlList/authorizedUrlListLogic.ts`(193·678행) |
+| 고객 사이트 툴바의 하드코딩 키·호스트, 늘 켜는 `instrument`, 앱 페이지 툴바 인스턴스의 원격 설정 요청 | `frontend/src/toolbar/toolbarPosthogJS.ts`(6~45행), `frontend/src/lib/components/AuthorizedUrlList/authorizedUrlListLogic.ts`(193·678행) |
 | 브라우저 텔레메트리 기본 목적지 | `posthog/utils.py:_build_template_context`(577~580행), `posthog/constants.py:POSTHOG_JS_CLOUD_HOST`·`POSTHOG_JS_CLOUD_TOKEN` |
 | `get_client()` 직접 사용처의 클라우드 검사 없음 | 위 "`get_client()`와 `ph_scoped_capture`" 표의 위치 |
 | CSP의 PostHog 와일드카드와 `frame-ancestors` | `posthog/csp_middleware.py`(292행, `app_frame_ancestor_sources` 110~120행) |
 | Gravatar, Cloudinary, 500 페이지 iframe | `frontend/src/lib/utils/gravatar.ts`, `ProfilePicture.tsx`, 위 Cloudinary 집계 명령이 찾는 파일, `posthog/templates/500.html` |
 | 커뮤니티 스킬 동기화 | `posthog/tasks/scheduled.py`(703~709행) |
 | 하비 스크립트 기본값(업스트림 clone, Docker Hub 이미지, 설치 이벤트, 업그레이드 안내 주소) | `bin/deploy-hobby`, `bin/upgrade-hobby`, `bin/hobby-installer/core/git.go`, `env.go`, `telemetry.go` |
+| 하비 스택의 `ghcr.io/posthog/posthog/*:master` 이미지 | `docker-compose.base.yml`과 `docker-compose.hobby.yml`의 `image:` 줄 |
 | desktop 업데이트 피드 | `products/desktop/apps/code/electron-builder.ts`(166~171행) |
 | 이미지 크롤러 신원 헤더 | `nodejs/src/ingestion/pipelines/sessionreplay/ml-mirror-image-fetch/request-identity.ts`, `web-bot-auth.ts` |
 | `BILLING_SERVICE_URL` 미정의 | `posthog/admin/admins/organization_admin.py:billing_link`(326행) |
