@@ -1000,8 +1000,6 @@ def discover_affected_mat_columns(properties: list[str], table_column: str, tabl
     from posthog.clickhouse.client import sync_execute
     from posthog.clickhouse.client.connection import ClickHouseUser
 
-    from ee.clickhouse.materialized_columns.columns import MaterializedColumnDetails
-
     rows = sync_execute(
         """
         SELECT name, comment, type LIKE 'Nullable(%%)'
@@ -1018,8 +1016,8 @@ def discover_affected_mat_columns(properties: list[str], table_column: str, tabl
     target = set(properties)
     result: list[tuple[str, bool]] = []
     for name, comment, is_nullable in rows:
-        details = MaterializedColumnDetails.from_column_comment(comment)
-        if details.table_column == table_column and details.property_name in target:
+        parts = comment.split("column_materializer::", 1)[1].split("::", 2)
+        if len(parts) >= 2 and parts[0] == table_column and parts[1] in target:
             result.append((name, bool(is_nullable)))
     return result
 

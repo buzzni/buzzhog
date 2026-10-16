@@ -9,7 +9,6 @@ from posthog.test.base import (
     ClickhouseTestMixin,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     flush_persons_and_events,
     override_settings,
     snapshot_clickhouse_queries,
@@ -373,7 +372,6 @@ class TestEvents(ClickhouseTestMixin, APIBaseTest):
         response = self.client.get(f"/api/projects/{self.team.id}/events/values/?key=custom_event").json()
         assert sorted(events) == sorted(event["name"] for event in response["results"])
 
-    @also_test_with_materialized_columns(["random_prop"])
     @snapshot_clickhouse_queries
     def test_event_property_values(self):
         with time_machine.travel("2020-01-10", tick=False):
@@ -526,7 +524,6 @@ class TestEvents(ClickhouseTestMixin, APIBaseTest):
             assert args[0] == ExecutionMode[expected_mode_name]
             assert "analytics_props" in kwargs
 
-    @also_test_with_materialized_columns(["test_prop"])
     @time_machine.travel("2020-01-20 20:00:00", tick=False)
     @snapshot_clickhouse_queries
     def test_event_property_values_without_hidden_properties(self):
@@ -559,47 +556,8 @@ class TestEvents(ClickhouseTestMixin, APIBaseTest):
         assert "another_visible" in keys
         assert len(response["results"]) == 3
 
-    @also_test_with_materialized_columns(["hidden_prop", "visible_prop"])
     @time_machine.travel("2020-01-20 20:00:00", tick=False)
     @snapshot_clickhouse_queries
-    def test_event_property_values_with_hidden_properties(self):
-        # Create events with both hidden and visible properties
-        _create_event(
-            distinct_id="bla",
-            event="test event",
-            team=self.team,
-            properties={"hidden_prop": "should_not_appear", "visible_prop": "should_appear"},
-        )
-        _create_event(
-            distinct_id="bla",
-            event="test event",
-            team=self.team,
-            properties={"hidden_prop": "also_hidden", "visible_prop": "also_visible"},
-        )
-        flush_persons_and_events()
-
-        # Try to import enterprise model, skip test if not available
-        try:
-            from ee.models.property_definition import EnterprisePropertyDefinition
-
-            # Create hidden property definition - this should hide all values for this property
-            EnterprisePropertyDefinition.objects.create(
-                team=self.team, name="hidden_prop", type=PropertyDefinition.Type.EVENT, hidden=True
-            )
-        except ImportError:
-            self.skipTest("Enterprise features not available")
-
-        # Test hidden property returns no values
-        hidden_response = self.client.get(f"/api/projects/{self.team.id}/events/values/?key=hidden_prop").json()
-        assert len(hidden_response["results"]) == 0
-
-        # Test visible property still returns values
-        visible_response = self.client.get(f"/api/projects/{self.team.id}/events/values/?key=visible_prop").json()
-        assert len(visible_response["results"]) == 2
-        visible_keys = [resp["name"] for resp in visible_response["results"]]
-        assert "should_appear" in visible_keys
-        assert "also_visible" in visible_keys
-
     def test_property_values_with_property_filters(self):
         with time_machine.travel("2020-01-20 20:00:00", tick=False):
             _create_event(

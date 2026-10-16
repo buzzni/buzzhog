@@ -24,7 +24,7 @@ from django.utils import timezone
 from parameterized import parameterized
 from rest_framework import status
 
-from posthog.schema import PersonsOnEventsMode, PropertyOperator
+from posthog.schema import PropertyOperator
 
 from posthog.api.cohort import COHORT_USED_IN_PAGE_SIZE, CohortFilters
 from posthog.clickhouse.client.execute import sync_execute
@@ -48,7 +48,6 @@ from posthog.test.db_context_capturing import capture_db_queries
 from posthog.test.persons import create_person
 
 from products.access_control.backend.models.access_control import AccessControl
-from products.actions.backend.models.action import Action
 from products.cohorts.backend.models.backfill import CohortBackfillKind, CohortBackfillTrigger
 from products.cohorts.backend.models.calculation_history import CohortCalculationHistory
 from products.cohorts.backend.models.cohort import DEFAULT_COHORT_INSERT_BATCH_SIZE, Cohort, CohortType
@@ -60,8 +59,6 @@ from products.feature_flags.backend.models.feature_flag import FeatureFlag
 from products.feature_flags.backend.models.organization_feature_flags_config import OrganizationFeatureFlagsConfig
 from products.product_analytics.backend.facade.models import Insight
 from products.workflows.backend.facade.testing import create_workflow_for_test
-
-from ee.clickhouse.materialized_columns.analyze import materialize
 
 
 def _cohort_member_uuids(team_id: int, cohort: Cohort) -> set[str]:
@@ -317,95 +314,6 @@ class TestCohort(TestExportMixin, ClickhouseTestMixin, APIBaseTest, QueryMatchin
         )
         # Realtime-eligible filters on a team the realtime pipeline does not cover.
         self.assertFalse(reported["realtime_enabled"])
-
-    @patch("django.db.transaction.on_commit", side_effect=lambda func: func())
-    @patch("posthog.api.cohort.report_user_action")
-    @patch(
-        "posthog.tasks.calculate_cohort.calculate_cohort_ch.delay",
-        side_effect=calculate_cohort_ch,
-    )
-    @patch("products.cohorts.backend.models.util.sync_execute", side_effect=sync_execute)
-    def test_action_persons_on_events(self, patch_sync_execute, patch_calculate_cohort, patch_capture, patch_on_commit):
-        materialize("person", "favorite_number", table_column="properties")
-        self.team.modifiers = {"personsOnEventsMode": PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS}
-        self.team.save()
-        _create_person(
-            team=self.team,
-            distinct_ids=[f"person_1"],
-            properties={"favorite_number": 5},
-        )
-        _create_person(
-            team=self.team,
-            distinct_ids=[f"person_2"],
-            properties={"favorite_number": 6},
-        )
-        _create_event(
-            team=self.team,
-            event="$pageview",
-            distinct_id="person_1",
-            timestamp=datetime.now() - timedelta(hours=12),
-        )
-        action = Action.objects.create(
-            team=self.team,
-            steps_json=[
-                {
-                    "event": "$pageview",
-                    "properties": [{"key": "favorite_number", "type": "person", "value": "5"}],
-                }
-            ],
-        )
-
-        # Make sure the endpoint works with and without the trailing slash
-        response = self.client.post(
-            f"/api/projects/{self.team.id}/cohorts",
-            data={
-                "name": "whatever",
-                "filters": {
-                    "properties": {
-                        "type": "OR",
-                        "values": [
-                            {
-                                "type": "AND",
-                                "values": [
-                                    {
-                                        "key": action.pk,
-                                        "type": "behavioral",
-                                        "value": "performed_event",
-                                        "negation": False,
-                                        "event_type": "actions",
-                                        "time_value": 30,
-                                        "time_interval": "day",
-                                        "explicit_datetime": "-30d",
-                                    }
-                                ],
-                            }
-                        ],
-                    }
-                },
-            },
-        )
-        self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual(response.json()["created_by"]["id"], self.user.pk)
-        self.assertEqual(patch_calculate_cohort.call_count, 1)
-        self.assertEqual(patch_capture.call_count, 1)
-
-        with self.capture_queries_startswith("INSERT INTO cohortpeople") as insert_statements:
-            response = self.client.patch(
-                f"/api/projects/{self.team.id}/cohorts/{response.json()['id']}",
-                data={
-                    "name": "whatever2",
-                    "description": "A great cohort!",
-                    "groups": [{"properties": {"favorite_number": 6}}],
-                    "created_by": "something something",
-                    "last_calculation": "some random date",
-                    "errors_calculating": 100,
-                    "deleted": False,
-                },
-            )
-
-            # Assert that the cohort calculation uses the materialized column
-            # on the person table.
-            self.assertIn(f"person.pmat_favorite_number", insert_statements[0])
 
     @patch("posthog.api.cohort.report_user_action")
     @patch("posthog.tasks.calculate_cohort.calculate_cohort_ch.delay")
@@ -1289,7 +1197,7 @@ Jane Smith,user456,jane@example.com
         response = self.client.post(
             f"/api/projects/{self.team.id}/cohorts/",
             {
-                "name": f"test_upload_with_person_ids",
+                "name": "test_upload_with_person_ids",
                 "_create_static_person_ids": [person1.uuid, person2.uuid],
                 "is_static": True,
             },
@@ -1346,7 +1254,7 @@ John Doe,{person1.uuid},john@example.com
         response = self.client.post(
             f"/api/projects/{self.team.id}/cohorts/",
             {
-                "name": f"test_csv_and_manual",
+                "name": "test_csv_and_manual",
                 "csv": csv,
                 "_create_static_person_ids": [person2.uuid],
                 "is_static": True,
@@ -2785,7 +2693,7 @@ email@example.org,
         self.assertEqual(lines[0].count("distinct_id"), 10)
 
     def test_filter_by_cohort(self):
-        _create_person(team=self.team, distinct_ids=[f"fake"], properties={})
+        _create_person(team=self.team, distinct_ids=["fake"], properties={})
         for i in range(150):
             _create_person(
                 team=self.team,
@@ -2847,12 +2755,12 @@ email@example.org,
 
         _create_person(
             team=self.team,
-            distinct_ids=[f"target"],
+            distinct_ids=["target"],
             properties={"$os": "Chrome", "$browser": "Safari"},
         )
         _create_person(
             team=self.team,
-            distinct_ids=[f"not_target"],
+            distinct_ids=["not_target"],
             properties={"$os": "Something else", "$browser": "Safari"},
         )
 
@@ -2878,7 +2786,7 @@ email@example.org,
 
         _create_person(
             team=self.team,
-            distinct_ids=[f"target"],
+            distinct_ids=["target"],
             properties={"$os": "Chrome", "$browser": "Safari"},
         )
         flush_persons_and_events()

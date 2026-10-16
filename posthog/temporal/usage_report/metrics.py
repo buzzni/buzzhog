@@ -67,7 +67,7 @@ def record_workflow_latency(delta: timedelta, status: str) -> None:
 def get_pointer_messages_sent_metric(outcome: str) -> MetricCounter:
     return get_metric_meter({"outcome": outcome}).create_counter(
         "usage_reports_v2_pointer_messages_sent",
-        "SQS pointer messages handed to billing, by outcome (sent / skipped_no_ee).",
+        "SQS pointer messages handed to billing, by outcome (sent / skipped_no_billing).",
     )
 
 

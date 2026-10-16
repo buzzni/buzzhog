@@ -1,7 +1,6 @@
 from posthog.test.base import APIBaseTest
 from unittest.mock import patch
 
-from django.conf import settings
 from django.utils import timezone
 
 from rest_framework import status
@@ -14,9 +13,6 @@ from posthog.models import (
     OrganizationDomain,
     OrganizationMembership,
 )
-
-from ee.models.scim_provisioned_user import SCIMProvisionedUser
-from ee.models.scim_request_log import SCIMRequestLog
 
 
 class TestIdentityProviderConfigAPI(APIBaseTest):
@@ -367,62 +363,6 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
         config.refresh_from_db()
         self.assertEqual(config.saml_entity_id, "entity-id")
 
-    # SCIM
-
-    def test_enable_scim_returns_token_once(self):
-        self._make_admin()
-        self._enable_features(AvailableFeature.SCIM)
-        config = IdentityProviderConfig.objects.create(organization=self.organization)
-
-        response = self.client.patch(
-            f"/api/organizations/@current/identity_provider_configs/{config.id}/",
-            {"scim_enabled": True},
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.json()["scim_enabled"])
-        self.assertIsNotNone(response.json()["scim_bearer_token"])
-        self.assertEqual(response.json()["scim_base_url"], f"{settings.SITE_URL}/scim/v2/{config.scim_slug}")
-
-        config.refresh_from_db()
-        self.assertTrue(config.scim_enabled)
-        self.assertIsNotNone(config.scim_bearer_token)
-
-        # A subsequent read never returns the plaintext token
-        read = self.client.get(f"/api/organizations/@current/identity_provider_configs/{config.id}")
-        self.assertIsNone(read.json()["scim_bearer_token"])
-
-    def test_cannot_enable_scim_without_feature(self):
-        self._make_admin()
-        config = IdentityProviderConfig.objects.create(organization=self.organization)
-        response = self.client.patch(
-            f"/api/organizations/@current/identity_provider_configs/{config.id}/",
-            {"scim_enabled": True},
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json()["attr"], "scim_enabled")
-
-    def test_regenerate_scim_token(self):
-        self._make_admin()
-        self._enable_features(AvailableFeature.SCIM)
-        config = IdentityProviderConfig.objects.create(organization=self.organization)
-        enable = self.client.patch(
-            f"/api/organizations/@current/identity_provider_configs/{config.id}/",
-            {"scim_enabled": True},
-        )
-        original_token = enable.json()["scim_bearer_token"]
-
-        response = self.client.post(f"/api/organizations/@current/identity_provider_configs/{config.id}/scim/token")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.json()["scim_enabled"])
-        self.assertNotEqual(response.json()["scim_bearer_token"], original_token)
-
-    def test_regenerate_scim_token_requires_scim_enabled(self):
-        self._make_admin()
-        self._enable_features(AvailableFeature.SCIM)
-        config = IdentityProviderConfig.objects.create(organization=self.organization)
-        response = self.client.post(f"/api/organizations/@current/identity_provider_configs/{config.id}/scim/token")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
     # ID-JAG (XAA)
 
     def test_can_configure_id_jag(self):
@@ -461,40 +401,6 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_admin_can_list_scim_logs_for_config(self):
-        self._make_admin()
-        config = IdentityProviderConfig.objects.create(organization=self.organization)
-        other_config = IdentityProviderConfig.objects.create(organization=self.organization)
-        SCIMRequestLog.objects.create(
-            identity_provider_config=config,
-            request_method="GET",
-            request_path="/scim/v2/config/Users",
-            request_headers={},
-            response_status=200,
-            identity_provider="okta",
-        )
-        SCIMRequestLog.objects.create(
-            identity_provider_config=other_config,
-            request_method="GET",
-            request_path="/scim/v2/other/Users",
-            request_headers={},
-            response_status=200,
-            identity_provider="okta",
-        )
-
-        response = self.client.get(f"/api/organizations/@current/identity_provider_configs/{config.id}/scim/logs")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()["count"], 1)
-        self.assertEqual(response.json()["results"][0]["request_path"], "/scim/v2/config/Users")
-
-    def test_member_cannot_list_scim_logs_for_config(self):
-        config = IdentityProviderConfig.objects.create(organization=self.organization)
-
-        response = self.client.get(f"/api/organizations/@current/identity_provider_configs/{config.id}/scim/logs")
-
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
     # Deletion
 
     def test_cannot_delete_an_unscoped_config(self):
@@ -516,43 +422,11 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
             verified_at=timezone.now(),
         )
         LinkedIdentityProviderConfig.objects.create(identity_provider_config=config, organization_domain=domain)
-        provisioned_user = SCIMProvisionedUser.objects.create(
-            user=self.user,
-            identity_provider_config=config,
-            organization_domain=domain,
-            identity_provider="okta",
-            username=self.user.email,
-            active=True,
-        )
-
         response = self.client.delete(f"/api/organizations/@current/identity_provider_configs/{config.id}/")
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(IdentityProviderConfig.objects.filter(id=config.id).exists())
         self.assertFalse(LinkedIdentityProviderConfig.objects.filter(identity_provider_config=config).exists())
-        provisioned_user.refresh_from_db()
-        self.assertIsNone(provisioned_user.identity_provider_config_id)
-        self.assertIsNone(provisioned_user.organization_domain_id)
-        self.assertTrue(SCIMProvisionedUser.objects.filter(id=provisioned_user.id).exists())
-
-    def test_queryset_deleting_a_config_clears_its_provisioned_users(self):
-        config = IdentityProviderConfig.objects.create(organization=self.organization, config_scope="saml")
-        domain = OrganizationDomain.objects.create(organization=self.organization, domain="direct.example.com")
-        provisioned_user = SCIMProvisionedUser.objects.create(
-            user=self.user,
-            identity_provider_config=config,
-            organization_domain=domain,
-            identity_provider="okta",
-            username=self.user.email,
-            active=True,
-        )
-
-        IdentityProviderConfig.objects.filter(id=config.id).delete()
-
-        provisioned_user.refresh_from_db()
-        self.assertIsNone(provisioned_user.identity_provider_config_id)
-        self.assertIsNone(provisioned_user.organization_domain_id)
-        self.assertTrue(SCIMProvisionedUser.objects.filter(id=provisioned_user.id).exists())
 
     def test_can_delete_a_config_once_no_domain_uses_it(self):
         self._make_admin()

@@ -1,6 +1,4 @@
-import sys
 from datetime import datetime, timedelta
-from functools import cache as functools_cache
 from typing import TYPE_CHECKING, Any, Literal, Optional, TypedDict, Union
 
 from django.conf import settings
@@ -28,8 +26,6 @@ from posthog.models.utils import LowercaseSlugField, UUIDTModel, create_with_slu
 
 if TYPE_CHECKING:
     from posthog.models import Team, User
-
-    from ee.billing.quota_limiting import QuotaResource
 
 
 logger = structlog.get_logger(__name__)
@@ -84,24 +80,6 @@ class ProductFeature(TypedDict):
     limit: int | None
     note: str | None
     is_plan_default: bool
-
-
-@functools_cache
-def _enterprise_only_feature_keys() -> frozenset[str]:
-    """Enterprise-plan-only feature keys, computed once per process.
-
-    Sourced from `License.ENTERPRISE_FEATURES - SCALE_FEATURES`. Returns an empty
-    set when the ee package isn't importable.
-    """
-    keys: set[str] = set()
-    try:
-        from ee.models.license import License
-
-        scale_features = {str(f) for f in License.SCALE_FEATURES}
-        keys |= {str(f) for f in License.ENTERPRISE_FEATURES} - scale_features
-    except ImportError:
-        pass
-    return frozenset(keys)
 
 
 class OrganizationManager(models.Manager):
@@ -417,18 +395,6 @@ class Organization(ModelActivityMixin, UUIDTModel):
         Obtains details on the billing plan for the organization.
         Returns a tuple with (billing_plan_key, billing_realm)
         """
-        try:
-            from ee.models.license import License
-        except ImportError:
-            License = None  # type: ignore
-        # Demo gets all features
-        if settings.DEMO or "generate_demo_data" in sys.argv[1:2]:
-            return (License.ENTERPRISE_PLAN, "demo")
-        # Otherwise, try to find a valid license on this instance
-        if License is not None:
-            license = License.objects.first_valid()
-            if license:
-                return (license.plan, "ee")
         return (None, None)
 
     def update_available_product_features(self) -> list[ProductFeature]:
@@ -437,31 +403,8 @@ class Organization(ModelActivityMixin, UUIDTModel):
             # Since billing V2 we just use the field which is updated when the billing service is called
             return self.available_product_features or []
 
-        try:
-            from ee.models.license import License
-        except ImportError:
-            self.available_product_features = []
-            return []
-
         self.available_product_features = []
-
-        # Self hosted legacy license so we just sync the license features
-        # Demo gets all features
-        if settings.DEMO or "generate_demo_data" in sys.argv[1:2]:
-            features = License.PLANS.get(License.ENTERPRISE_PLAN, [])
-            self.available_product_features = [
-                {"key": feature, "name": " ".join(feature.split(" ")).capitalize()} for feature in features
-            ]
-        else:
-            # Otherwise, try to find a valid license on this instance
-            license = License.objects.first_valid()
-            if license:
-                features = License.PLANS.get(License.ENTERPRISE_PLAN, [])
-                self.available_product_features = [
-                    {"key": feature, "name": " ".join(feature.split(" ")).capitalize()} for feature in features
-                ]
-
-        return self.available_product_features
+        return []
 
     def get_available_feature(self, feature: Union[AvailableFeature, str]) -> ProductFeature | None:
         return next(
@@ -475,11 +418,10 @@ class Organization(ModelActivityMixin, UUIDTModel):
     def get_plan_tier(self) -> Literal["free", "paid", "enterprise"]:
         """Best-effort plan tier derived from `available_product_features`.
 
-        "enterprise" if any Enterprise-only feature is present (per `License.ENTERPRISE_FEATURES`
-        minus `SCALE_FEATURES`). "paid" if any feature is present, otherwise "free". Paid uses
-        "any feature present" rather than an allow-list because the billing service grants
-        features (alerts, surveys_styling, ...) that postdate `License.SCALE_FEATURES`, and an
-        allow-list silently downgrades those orgs to free.
+        "paid" if any feature is present, otherwise "free". Paid uses "any feature present"
+        rather than an allow-list because the billing service grants features (alerts,
+        surveys_styling, ...) that postdate any fixed list, and an allow-list silently
+        downgrades those orgs to free.
         """
         available_keys = {
             feature.get("key") for feature in (self.available_product_features or []) if feature and feature.get("key")
@@ -487,155 +429,7 @@ class Organization(ModelActivityMixin, UUIDTModel):
         if not available_keys:
             return "free"
 
-        if available_keys & _enterprise_only_feature_keys():
-            return "enterprise"
         return "paid"
-
-    def limit_product_until_end_of_billing_cycle(self, resource: "QuotaResource") -> None:
-        """
-        Limit a resource for all teams of this organization until the end of the current billing cycle.
-        Updates the organization's usage data with the quota_limited_until timestamp.
-        """
-        from ee.billing.quota_limiting import (
-            QuotaLimitingCaches,
-            QuotaResource,
-            add_limited_team_tokens,
-            dispatch_recordings_remote_config_sync,
-            update_organization_usage_fields,
-        )
-
-        billing_period = self.current_billing_period
-
-        if billing_period:
-            billing_period_end_timestamp = int(billing_period.end.timestamp())
-
-            team_rows = [
-                (team_id, api_token) for team_id, api_token in self.teams.values_list("id", "api_token") if api_token
-            ]
-            team_tokens: dict[str, int] = {api_token: billing_period_end_timestamp for _, api_token in team_rows}
-            add_limited_team_tokens(resource, team_tokens, QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY)
-
-            update_organization_usage_fields(
-                self,
-                resource,
-                {"quota_limited_until": billing_period_end_timestamp, "quota_limiting_suspended_until": None},
-            )
-
-            if resource == QuotaResource.RECORDINGS:
-                dispatch_recordings_remote_config_sync(team_id for team_id, _ in team_rows)
-            self._project_llm_gateway_quota_if_ai(resource)
-        else:
-            raise RuntimeError("Cannot limit without having a billing period")
-
-    def unlimit_product(self, resource: "QuotaResource") -> None:
-        """
-        Remove limiting for a resource for all teams of this organization.
-        Removes teams from the limiting cache and clears quota_limited_until from usage data.
-        """
-        from ee.billing.quota_limiting import (
-            QuotaLimitingCaches,
-            QuotaResource,
-            dispatch_recordings_remote_config_sync,
-            remove_limited_team_tokens,
-            update_organization_usage_fields,
-        )
-
-        team_rows = [
-            (team_id, api_token) for team_id, api_token in self.teams.values_list("id", "api_token") if api_token
-        ]
-        remove_limited_team_tokens(
-            resource, [api_token for _, api_token in team_rows], QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY
-        )
-
-        if self.usage and resource.value in self.usage:
-            update_organization_usage_fields(
-                self, resource, {"quota_limited_until": None, "quota_limiting_suspended_until": None}
-            )
-
-        if resource == QuotaResource.RECORDINGS:
-            dispatch_recordings_remote_config_sync(team_id for team_id, _ in team_rows)
-        self._project_llm_gateway_quota_if_ai(resource)
-
-    def _project_llm_gateway_quota_if_ai(self, resource: "QuotaResource") -> None:
-        from ee.billing.quota_limiting import QuotaResource, _project_llm_gateway_quota_for_org
-
-        if resource in (QuotaResource.AI_CREDITS, QuotaResource.POSTHOG_CODE_CREDITS):
-            _project_llm_gateway_quota_for_org(self)
-
-    def get_limited_products(self) -> dict[str, dict[str, Any]]:
-        """
-        Returns information about which products are currently limited for this organization.
-
-        Uses Redis pipelining to efficiently check all team tokens for all resources in a single batch.
-        Returns both Redis state (source of truth) and usage field data (which may be out of sync).
-
-        Returns a dict mapping resource names to their limiting status:
-        {
-            "events": {
-                "is_limited_in_redis": True,
-                "redis_quota_limited_until": 1234567890,
-                "limited_teams": ["team_token_1", "team_token_2"],
-                "usage_quota_limited_until": 1234567890,
-                "usage_quota_limiting_suspended_until": None
-            },
-            "recordings": {
-                "is_limited_in_redis": False,
-                "redis_quota_limited_until": None,
-                "limited_teams": [],
-                "usage_quota_limited_until": None,
-                "usage_quota_limiting_suspended_until": None
-            },
-            ...
-        }
-        """
-        from ee.billing.quota_limiting import QuotaLimitingCaches, QuotaResource, get_client
-
-        team_tokens = [t for t in self.teams.values_list("api_token", flat=True) if t]
-
-        result: dict[str, dict[str, Any]] = {}
-        for resource in QuotaResource:
-            usage_quota_limited_until = None
-            usage_quota_limiting_suspended_until = None
-
-            if self.usage and resource.value in self.usage:
-                resource_usage = self.usage[resource.value]
-                usage_quota_limited_until = resource_usage.get("quota_limited_until")
-                usage_quota_limiting_suspended_until = resource_usage.get("quota_limiting_suspended_until")
-
-            result[resource.value] = {
-                "is_limited_in_redis": False,
-                "redis_quota_limited_until": None,
-                "limited_teams": [],
-                "usage_quota_limited_until": usage_quota_limited_until,
-                "usage_quota_limiting_suspended_until": usage_quota_limiting_suspended_until,
-            }
-
-        if not team_tokens:
-            return result
-
-        redis_client = get_client()
-        now = timezone.now().timestamp()
-
-        pipe = redis_client.pipeline()
-        checks: list[tuple[QuotaResource, str]] = []
-
-        for resource in QuotaResource:
-            cache_key = f"{QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY.value}{resource.value}"
-            for token in team_tokens:
-                pipe.zscore(cache_key, token)
-                checks.append((resource, token))
-
-        scores = pipe.execute()
-
-        for (resource, token), score in zip(checks, scores):
-            if score is not None and score >= now:
-                result[resource.value]["is_limited_in_redis"] = True
-                result[resource.value]["limited_teams"].append(token)
-                current_max = result[resource.value]["redis_quota_limited_until"]
-                if current_max is None or score > current_max:
-                    result[resource.value]["redis_quota_limited_until"] = int(score)
-
-        return result
 
     @property
     def current_billing_period(self) -> BillingPeriod | None:
@@ -701,35 +495,6 @@ def remember_organization_field_changes(sender, instance: Organization, **kwargs
         instance._has_active_subscription_changed = (
             previous["has_active_subscription"] != instance.has_active_subscription
         )
-
-
-@receiver(post_save, sender=Organization)
-def invalidate_llm_gateway_quota_cache_on_active_state_change(sender, instance: Organization, created: bool, **kwargs):
-    if created or not instance._is_active_changed:
-        return
-
-    organization_id = instance.pk
-
-    def _invalidate_cache():
-        from posthog.models.team import Team
-
-        from ee.billing.quota_limiting import invalidate_llm_gateway_quota_cache
-
-        team_ids = list(Team.objects.filter(organization_id=organization_id).values_list("id", flat=True))
-        invalidate_llm_gateway_quota_cache(team_ids)
-
-    def _project_gateway_quota():
-        from posthog.tasks.team_llm_gateway_quota import project_org_llm_gateway_quota_task
-
-        try:
-            project_org_llm_gateway_quota_task.delay(str(organization_id))
-        except Exception:
-            # The reconcile re-derives a deactivated org's blobs; never fail the org save.
-            logger.warning("llm_gateway_quota_projection_enqueue_failed", organization_id=str(organization_id))
-
-    transaction.on_commit(_invalidate_cache)
-    if settings.AI_GATEWAY_REDIS_URL:
-        transaction.on_commit(_project_gateway_quota)
 
 
 class OrganizationMembership(ModelActivityMixin, UUIDTModel):
@@ -920,22 +685,6 @@ def clean_up_event_streams_on_membership_removal(sender, instance: OrganizationM
         )
 
 
-@receiver(models.signals.post_delete, sender=OrganizationMembership)
-def sync_billing_on_membership_removal(sender, instance: OrganizationMembership, **kwargs):
-    from posthog.tasks.sync_billing import sync_members_to_billing
-
-    if not is_cloud():
-        return
-
-    organization_id = str(instance.organization_id)
-
-    def _sync_if_org_exists():
-        if Organization.objects.filter(id=organization_id).exists():
-            sync_members_to_billing.delay(organization_id)
-
-    transaction.on_commit(_sync_if_org_exists)
-
-
 @receiver(models.signals.pre_save, sender=OrganizationMembership)
 def organization_membership_saved(sender: Any, instance: OrganizationMembership, **kwargs: Any) -> None:
     from posthog.event_usage import report_user_organization_membership_level_changed
@@ -953,26 +702,23 @@ def organization_membership_saved(sender: Any, instance: OrganizationMembership,
         pass
 
 
-@receiver(post_save, sender=OrganizationMembership)
-def sync_billing_on_membership_save(sender, instance: OrganizationMembership, created: bool, **kwargs):
-    # Covers any path that creates a membership or changes its level, including
-    # Organization.bootstrap, the Vercel integration, and direct ORM saves that
-    # bypass OrganizationMemberSerializer. Mirrors sync_billing_on_membership_removal.
-    from posthog.tasks.sync_billing import sync_members_to_billing
-
-    if not is_cloud():
+@receiver(post_save, sender=Organization)
+def project_llm_gateway_quota_on_active_state_change(sender, instance: Organization, created: bool, **kwargs):
+    if created or not instance._is_active_changed or not settings.AI_GATEWAY_REDIS_URL:
         return
 
-    if not created and not getattr(instance, "_level_changed", False):
-        return
+    organization_id = instance.pk
 
-    organization_id = str(instance.organization_id)
+    def _project_gateway_quota():
+        from posthog.tasks.team_llm_gateway_quota import project_org_llm_gateway_quota_task
 
-    def _sync_if_org_exists():
-        if Organization.objects.filter(id=organization_id).exists():
-            sync_members_to_billing.delay(organization_id)
+        try:
+            project_org_llm_gateway_quota_task.delay(str(organization_id))
+        except Exception:
+            # The reconcile re-derives a deactivated org's blobs; never fail the org save.
+            logger.warning("llm_gateway_quota_projection_enqueue_failed", organization_id=str(organization_id))
 
-    transaction.on_commit(_sync_if_org_exists)
+    transaction.on_commit(_project_gateway_quota)
 
 
 @receiver(post_save, sender=Organization)

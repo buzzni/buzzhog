@@ -217,13 +217,7 @@ def is_sso_authentication_backend(request: HttpRequest):
     if not hasattr(request, "session"):
         return False
 
-    # Check if we're in EE, if yes, use the EE settings, otherwise use the posthog settings
-    try:
-        from ee import settings
-
-        SSO_AUTHENTICATION_BACKENDS = settings.AUTHENTICATION_BACKENDS
-    except ImportError:
-        SSO_AUTHENTICATION_BACKENDS = AUTHENTICATION_BACKENDS
+    SSO_AUTHENTICATION_BACKENDS = AUTHENTICATION_BACKENDS
 
     # Remove the non-SSO backends from the list
     SSO_AUTHENTICATION_BACKENDS = list(set(SSO_AUTHENTICATION_BACKENDS) - set(NON_SSO_AUTHENTICATION_BACKENDS))

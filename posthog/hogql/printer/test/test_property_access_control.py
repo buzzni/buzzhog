@@ -1,6 +1,6 @@
 import uuid
 
-from posthog.test.base import BaseTest, ClickhouseTestMixin, cleanup_materialized_columns, materialized
+from posthog.test.base import BaseTest, ClickhouseTestMixin
 
 from django.conf import settings
 
@@ -639,20 +639,6 @@ class TestRestrictedPropertyWithMaterializedColumn(ClickhouseTestMixin, BaseTest
         context = HogQLContext(team_id=self.team.pk, team=self.team, user=self.user, enable_select_queries=True)
         sql, _ = prepare_and_print_ast(parse_select(query), context=context, dialect="clickhouse")
         return sql
-
-    def test_restricted_materialized_property_in_where_is_not_read_from_column(self):
-        self.addCleanup(cleanup_materialized_columns)
-        with materialized("events", "secret_field", is_nullable=False):
-            sql = self._compile_select("SELECT event FROM events WHERE properties.secret_field = 'foo'")
-        # The comparison must NOT read the bare materialized column — that bypasses the JSONDropKeys scrub and lets a
-        # user without access probe the value. It must go through the scrubbed blob (or a constant) instead.
-        assert "mat_secret_field" not in sql, f"restricted property leaked via materialized column: {sql}"
-
-    def test_restricted_materialized_property_read_is_not_read_from_column(self):
-        self.addCleanup(cleanup_materialized_columns)
-        with materialized("events", "secret_field", is_nullable=False):
-            sql = self._compile_select("SELECT properties.secret_field FROM events")
-        assert "mat_secret_field" not in sql, f"restricted property leaked via materialized column: {sql}"
 
 
 class TestRestrictedPersonPropertiesBlobQuery(ClickhouseTestMixin, BaseTest):

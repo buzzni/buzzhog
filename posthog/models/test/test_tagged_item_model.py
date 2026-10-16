@@ -81,19 +81,6 @@ class TestTaggedItem(BaseTest):
         with self.assertRaises(ValidationError):
             obj.tagged_items.create(tag=tag)
 
-    def test_uniqueness_constraint_property_definition(self):
-        try:
-            from ee.models import EnterprisePropertyDefinition
-        except ImportError:
-            self.skipTest("needs the ee app")
-
-        property_definition = EnterprisePropertyDefinition.objects.create(team=self.team, name="enterprise property")
-        tag = Tag.objects.create(name="tag", team_id=self.team.id)
-
-        property_definition.tagged_items.create(tag=tag)
-        with self.assertRaises(ValidationError):
-            property_definition.tagged_items.create(tag=tag)
-
 
 class TestTaggedItemGenericColumns(BaseTest):
     """The pointer columns name the tagged object, and the team follows the tag."""
@@ -121,23 +108,6 @@ class TestTaggedItemGenericColumns(BaseTest):
         assert tagged_item.object_id is None
         assert tagged_item.content_type == ContentType.objects.get_for_model(EventDefinition)
         assert tagged_item.team_id == tag.team_id
-
-    def test_enterprise_definition_stores_the_base_content_type(self):
-        """An enterprise definition must not create a second content type for its tags."""
-        try:
-            from ee.models import EnterpriseEventDefinition
-        except ImportError:
-            self.skipTest("needs the ee app")
-
-        event_definition = EnterpriseEventDefinition.objects.create(team=self.team, name="enterprise event")
-        tag = Tag.objects.create(name="tag", team_id=self.team.id)
-
-        tagged_item = event_definition.tagged_items.create(tag=tag)
-
-        tagged_item.refresh_from_db()
-        assert tagged_item.content_type == ContentType.objects.get_for_model(EventDefinition)
-        assert tagged_item.content_type != ContentType.objects.get_for_model(EnterpriseEventDefinition)
-        assert tagged_item.object_uuid == event_definition.id
 
     def test_bulk_create_fills_the_team(self):
         """bulk_create never calls save(), and the Zendesk import writes ticket tags through it."""
@@ -267,26 +237,6 @@ class TestTaggedItemsRelation(BaseTest):
         }
         assert [item.tag.name for item in by_pk[tagged.pk].tagged_items.all()] == ["wanted"]
         assert list(by_pk[untagged.pk].tagged_items.all()) == []
-
-    def test_enterprise_and_base_definitions_share_their_tags(self):
-        try:
-            from ee.models import EnterpriseEventDefinition
-        except ImportError:
-            self.skipTest("needs the ee app")
-
-        enterprise_definition = EnterpriseEventDefinition.objects.create(team=self.team, name="event")
-        base_definition = EventDefinition.objects.get(pk=enterprise_definition.pk)
-        tag = Tag.objects.create(name="shared", team_id=self.team.id)
-
-        tagged_item = enterprise_definition.tagged_items.create(tag=tag)
-
-        assert tagged_item.content_type == ContentType.objects.get_for_model(EventDefinition)
-        assert list(base_definition.tagged_items.all()) == [tagged_item]
-        assert list(EnterpriseEventDefinition.objects.filter(tagged_items__tag__name="shared")) == [
-            enterprise_definition
-        ]
-        prefetched = EnterpriseEventDefinition.objects.prefetch_related("tagged_items").get(pk=enterprise_definition.pk)
-        assert list(prefetched.tagged_items.all()) == [tagged_item]
 
     def test_deleting_the_object_deletes_its_tagged_items(self):
         dashboard = Dashboard.objects.create(team_id=self.team.id, name="dashboard")

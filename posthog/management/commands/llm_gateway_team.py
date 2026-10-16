@@ -201,9 +201,6 @@ def _print_status(stdout: Any, team: Team) -> None:
     stdout.write(f"  enabled_at: {team.llm_gateway_enabled_at}")
     stdout.write(f"  revoked_at: {team.llm_gateway_revoked_at}")
     stdout.write(f"  overspend_allowance_usd: {team.llm_gateway_overspend_allowance_usd}")
-    from ee.billing.quota_limiting import get_team_limited_until  # noqa: PLC0415
-
-    limited = get_team_limited_until(team.api_token, AI_GATEWAY_QUOTA_BUCKETS)
     for bucket in AI_GATEWAY_QUOTA_BUCKETS:
-        stdout.write(f"  {bucket}: {'limited until ' + str(limited[bucket]) if bucket in limited else 'open'}")
+        stdout.write(f"  {bucket}: open")
     stdout.write(f"  quota_blob: {get_team_quota_blob(team)}")

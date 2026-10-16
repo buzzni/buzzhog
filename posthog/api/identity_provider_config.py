@@ -11,13 +11,7 @@ from rest_framework.request import Request
 from rest_framework.viewsets import ModelViewSet
 
 from posthog.api.routing import TeamAndOrgViewSetMixin
-from posthog.api.scim_request_log import (
-    PaginatedSCIMRequestLogSerializer,
-    SCIMRequestLogQuerySerializer,
-    paginated_scim_request_logs_response,
-)
 from posthog.api.scoped_related_fields import OrgScopedPrimaryKeyRelatedField
-from posthog.api.utils import action
 from posthog.constants import AvailableFeature
 from posthog.event_usage import groups
 from posthog.models.identity_provider_config import (
@@ -28,19 +22,10 @@ from posthog.models.identity_provider_config import (
     saml_configured_q,
 )
 from posthog.models.linked_identity_provider_config import LinkedIdentityProviderConfig
-from posthog.models.organization import Organization, OrganizationMembership
+from posthog.models.organization import Organization
 from posthog.models.organization_domain import OrganizationDomain
-from posthog.models.user import User
 from posthog.permissions import OrganizationAdminWritePermissions, TimeSensitiveActionPermission
 from posthog.security.url_validation import is_url_allowed
-
-from ee.api.scim.utils import (
-    disable_scim_for_config,
-    enable_scim_for_config,
-    get_scim_base_url,
-    regenerate_scim_token_for_config,
-)
-from ee.models.scim_request_log import SCIMRequestLog
 
 
 def _capture_idp_config_event(
@@ -65,7 +50,7 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
         help_text="Stable UUID sent as SAML RelayState to route authentication responses to this IdP configuration.",
     )
     scim_bearer_token = serializers.SerializerMethodField(
-        help_text="Plaintext SCIM bearer token. Only returned once, immediately after SCIM is enabled or the token is regenerated; null otherwise."
+        help_text="Plaintext SCIM bearer token. This build has no SCIM provisioning, so it is always null."
     )
     id_jag_allowed_clients = serializers.ListField(
         child=serializers.CharField(max_length=256),
@@ -92,7 +77,7 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
         read_only=True, help_text="Whether SCIM is enabled and a bearer token is set on this config."
     )
     scim_base_url = serializers.SerializerMethodField(
-        help_text="SCIM base URL for this identity provider configuration."
+        help_text="SCIM base URL for this identity provider configuration. This build has no SCIM provisioning, so it is always null."
     )
     has_id_jag = serializers.BooleanField(
         read_only=True, help_text="Whether ID-JAG (XAA) is configured on this config."
@@ -171,8 +156,8 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
                 "help_text": "SAML IdP X.509 signing certificate (PEM).",
             },
             "scim_enabled": {
-                "required": False,
-                "help_text": "Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.",
+                "read_only": True,
+                "help_text": "Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so it cannot be set.",
             },
             "id_jag_issuer_url": {
                 "required": False,
@@ -187,10 +172,6 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
                 "help_text": "Override JWKS URL. Defaults to OIDC discovery on the issuer URL.",
             },
         }
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._scim_plain_token: str | None = None
 
     @staticmethod
     def _normalize_optional_url(value: str | None) -> str | None:
@@ -238,12 +219,6 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
                 )
             if attrs.get("config_scope", getattr(self.instance, "config_scope", None)) != ConfigScope.OIDC:
                 raise serializers.ValidationError({"config_scope": "Use an OIDC configuration for OIDC settings."})
-
-        if attrs.get("scim_enabled") is not None and not organization.is_feature_available(AvailableFeature.SCIM):
-            raise serializers.ValidationError(
-                {"scim_enabled": "SCIM provisioning is not available for this organization."},
-                code="feature_not_available",
-            )
 
         if attrs.get("id_jag_issuer_url") and not organization.is_feature_available(
             AvailableFeature.XAA_AUTHENTICATION
@@ -343,56 +318,31 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
     def create(self, validated_data: dict[str, Any]) -> IdentityProviderConfig:
         validated_data["organization"] = self.context["view"].organization
         self._merge_oidc_client_secret(validated_data)
-        scim_enabled = validated_data.pop("scim_enabled", None)
         organization_domains = validated_data.pop("organization_domains", [])
         validated_data.pop("scim_bearer_token", None)
 
         instance: IdentityProviderConfig = super().create(validated_data)
         self._sync_organization_domains(instance, organization_domains)
-
-        if scim_enabled:
-            self._scim_plain_token = enable_scim_for_config(instance)
-
         return instance
 
     @transaction.atomic
     def update(self, instance: IdentityProviderConfig, validated_data: dict[str, Any]) -> IdentityProviderConfig:
         self._merge_oidc_client_secret(validated_data)
-        scim_enabled = validated_data.pop("scim_enabled", None)
         organization_domains = validated_data.pop("organization_domains", None)
         validated_data.pop("scim_bearer_token", None)
-
-        scim_plain_token: str | None = None
-
-        # Generate a new token when enabling SCIM, clear it when disabling.
-        if scim_enabled is not None:
-            if scim_enabled:
-                if not instance.scim_enabled:
-                    scim_plain_token = enable_scim_for_config(instance)
-            else:
-                if instance.scim_enabled:
-                    disable_scim_for_config(instance)
 
         instance = super().update(instance, validated_data)
         if organization_domains is not None:
             self._sync_organization_domains(instance, organization_domains)
-        self._scim_plain_token = scim_plain_token
-
         return instance
 
-    @extend_schema_field(serializers.CharField)
-    def get_scim_base_url(self, obj: IdentityProviderConfig) -> str:
-        return get_scim_base_url(obj)
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_scim_base_url(self, obj: IdentityProviderConfig) -> str | None:
+        return None
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_scim_bearer_token(self, obj: IdentityProviderConfig) -> str | None:
-        return self._scim_plain_token
-
-
-class SCIMTokenResponseSerializer(serializers.Serializer):
-    scim_enabled = serializers.BooleanField(help_text="Whether SCIM is enabled for this config.")
-    scim_bearer_token = serializers.CharField(
-        help_text="Newly generated plaintext SCIM bearer token. Only returned once."
-    )
+        return None
 
 
 @extend_schema(extensions={"x-product": "core"})
@@ -425,33 +375,3 @@ class IdentityProviderConfigViewSet(TeamAndOrgViewSetMixin, ModelViewSet):
         with transaction.atomic():
             self.perform_destroy(config)
         return response.Response(status=status.HTTP_204_NO_CONTENT)
-
-    @extend_schema(parameters=[SCIMRequestLogQuerySerializer], responses=PaginatedSCIMRequestLogSerializer)
-    @action(methods=["GET"], detail=True, url_path="scim/logs")
-    def scim_logs(self, request: Request, **kwargs: Any) -> response.Response:
-        config = cast(IdentityProviderConfig, self.get_object())
-        membership = OrganizationMembership.objects.filter(
-            user=cast(User, request.user), organization=config.organization
-        ).first()
-        if not membership or membership.level < OrganizationMembership.Level.ADMIN:
-            raise exceptions.PermissionDenied("Only organization admins can view SCIM logs.")
-
-        queryset = SCIMRequestLog.objects.filter(identity_provider_config=config)
-        return paginated_scim_request_logs_response(request, queryset)
-
-    @extend_schema(request=None, responses=SCIMTokenResponseSerializer)
-    @action(methods=["POST"], detail=True, url_path="scim/token")
-    def scim_token(self, request: Request, **kwargs: Any) -> response.Response:
-        """Regenerate the SCIM bearer token for this IdP config."""
-        config = cast(IdentityProviderConfig, self.get_object())
-
-        if not config.organization.is_feature_available(AvailableFeature.SCIM):
-            raise exceptions.PermissionDenied("SCIM is not available for this organization")
-
-        if not config.scim_enabled:
-            return response.Response(
-                {"detail": "SCIM is not enabled for this config"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        plain_token = regenerate_scim_token_for_config(config)
-        return response.Response({"scim_enabled": True, "scim_bearer_token": plain_token})

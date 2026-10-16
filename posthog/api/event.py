@@ -54,8 +54,6 @@ from posthog.rate_limit import (
 from posthog.taxonomy.taxonomy import CORE_FILTER_DEFINITIONS_BY_GROUP
 from posthog.utils import convert_property_value, flatten, refresh_requested_by_client, relative_date_parse
 
-from products.event_definitions.backend.models.property_definition import effective_project_id_expr
-
 tracer = trace.get_tracer(__name__)
 
 EVENT_VALUES_COUNTER = Counter(
@@ -467,8 +465,8 @@ class EventViewSet(
         if key == "custom_event":
             return self._custom_event_values(query_params)
         else:
-            # Check if this property is hidden (enterprise feature) or restricted by field-level access control
-            if self._is_property_hidden(key, team) or self._is_property_restricted(key, team):
+            # Check if this property is restricted by field-level access control
+            if self._is_property_restricted(key, team):
                 return self._return_with_short_cache([], refreshing=False)
 
             return self._event_property_values(query_params, refresh=refresh)
@@ -711,28 +709,6 @@ class EventViewSet(
             "restricted_event_properties": restricted_event_properties,
             "restricted_person_properties": restricted_person_properties,
         }
-
-    @tracer.start_as_current_span("events_api_is_property_hidden")
-    def _is_property_hidden(self, key: str, team: Team) -> bool:
-        property_is_hidden = False
-        try:
-            from ee.models.property_definition import EnterprisePropertyDefinition
-
-            property_is_hidden = (
-                EnterprisePropertyDefinition.objects.alias(effective_project_id=effective_project_id_expr())
-                .filter(
-                    effective_project_id=team.project_id,
-                    name=key,
-                    type=PropertyDefinition.Type.EVENT.value,
-                    hidden=True,
-                )
-                .exists()
-            )
-        except ImportError:
-            # Enterprise features not available, continue normally
-            pass
-
-        return property_is_hidden
 
     def _is_property_restricted(self, key: str, team: Team) -> bool:
         """Checks if a property key is restricted for the current user."""

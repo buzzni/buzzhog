@@ -7,7 +7,6 @@ from posthog.test.base import (
     ClickhouseTestMixin,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     flush_persons_and_events,
     snapshot_clickhouse_queries,
 )
@@ -362,7 +361,6 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
         self.assertIn("suggestions", result.model_dump())  # type: ignore
         mock_get_query_runner_or_none.assert_not_called()
 
-    @also_test_with_materialized_columns(["key"])
     @snapshot_clickhouse_queries
     def test_hogql_property_filter(self):
         with time_machine.travel("2020-01-10 12:00:00", tick=False):
@@ -427,7 +425,6 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
             response = self.client.post(f"/api/environments/{self.team.id}/query/", {"query": query.dict()}).json()
             self.assertEqual(len(response["results"]), 2)
 
-    @also_test_with_materialized_columns(event_properties=["key", "path"])
     @snapshot_clickhouse_queries
     def test_event_property_filter(self):
         with time_machine.travel("2020-01-10 12:00:00", tick=False):
@@ -501,7 +498,6 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
             response = self.client.post(f"/api/environments/{self.team.id}/query/", {"query": query.dict()}).json()
             self.assertEqual(len(response["results"]), 1)
 
-    @also_test_with_materialized_columns(event_properties=["key"], person_properties=["email"])
     @snapshot_clickhouse_queries
     def test_person_property_filter(self):
         with time_machine.travel("2020-01-10 12:00:00", tick=False):
@@ -609,7 +605,6 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
         response_post = self.client.post(f"/api/environments/{self.team.id}/query/", {"query": query})
         self.assertEqual(response_post.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @also_test_with_materialized_columns(event_properties=["key", "path"])
     @snapshot_clickhouse_queries
     def test_property_filter_aggregations(self):
         with time_machine.travel("2020-01-10 12:00:00", tick=False):
@@ -766,7 +761,6 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
             response = self.client.post(f"/api/environments/{self.team.id}/query/", {"query": query.dict()}).json()
             self.assertEqual(len(response["results"]), 2)
 
-    @also_test_with_materialized_columns(event_properties=["key"])
     @snapshot_clickhouse_queries
     def test_full_hogql_query(self):
         with time_machine.travel("2020-01-10 12:00:00", tick=False):
@@ -1089,7 +1083,7 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
                     "name": "event_view",
                     "query": {
                         "kind": "HogQLQuery",
-                        "query": f"select event AS event, distinct_id as distinct_id, properties.key as key from events order by timestamp",
+                        "query": "select event AS event, distinct_id as distinct_id, properties.key as key from events order by timestamp",
                     },
                 },
             )
@@ -1600,87 +1594,6 @@ class TestQueryDraftSql(APIBaseTest):
 
 class TestQueryLLMFormatting(ClickhouseTestMixin, APIBaseTest):
     ENDPOINT = "query"
-
-    @patch("posthog.api.query.process_query_model")
-    def test_hogql_query_includes_formatted_results(self, mock_process_query_model):
-        mock_process_query_model.return_value = {
-            "results": [["sign up", 10], ["sign out", 5]],
-            "columns": ["event", "count"],
-            "is_cached": False,
-        }
-
-        response = self.client.post(
-            f"/api/environments/{self.team.id}/query/",
-            {"query": {"kind": "HogQLQuery", "query": "select event, count() from events group by event"}},
-            HTTP_X_POSTHOG_CLIENT="mcp",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("formatted_results", data)
-        self.assertIn("sign up", data["formatted_results"])
-        self.assertIn("10", data["formatted_results"])
-
-    @patch("posthog.api.query.process_query_model")
-    def test_no_formatted_results_without_header(self, mock_process_query_model):
-        mock_process_query_model.return_value = {
-            "results": [["sign up", 10]],
-            "columns": ["event", "count"],
-            "is_cached": False,
-        }
-
-        response = self.client.post(
-            f"/api/environments/{self.team.id}/query/",
-            {"query": {"kind": "HogQLQuery", "query": "select event, count() from events group by event"}},
-        )
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("results", data)
-        self.assertNotIn("formatted_results", data)
-
-    @patch("posthog.api.query.process_query_model")
-    def test_unsupported_query_type_omits_formatted_results(self, mock_process_query_model):
-        mock_process_query_model.return_value = {
-            "results": [{"event": "test"}],
-            "columns": ["event"],
-            "is_cached": False,
-        }
-
-        response = self.client.post(
-            f"/api/environments/{self.team.id}/query/",
-            {"query": {"kind": "EventsQuery", "select": ["event"]}},
-            HTTP_X_POSTHOG_CLIENT="mcp",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("results", data)
-        self.assertNotIn("formatted_results", data)
-
-    @patch("posthog.api.query.settings")
-    @patch("posthog.api.query.process_query_model")
-    def test_ee_unavailable_omits_formatted_results(self, mock_process_query_model, mock_settings):
-        mock_settings.EE_AVAILABLE = False
-        for attr in ("TEST", "API_QUERIES_PER_TEAM", "API_QUERIES_ENABLED", "API_QUERIES_LEGACY_TEAM_LIST"):
-            setattr(mock_settings, attr, getattr(__import__("posthog").settings, attr))
-
-        mock_process_query_model.return_value = {
-            "results": [["sign up", 10]],
-            "columns": ["event", "count"],
-            "is_cached": False,
-        }
-
-        response = self.client.post(
-            f"/api/environments/{self.team.id}/query/",
-            {"query": {"kind": "HogQLQuery", "query": "select event, count() from events group by event"}},
-            HTTP_X_POSTHOG_CLIENT="mcp",
-        )
-
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("results", data)
-        self.assertNotIn("formatted_results", data)
 
     @parameterized.expand(
         [

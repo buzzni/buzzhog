@@ -7,9 +7,7 @@ import structlog
 from temporalio import activity, common, workflow
 
 from posthog.exceptions_capture import capture_exception
-from posthog.sync import database_sync_to_async
 from posthog.temporal.common.base import PostHogWorkflow
-from posthog.temporal.common.heartbeat import Heartbeater
 
 logger = structlog.get_logger()
 logging.basicConfig(level=logging.INFO)
@@ -38,27 +36,8 @@ class QuotaLimitingResult:
 async def run_quota_limiting_all_orgs(
     _inputs: RunQuotaLimitingAllOrgsInputs,
 ) -> QuotaLimitingResult:
-    result = QuotaLimitingResult()
-    async with Heartbeater() as heartbeater:
-        try:
-            from ee.billing.quota_limiting import update_all_orgs_billing_quotas
-
-            def progress_callback(phase: str, progress: str, detail: str) -> None:
-                heartbeater.details = (phase, progress, detail)
-
-            @database_sync_to_async(thread_sensitive=True)
-            def async_update_all_orgs_billing_quotas():
-                return update_all_orgs_billing_quotas(progress_callback=progress_callback)
-
-            run_result = await async_update_all_orgs_billing_quotas()
-            result = QuotaLimitingResult(**run_result.stats)
-        except ImportError:
-            pass
-        except Exception as e:
-            capture_exception(e)
-            # Raise exception without large context to avoid "Failure exceeds size limit"
-            raise Exception(f"Quota limiting failed: {type(e).__name__}: {str(e)[:200]}...")
-    return result
+    # Quota limits come from billing data, which this installation does not have.
+    return QuotaLimitingResult()
 
 
 @workflow.defn(name="run-quota-limiting")

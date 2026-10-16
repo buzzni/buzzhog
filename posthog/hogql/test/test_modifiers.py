@@ -284,53 +284,10 @@ class TestModifiers(BaseTest):
         assert response.clickhouse is not None
         assert "LEFT JOIN" in response.clickhouse
 
-    def test_modifiers_materialization_mode(self):
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize
-        except ModuleNotFoundError:
-            self.skipTest("EE materialized-column helpers are not available")
-        materialize("events", "$browser")
-
-        response = execute_hogql_query(
-            "SELECT properties.$browser FROM events",
-            team=self.team,
-            modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.AUTO),
-            pretty=False,
-        )
-        assert response.clickhouse is not None
-        assert self._expected_browser_select(MaterializationMode.AUTO) in response.clickhouse
-
-        response = execute_hogql_query(
-            "SELECT properties.$browser FROM events",
-            team=self.team,
-            modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.LEGACY_NULL_AS_NULL),
-            pretty=False,
-        )
-        assert response.clickhouse is not None
-        assert self._expected_browser_select(MaterializationMode.LEGACY_NULL_AS_NULL) in response.clickhouse
-
-        response = execute_hogql_query(
-            "SELECT properties.$browser FROM events",
-            team=self.team,
-            modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.LEGACY_NULL_AS_STRING),
-            pretty=False,
-        )
-        assert response.clickhouse is not None
-        assert self._expected_browser_select(MaterializationMode.LEGACY_NULL_AS_STRING) in response.clickhouse
-
-        response = execute_hogql_query(
-            "SELECT properties.$browser FROM events",
-            team=self.team,
-            modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.DISABLED),
-            pretty=False,
-        )
-        assert response.clickhouse is not None
-        assert self._expected_browser_select(MaterializationMode.DISABLED) in response.clickhouse
-
     def test_optimize_joined_filters(self):
         # no optimizations
         response = execute_hogql_query(
-            f"select event from events where person.properties.$browser ilike '%Chrome%'",
+            "select event from events where person.properties.$browser ilike '%Chrome%'",
             team=self.team,
             modifiers=HogQLQueryModifiers(
                 optimizeJoinedFilters=False,
@@ -344,7 +301,7 @@ class TestModifiers(BaseTest):
 
         # with optimizations
         response = execute_hogql_query(
-            f"select event from events where person.properties.$browser ilike '%Chrome%'",
+            "select event from events where person.properties.$browser ilike '%Chrome%'",
             team=self.team,
             modifiers=HogQLQueryModifiers(
                 optimizeJoinedFilters=True,
@@ -359,7 +316,7 @@ class TestModifiers(BaseTest):
     def test_no_convert_timezone(self):
         # default to convert to timezone
         response = execute_hogql_query(
-            f"select timestamp from events limit 1",
+            "select timestamp from events limit 1",
             team=self.team,
             modifiers=HogQLQueryModifiers(),
         )
@@ -368,7 +325,7 @@ class TestModifiers(BaseTest):
         assert response.clickhouse.count("toTimeZone") == 1
 
         response = execute_hogql_query(
-            f"select timestamp from events limit 1",
+            "select timestamp from events limit 1",
             team=self.team,
             modifiers=HogQLQueryModifiers(convertToProjectTimezone=False),
         )

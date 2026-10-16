@@ -1,8 +1,6 @@
 import os
-import gzip
 import json
 import uuid
-import base64
 import logging
 import dataclasses
 from collections import Counter, defaultdict
@@ -15,7 +13,6 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.db.models import Count, Q, Sum
 
-import requests
 import structlog
 import posthoganalytics
 from cachetools import cached
@@ -554,53 +551,6 @@ def get_org_user_count(organization_id: str) -> int:
 @cached(cache={})
 def get_ph_client(*args: Any, **kwargs: Any) -> PostHogClient:
     return PostHogClient("sTMFPsFhdP1Ssg", *args, **kwargs)
-
-
-@shared_task(**USAGE_REPORT_TASK_KWARGS, max_retries=3, rate_limit="5/s")
-@skip_team_scope_audit
-def send_report_to_billing_service(org_id: str, report: dict[str, Any]) -> None:
-    if not settings.EE_AVAILABLE:
-        return
-
-    from ee.billing.billing_manager import BillingManager, build_billing_token
-    from ee.billing.billing_types import BillingStatus
-    from ee.settings import BILLING_SERVICE_URL
-
-    try:
-        license = get_cached_instance_license()
-        if not license or not license.is_v2_license:
-            return
-
-        organization = Organization.objects.get(id=org_id)
-        if not organization:
-            return
-
-        token = build_billing_token(license, organization)
-        headers = {}
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
-
-        response = requests.post(f"{BILLING_SERVICE_URL}/api/usage", json=report, headers=headers, timeout=30)
-        if response.status_code != 200:
-            raise Exception(
-                f"Failed to send usage report to billing service code:{response.status_code} response:{response.text}"
-            )
-
-        response_data: BillingStatus = response.json()
-        BillingManager(license).update_org_details(organization, response_data)
-
-    except Exception as err:
-        logger.exception(
-            f"[Send Usage Report To Billing] Usage Report failed sending to Billing for organization: {org_id}: {err}"
-        )
-        capture_exception(err)
-        capture_event(
-            pha_client=get_ph_client(sync_mode=True),
-            name=f"organization usage report to billing service failure",
-            organization_id=org_id,
-            properties={"err": str(err)},
-        )
-        raise
 
 
 def _execute_split_query(
@@ -3721,27 +3671,6 @@ def serialize_full_org_report(org_report: OrgReport, instance_metadata: Instance
     return _get_full_org_usage_report_as_dict(full)
 
 
-def _queue_report(producer: Any, organization_id: str, full_report_dict: dict[str, Any]) -> None:
-    json_data = json.dumps(
-        {"organization_id": organization_id, "usage_report": full_report_dict},
-        separators=(",", ":"),
-    )
-    compressed_bytes = gzip.compress(json_data.encode("utf-8"))
-    compressed_b64 = base64.b64encode(compressed_bytes).decode("ascii")
-
-    message_attributes = {
-        "content_encoding": "gzip",
-        "content_type": "application/json",
-    }
-
-    response = producer.send_message(message_body=compressed_b64, message_attributes=message_attributes)
-
-    if not response:
-        logger.exception(f"Failed to send usage report for organization {organization_id}")
-
-    return
-
-
 @shared_task(**USAGE_REPORT_PARENT_TASK_KWARGS, max_retries=3)
 def send_all_org_usage_reports(
     dry_run: bool = False,
@@ -3759,15 +3688,6 @@ def send_all_org_usage_reports(
     period = get_previous_day(at=at_date)
 
     instance_metadata = get_instance_metadata(period)
-
-    producer = None
-    try:
-        if settings.EE_AVAILABLE:
-            from ee.sqs.SQSProducer import get_sqs_producer
-
-            producer = get_sqs_producer("usage_reports")
-    except Exception:
-        pass
 
     pha_client = get_ph_client(sync_mode=True)
 
@@ -3855,17 +3775,6 @@ def send_all_org_usage_reports(
                     logger.exception(
                         f"Failed to capture report for organization {organization_id}",
                         error=capture_err,
-                    )
-
-            # Then send the reports to billing through SQS (only if the producer is available)
-            if has_non_zero_usage(full_report) and producer:
-                try:
-                    _queue_report(producer, organization_id, full_report_dict)
-                    total_orgs_sent += 1
-                except Exception as err:
-                    logger.exception(
-                        f"Failed to queue report for organization {organization_id}",
-                        error=err,
                     )
 
         except Exception as loop_err:

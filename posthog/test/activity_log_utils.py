@@ -8,19 +8,19 @@ covered by the activity logging system.
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID, uuid4
 
+from posthog.test.base import APIBaseTest
+
 from django.utils import timezone
 
 from rest_framework import status
 
 from posthog.test.insight_queries import default_pageview_query
 
-from ee.api.test.base import APILicensedTest
-
 if TYPE_CHECKING:
     pass
 
 
-class ActivityLogTestHelper(APILicensedTest):
+class ActivityLogTestHelper(APIBaseTest):
     """Helper class for creating and updating models with activity logging."""
 
     def setUp(self):

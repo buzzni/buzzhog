@@ -1,4 +1,5 @@
 import json
+from dataclasses import dataclass
 
 import pytest
 
@@ -34,7 +35,6 @@ from posthog.models.event.sql import EVENTS_PROPERTIES_JSON_TYPE, PERSON_PROPERT
 
 from products.event_definitions.backend.models.property_definition import PropertyDefinition
 
-from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
 
 # Plain text alone almost never lands in the accepted set, so bias half the draws to printable ASCII.
 _PROPERTY_VALUES = st.one_of(
@@ -59,16 +59,23 @@ class TestJSONVerbatimValues(SimpleTestCase):
         assert value in json.dumps({"key": value}, ensure_ascii=False)
 
 
+@dataclass(frozen=True)
+class FakeMaterializedColumn:
+    name: str
+    is_nullable: bool = False
+    type: str = "String"
+    has_minmax_index: bool = False
+    has_bloom_filter_index: bool = False
+    has_ngram_lower_index: bool = False
+    has_bloom_filter_lower_index: bool = False
+
+
 class TestMaterializedLikePatternLimit(SimpleTestCase):
     @parameterized.expand(
         [(op, oversized) for op in ("Like", "NotLike", "ILike", "NotILike") for oversized in (False, True)]
     )
     def test_pattern_limit_preserves_property_read(self, op: str, oversized: bool) -> None:
-        column = MaterializedColumn(
-            name="mat_label",
-            details=MaterializedColumnDetails(table_column="properties", property_name="label", is_disabled=False),
-            is_nullable=False,
-        )
+        column = FakeMaterializedColumn(name="mat_label")
         context = HogQLContext(
             use_new_events_schema=False,
             property_metadata=PropertyMetadata(

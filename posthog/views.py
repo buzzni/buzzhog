@@ -70,16 +70,6 @@ def _traced(name: str, fn, *args, **kwargs):
         return fn(*args, **kwargs)
 
 
-def noop(*args, **kwargs) -> None:
-    return None
-
-
-try:
-    from ee.models.license import get_licensed_users_available
-except ImportError:
-    get_licensed_users_available = noop
-
-
 def login_required(view):
     base_handler = base_login_required(view)
 
@@ -247,9 +237,7 @@ def preflight_check(request: HttpRequest) -> JsonResponse:
             **response,
             "available_timezones": _traced("preflight.available_timezones", get_available_timezones_with_offsets),
             "opt_out_capture": os.environ.get("OPT_OUT_CAPTURE", False),
-            "licensed_users_available": _traced("preflight.licensed_users_available", get_licensed_users_available)
-            if not in_cloud
-            else None,
+            "licensed_users_available": None,
             "openai_available": bool(os.environ.get("OPENAI_API_KEY")),
             # Max runs on Anthropic, so it needs its own signal — otherwise self-hosted instances
             # render the assistant but fail at call time with no key configured.

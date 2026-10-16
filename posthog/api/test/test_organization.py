@@ -1,5 +1,4 @@
 from datetime import timedelta
-from typing import cast
 from uuid import uuid4
 
 from posthog.test.base import APIBaseTest
@@ -34,8 +33,6 @@ from products.access_control.backend.models.access_control import AccessControl
 from products.access_control.backend.models.feature_flag_role_access import FeatureFlagRoleAccess
 from products.access_control.backend.models.role import Role, RoleMembership
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
-
-from ee.models.explicit_team_membership import ExplicitTeamMembership
 
 
 class TestOrganizationAPI(APIBaseTest):
@@ -745,43 +742,6 @@ class TestOrganizationAPI(APIBaseTest):
         self.organization.refresh_from_db()
         self.assertTrue(self.organization.is_pending_deletion)
 
-    @patch("ee.billing.billing_manager.BillingManager.get_billing")
-    @patch("posthog.api.organization.get_cached_instance_license")
-    def test_cannot_delete_organization_with_active_subscription(self, mock_get_license, mock_get_billing):
-        mock_get_license.return_value = True
-        mock_get_billing.return_value = {"has_active_subscription": True}
-
-        self.organization_membership.level = OrganizationMembership.Level.OWNER
-        self.organization_membership.save()
-
-        with self.is_cloud(True):
-            response = self.client.delete(f"/api/organizations/{self.organization.id}")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("active subscription", response.json()["detail"])
-        self.assertTrue(Organization.objects.filter(id=self.organization.id).exists())
-
-    @patch("posthog.temporal.delete_teams.dispatch.start_delete_organization_workflow")
-    @patch("ee.billing.billing_manager.BillingManager.get_billing")
-    @patch("posthog.api.organization.get_cached_instance_license")
-    def test_can_delete_organization_without_active_subscription(
-        self, mock_get_license, mock_get_billing, mock_start_deletion
-    ):
-        mock_get_license.return_value = True
-        mock_get_billing.return_value = {"has_active_subscription": False}
-
-        self.organization_membership.level = OrganizationMembership.Level.OWNER
-        self.organization_membership.save()
-
-        org_id = self.organization.id
-        with self.is_cloud(True):
-            response = self.client.delete(f"/api/organizations/{org_id}")
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Deletion runs asynchronously on Temporal, so the org is marked pending, not removed synchronously
-        self.assertTrue(Organization.objects.get(id=org_id).is_pending_deletion)
-        mock_start_deletion.assert_called_once()
-
     @patch("posthog.temporal.delete_teams.dispatch.start_delete_organization_workflow")
     def test_delete_organization_sets_pending_deletion_flag(self, mock_delete_task):
         self.organization_membership.level = OrganizationMembership.Level.OWNER
@@ -1106,15 +1066,6 @@ class TestOrganizationSerializer(APIBaseTest):
                 ),
             ),
             (
-                "explicit_team_membership",
-                lambda self: ExplicitTeamMembership.objects.create(
-                    team=self.team,
-                    parent_membership=OrganizationMembership.objects.get(
-                        organization=self.organization, user=self.user
-                    ),
-                ),
-            ),
-            (
                 "role_membership",
                 lambda self: RoleMembership.objects.create(
                     role=Role.objects.create(name=f"role-{uuid4().hex}", organization=self.organization),
@@ -1284,94 +1235,23 @@ class TestOrganizationRbacMigrations(APIBaseTest):
 
     @patch("posthog.api.organization.report_organization_action")
     def test_migrate_team_rbac_as_admin(self, mock_report_action):
-        # Create a new team with access control enabled
         team_with_access_control = Team.objects.create(
             organization=self.organization, name="Team with Access Control", access_control=True
         )
-
-        # Create inactive user
-        self.inactive_user = self._create_user("rbac_inactive@posthog.com")
-        self.inactive_user.is_active = False
-        self.inactive_user.save()
-
-        # Create users with different org membership levels
-        self.org_admin = self._create_user("rbac_org_admin@posthog.com", level=OrganizationMembership.Level.ADMIN)
-        self.org_member = self._create_user("rbac_org_member@posthog.com", level=OrganizationMembership.Level.MEMBER)
-
         self.client.force_login(self.admin_user)
-
-        # Create explicit team memberships
-        ExplicitTeamMembership.objects.create(
-            team=team_with_access_control,
-            parent_membership=cast(OrganizationMembership, self.inactive_user.organization_memberships.first()),
-            level=ExplicitTeamMembership.Level.MEMBER,
-        )
-        ExplicitTeamMembership.objects.create(
-            team=team_with_access_control,
-            parent_membership=cast(OrganizationMembership, self.org_admin.organization_memberships.first()),
-            level=ExplicitTeamMembership.Level.ADMIN,
-        )
-        ExplicitTeamMembership.objects.create(
-            team=team_with_access_control,
-            parent_membership=cast(OrganizationMembership, self.org_member.organization_memberships.first()),
-            level=ExplicitTeamMembership.Level.MEMBER,
-        )
 
         response = self.client.post(f"/api/organizations/{self.organization.id}/migrate_access_control/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["status"], True)
 
-        # Verify that inactive user's access was not migrated
-        with self.assertRaises(AccessControl.DoesNotExist):
-            AccessControl.objects.get(
-                organization_member=cast(OrganizationMembership, self.inactive_user.organization_memberships.first())
-            )
-
-        # Verify that org admin's explicit team membership was not migrated
-        with self.assertRaises(AccessControl.DoesNotExist):
-            AccessControl.objects.get(
-                organization_member=cast(OrganizationMembership, self.org_admin.organization_memberships.first())
-            )
-
-        # Verify that org member's access was migrated
-        member_access = AccessControl.objects.get(
-            organization_member=cast(OrganizationMembership, self.org_member.organization_memberships.first())
-        )
-        self.assertEqual(member_access.access_level, "member")
-        self.assertEqual(member_access.resource, "project")
-        self.assertEqual(member_access.resource_id, str(team_with_access_control.id))
-
-        # Verify base team access control was created
         base_access = AccessControl.objects.get(team=team_with_access_control, organization_member__isnull=True)
         self.assertEqual(base_access.access_level, "none")
         self.assertEqual(base_access.resource, "project")
         self.assertEqual(base_access.resource_id, str(team_with_access_control.id))
 
-        # Verify admin access control was created
-        admin_access = AccessControl.objects.filter(
-            team=team_with_access_control,
-            organization_member=cast(OrganizationMembership, self.org_admin.organization_memberships.first()),
-            access_level="admin",
-            resource="project",
-            resource_id=str(team_with_access_control.id),
-        )
-        self.assertEqual(admin_access.count(), 0)
-
-        # Verify member access control was created
-        member_access = AccessControl.objects.get(
-            team=team_with_access_control,
-            organization_member=cast(OrganizationMembership, self.org_member.organization_memberships.first()),
-            access_level="member",
-            resource="project",
-            resource_id=str(team_with_access_control.id),
-        )
-        self.assertIsNotNone(member_access)
-
-        # Check that the team access control has been disabled
         team_with_access_control.refresh_from_db()
         self.assertFalse(team_with_access_control.access_control)
 
-        # Add verification of reporting calls at the end
         mock_report_action.assert_any_call(
             self.organization, "rbac_team_migration_started", {"user": self.admin_user.distinct_id}
         )
@@ -1409,18 +1289,6 @@ class TestOrganizationRbacMigrations(APIBaseTest):
 
         self.client.force_login(self.admin_user)
 
-        # Create explicit team memberships
-        ExplicitTeamMembership.objects.create(
-            team=team_with_access_control,
-            parent_membership=cast(OrganizationMembership, self.admin_user.organization_memberships.first()),
-            level=ExplicitTeamMembership.Level.ADMIN,
-        )
-        ExplicitTeamMembership.objects.create(
-            team=team_with_access_control,
-            parent_membership=cast(OrganizationMembership, self.member_user.organization_memberships.first()),
-            level=ExplicitTeamMembership.Level.MEMBER,
-        )
-
         # Create feature flags with role access
         feature_flags = []
         for i in range(2):
@@ -1451,7 +1319,6 @@ class TestOrganizationRbacMigrations(APIBaseTest):
             self.assertEqual(access_control.role, self.admin_role)
 
         # Verify team access controls
-        self.assertEqual(ExplicitTeamMembership.objects.count(), 0)
         base_access = AccessControl.objects.get(
             team=team_with_access_control,
             organization_member__isnull=True,
@@ -1461,28 +1328,9 @@ class TestOrganizationRbacMigrations(APIBaseTest):
         )
         self.assertIsNotNone(base_access)
 
-        admin_access = AccessControl.objects.filter(
-            team=team_with_access_control,
-            organization_member=cast(OrganizationMembership, self.admin_user.organization_memberships.first()),
-            access_level="admin",
-            resource="project",
-            resource_id=str(team_with_access_control.id),
-        )
-        # Shouldn't exist
-        self.assertEqual(admin_access.count(), 0)
-
-        member_access = AccessControl.objects.get(
-            team=team_with_access_control,
-            organization_member=cast(OrganizationMembership, self.member_user.organization_memberships.first()),
-            access_level="member",
-            resource="project",
-            resource_id=str(team_with_access_control.id),
-        )
-        self.assertIsNotNone(member_access)
-
         # Verify total number of access controls
-        # 2 feature flags + 2 team access controls (base + member)
-        self.assertEqual(AccessControl.objects.count(), 4)
+        # 2 feature flags + 1 team base access control
+        self.assertEqual(AccessControl.objects.count(), 3)
 
         # Add verification of reporting calls at the end
         mock_report_action.assert_any_call(

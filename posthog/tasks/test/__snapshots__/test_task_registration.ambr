@@ -90,7 +90,6 @@
     'posthog.tasks.hypercache_verification.verify_and_fix_flags_cache_task',
     'posthog.tasks.hypercache_verification.verify_and_fix_team_metadata_cache_task',
     'posthog.tasks.integrations.delete_ses_identity_if_unused',
-    'posthog.tasks.integrations.push_vercel_secrets',
     'posthog.tasks.integrations.refresh_github_branch_cache',
     'posthog.tasks.integrations.refresh_integration',
     'posthog.tasks.integrations.refresh_integrations',
@@ -122,7 +121,6 @@
     'posthog.tasks.tasks.clear_expired_sessions',
     'posthog.tasks.tasks.clickhouse_clear_removed_data',
     'posthog.tasks.tasks.clickhouse_errors_count',
-    'posthog.tasks.tasks.clickhouse_materialize_columns',
     'posthog.tasks.tasks.clickhouse_mutation_count',
     'posthog.tasks.tasks.clickhouse_part_count',
     'posthog.tasks.tasks.clickhouse_row_count',
@@ -166,7 +164,6 @@
     'posthog.tasks.uploaded_media.sweep_abandoned_media_uploads_task',
     'posthog.tasks.usage_report.capture_report',
     'posthog.tasks.usage_report.send_all_org_usage_reports',
-    'posthog.tasks.usage_report.send_report_to_billing_service',
     'posthog.tasks.warehouse.validate_data_warehouse_table_columns',
     'posthog.tasks.wizard_blocklist.revoke_blocklisted_gateway_credentials',
   ])

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import cast
 
 from posthog.test.base import BaseTest
@@ -50,7 +51,6 @@ from posthog.schema_enums import PredicateFixAction, QueryIndexUsage
 from products.event_definitions.backend.models.property_definition import PropertyDefinition
 from products.event_definitions.backend.property_type import PropertyType
 
-from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
 
 Op = ast.CompareOperationOp
 
@@ -494,18 +494,19 @@ class TestIndexEligibilityVerdicts(SimpleTestCase):
         assert report.usage == expected
 
 
-def _materialized(property_name: str, *, minmax: bool = False, bloom: bool = False) -> MaterializedColumn:
-    return MaterializedColumn(
-        name=f"mat_{property_name}",
-        details=MaterializedColumnDetails(
-            table_column="properties",
-            property_name=property_name,
-            is_disabled=False,
-        ),
-        is_nullable=False,
-        has_minmax_index=minmax,
-        has_bloom_filter_index=bloom,
-    )
+@dataclass(frozen=True)
+class FakeMaterializedColumn:
+    name: str
+    has_minmax_index: bool = False
+    has_bloom_filter_index: bool = False
+    is_nullable: bool = False
+    type: str = "String"
+    has_ngram_lower_index: bool = False
+    has_bloom_filter_lower_index: bool = False
+
+
+def _materialized(property_name: str, *, minmax: bool = False, bloom: bool = False) -> FakeMaterializedColumn:
+    return FakeMaterializedColumn(name=f"mat_{property_name}", has_minmax_index=minmax, has_bloom_filter_index=bloom)
 
 
 class TestIndexEligibilityThroughThePlanner(BaseTest):

@@ -10,8 +10,7 @@ from posthog.models.project import Project
 from posthog.models.id_jag_identity import IdJagIdentity
 from posthog.models.user_scene_personalisation import UserScenePersonalisation
 from products.product_tours.backend.models import ProductTour
-
-from ee.models.rbac.role import Role, RoleMembership
+from products.access_control.backend.models.role import Role, RoleMembership
 
 # ============================================================
 # idor-taint-user-input-to-model-get (ERROR - user input flows to lookup)

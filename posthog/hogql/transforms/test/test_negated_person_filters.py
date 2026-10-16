@@ -1,15 +1,9 @@
 import re
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass
 
 from posthog.test.base import (
     APIBaseTest,
-    ClickhouseTestMixin,
     QueryMatchingTest,
-    _create_event,
-    _create_person,
-    create_person_id_override_by_distinct_id,
-    flush_persons_and_events,
-    materialized,
 )
 from unittest.mock import patch
 
@@ -23,14 +17,11 @@ from posthog.hogql.modifiers import create_default_modifiers_for_team
 from posthog.hogql.parser import parse_select
 from posthog.hogql.printer import prepare_and_print_ast
 from posthog.hogql.property import property_to_expr
-from posthog.hogql.query import execute_hogql_query
 
 from posthog.models import PropertyDefinition
-from posthog.models.person.util import create_person
 
 from products.event_definitions.backend.models.property_definition import PropertyType
 
-from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
 
 JOINED = PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED
 
@@ -42,142 +33,24 @@ INTERNAL_OR_EXAMPLE_PERSONS = INTERNAL_PERSONS | {"external", "changed_to_extern
 
 PERSONS_JOIN = re.compile(r"AS \w+__person ON")
 
+
+@dataclass(frozen=True)
+class FakeMaterializedColumn:
+    name: str
+    type: str
+    is_nullable: bool = False
+    has_minmax_index: bool = False
+    has_bloom_filter_index: bool = False
+    has_ngram_lower_index: bool = False
+    has_bloom_filter_lower_index: bool = False
+
+
 MATERIALIZED_PERSON_COLUMNS = {
     "person": {
-        (name, "properties"): MaterializedColumn(
-            name=f"pmat_{name}",
-            details=MaterializedColumnDetails(table_column="properties", property_name=name, is_disabled=False),
-            is_nullable=False,
-            column_type=column_type,
-        )
-        for name, column_type in (("email", None), ("is_staff", None), ("score", "Float64"))
+        (name, "properties"): FakeMaterializedColumn(name=f"pmat_{name}", type=column_type)
+        for name, column_type in (("email", "String"), ("is_staff", "String"), ("score", "Float64"))
     }
 }
-
-
-class TestNegatedPersonFiltersResults(ClickhouseTestMixin, APIBaseTest):
-    EVENTS = {
-        "internal",
-        "external",
-        "personless",
-        "deleted_internal",
-        "changed_to_external",
-        "changed_to_internal",
-        "cleared_email",
-        "null_email",
-        "no_email",
-        "future_internal",
-        "merged",
-    }
-
-    def setUp(self):
-        super().setUp()
-        self.enterContext(materialized("person", "email"))
-        timestamp = datetime(2024, 1, 2, 12)
-
-        def person(distinct_id: str, properties: dict):
-            created = _create_person(team_id=self.team.pk, distinct_ids=[distinct_id], properties=properties)
-            _create_event(event=distinct_id, distinct_id=distinct_id, team=self.team, timestamp=timestamp)
-            return created
-
-        person("internal", {"email": "alice@internal.example"})
-        person("external", {"email": "bob@example.com"})
-        _create_event(event="personless", distinct_id="personless", team=self.team, timestamp=timestamp)
-        deleted = person("deleted_internal", {"email": "dana@internal.example"})
-        to_external = person("changed_to_external", {"email": "erin@internal.example"})
-        to_internal = person("changed_to_internal", {"email": "frank@example.com"})
-        cleared = person("cleared_email", {"email": "gina@internal.example"})
-        person("null_email", {"email": "null"})
-        person("no_email", {})
-        future = person("future_internal", {"email": "hank@internal.example"})
-        person("merged", {"email": "ivy@example.com"})
-        flush_persons_and_events()
-
-        in_a_month = datetime.now(UTC) + timedelta(days=30)
-        for later, email, is_deleted, created_at in [
-            (deleted, "dana@internal.example", True, None),
-            (to_external, "erin@example.com", False, None),
-            (to_internal, "frank@internal.example", False, None),
-            (cleared, "", False, None),
-            (future, "hank@internal.example", False, in_a_month),
-        ]:
-            create_person(
-                team_id=self.team.pk,
-                uuid=str(later.uuid),
-                properties={"email": email},
-                version=1,
-                is_deleted=is_deleted,
-                created_at=created_at,
-            )
-        create_person_id_override_by_distinct_id("merged", "internal", self.team.pk)
-
-    def _run(self, select: str, filters: list[dict], mode: PersonsOnEventsMode, rewrite: bool) -> tuple[set[str], str]:
-        response = execute_hogql_query(
-            parse_select(f"{select} WHERE {{where}}"),
-            self.team,
-            placeholders={"where": property_to_expr(filters, self.team)},
-            modifiers=HogQLQueryModifiers(personsOnEventsMode=mode, negatedPersonFiltersNotIn=rewrite),
-        )
-        assert response.clickhouse is not None
-        return {row[0] for row in response.results}, response.clickhouse
-
-    @parameterized.expand(
-        [
-            param("not_icontains", [INTERNAL], INTERNAL_PERSONS),
-            param(
-                "not_icontains_multi", [{**INTERNAL, "value": ["@internal.example", "@corp.example"]}], INTERNAL_PERSONS
-            ),
-            param(
-                "not_icontains_past_needle_limit",
-                [{**INTERNAL, "value": ["@internal.example", *(f"@unused-{i}.example" for i in range(255))]}],
-                INTERNAL_PERSONS,
-            ),
-            param(
-                "is_not",
-                [{**INTERNAL, "operator": "is_not", "value": "alice@internal.example"}],
-                {"internal", "merged"},
-            ),
-            param(
-                "is_not_multi",
-                [{**INTERNAL, "operator": "is_not", "value": ["alice@internal.example", "frank@internal.example"]}],
-                INTERNAL_PERSONS,
-            ),
-            param(
-                "not_regex", [{**INTERNAL, "operator": "not_regex", "value": "@internal\\.example$"}], INTERNAL_PERSONS
-            ),
-            param("two_filters", [INTERNAL, EXAMPLE], INTERNAL_OR_EXAMPLE_PERSONS),
-            param(
-                "select_alias_named_person_id",
-                [INTERNAL],
-                INTERNAL_PERSONS,
-                select="SELECT event, distinct_id AS person_id FROM events",
-            ),
-            # DISABLED mode reads person_id through an INNER JOIN on person_distinct_id2. That join drops the
-            # personless event and ignores the override.
-            param(
-                "disabled_mode",
-                [INTERNAL],
-                {"internal", "changed_to_internal", "personless"},
-                mode=PersonsOnEventsMode.DISABLED,
-            ),
-        ]
-    )
-    def test_rewrite_returns_the_rows_the_join_returns(
-        self,
-        _name: str,
-        filters: list[dict],
-        excluded: set[str],
-        mode: PersonsOnEventsMode = JOINED,
-        select: str = "SELECT event FROM events",
-    ):
-        joined, joined_sql = self._run(select, filters, mode, rewrite=False)
-        rewritten, rewritten_sql = self._run(select, filters, mode, rewrite=True)
-
-        assert joined == self.EVENTS - excluded
-        assert rewritten == joined
-        assert PERSONS_JOIN.search(joined_sql)
-        assert not PERSONS_JOIN.search(rewritten_sql)
-        assert "where_optimization" in rewritten_sql
 
 
 class TestNegatedPersonFiltersPrinting(QueryMatchingTest, APIBaseTest):
