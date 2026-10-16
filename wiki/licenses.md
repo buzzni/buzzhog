@@ -309,6 +309,19 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 
 브랜딩 쪽 저작권 고지 요약은 [branding.md](branding.md)에도 있다.
 
+## 정책 파일 (초안)
+
+저장소 루트의 `license-policy.toml`이 어느 라이선스를 허용하고 막을지 적는 정책 원본이다. 2026-10-16 기준 `status = "draft"`다. 법무가 목록과 예외를 확정해 `adopted`로 바꾸기 전까지는 어떤 검사도 이 파일을 읽지 않는다(buzzhog-djp9).
+
+- 판정은 `allow`, `review`, `deny` 세 가지다. `review`는 사람이 보고 결정을 적기 전까지 검사 실패로 센다. 어느 목록에도 없는 식별자, `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류는 `review`다.
+- 식별자는 SPDX다. SPDX에 없는 것(PolyForm Strict, GSAP, 독점)은 `LicenseRef-`를 붙였다.
+- `A OR B`는 더 좋은 쪽, `A AND B`는 더 나쁜 쪽, `X WITH 예외`는 `X`로 판정한다. 이 페이지의 [분류 규칙](#분류-규칙) 1과 같은 해석이다.
+- `[[package]]`는 패키지별 결정이다. 레지스트리 값이 비어 있는 패키지의 라이선스를 본문으로 바로잡거나(`license`), 정책 판정을 덮어쓴다(`verdict`). `status`가 `approved`인 항목만 효력이 있고, `proposed`는 여전히 검사 실패다. `rejected`는 제거·대체가 결정된 것이다.
+- `[[path]]`는 잠금 파일 밖 파일(터미널 바이너리, 글꼴, 복사한 이미지, 벤더링한 코드)에 같은 결정을 적는 자리다.
+- 초안의 `[[package]]`·`[[path]]` 항목은 모두 `proposed`다. 위 "법무 검토가 필요한 항목"과 "잠금 파일 밖 제3자 구성요소" 표에서 옮겼다.
+
+초안과 현재 `gen_licenses.py` 허용 목록의 차이: 초안은 `OFL-1.1`을 `review`에 둔다(고지 의무). `WTFPL`, `OpenSSL`, `BSD-4-Clause`도 `review`다. `CDLA-Permissive-2.0`과 `bzip2-1.0.6`은 `allow`에 넣었다. 확정되면 스크립트의 `ALLOW`는 이 파일에서 읽는다.
+
 ## 집계 방법
 
 요약 표, 범위 표, 상위 라이선스 표, 허용 목록은 `wiki/_tools/gen_licenses.py`가 만든다. 이 페이지의 `generated:` 구역이 그 결과다. 구역 밖은 손으로 쓴 글이고, 스크립트는 건드리지 않는다.
