@@ -241,7 +241,6 @@ class OrganizationAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "plugins_access_level",
-        "billing_link",
         "usage_posthog",
         "usage_display",
         "customer_trust_scores",
@@ -272,7 +271,6 @@ class OrganizationAdmin(admin.ModelAdmin):
         "id",
         "created_at",
         "updated_at",
-        "billing_link",
         "usage_posthog",
         "usage_display",
         "customer_trust_scores",
@@ -288,7 +286,6 @@ class OrganizationAdmin(admin.ModelAdmin):
         "plugins_access_level",
         "members_count",
         "first_member",
-        "billing_link",
     )
     list_display_links = (
         "id",
@@ -317,10 +314,6 @@ class OrganizationAdmin(admin.ModelAdmin):
             if user is not None
             else "None"
         )
-
-    def billing_link(self, organization: Organization) -> str:
-        url = f"{settings.BILLING_SERVICE_URL}/admin/billing/customer/?q={organization.pk}"
-        return format_html(f'<a href="{url}">Billing →</a>')
 
     def usage_posthog(self, organization: Organization):
         return format_html(
@@ -398,7 +391,7 @@ class OrganizationAdmin(admin.ModelAdmin):
             {"history": get_ai_training_opt_in_history(organization)},
         )
 
-    @admin.display(description="Sync to billing")
+    @admin.display(description="Danger zone")
     def trigger_deletion_display(self, organization: Organization):
         if not organization.pk:
             return "-"
