@@ -1346,7 +1346,7 @@ class TestLocalDevAPIKeyReveal(APIBaseTest):
     @override_settings(**REVEAL_GATES_OPEN)
     def test_tolerates_dev_api_key_being_undefined(self):
         # DEV_API_KEY ships with the EE settings, so it is absent entirely in OSS builds.
-        del settings.DEV_API_KEY
+        delattr(settings, "DEV_API_KEY")
         assert get_local_dev_api_key_value(self._dev_key()) is None
 
     def test_resolves_the_dev_key_per_call_rather_than_once_at_import(self):

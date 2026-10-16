@@ -493,7 +493,7 @@ class TestIndexEligibilityVerdicts(SimpleTestCase):
         assert report.usage == expected
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class FakeMaterializedColumn:
     name: str
     has_minmax_index: bool = False

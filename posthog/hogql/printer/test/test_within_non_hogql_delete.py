@@ -90,9 +90,6 @@ class TestWithinNonHogqlDelete(ClickhouseTestMixin, APIBaseTest):
         unexpected = called - _MUTATION_SAFE_FUNCTIONS
         assert not unexpected, f"fragment uses non-mutation-safe functions {unexpected} in: {sql}"
 
-    def _expected_browser_property_sql(self) -> str:
-        return self._materialized_column_name("events", "$browser")
-
     def test_compiled_predicate_is_unqualified_and_mutation_safe_without_materialized_column(self) -> None:
         # Without materialization the fragment is the JSON-blob form; it must STILL be unqualified and mutation-safe
         # (the deletion path always runs with within_non_hogql_query=True). This is the other production shape.

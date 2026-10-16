@@ -58,7 +58,7 @@ class TestJSONVerbatimValues(SimpleTestCase):
         assert value in json.dumps({"key": value}, ensure_ascii=False)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class FakeMaterializedColumn:
     name: str
     is_nullable: bool = False
