@@ -282,19 +282,45 @@ The failure case goes through `evaluate_alert_check` with an errored `CheckInput
 transient. A transient error advances the schedule but holds the counter, because a cluster outage must not
 disable every alert that ran during it.
 
-`suppressed` is the single definition of what holds a configuration back, and it is BROKEN alone.
+`suppressed` is the single definition of what holds a configuration back, and it is a BROKEN `check_status` alone.
 Both `discover_demand` and `due_checks` exclude on it. Discovery has to, because a broken alert that still mints
 a batch key spends the manifest bound on work its own evaluation then drops.
-It is one correlated `Exists` rather than a lookup across the relation: Django splits an excluded multi-valued
-lookup into a subquery per leaf, which would let the conditions match different alert rows once a source writes
-a real grouping key, and would bury them where Postgres cannot lift them into an anti-join.
+
+`check_status` lives on the configuration, not on an instance, for grouped and ungrouped configurations alike,
+because a failed check returns no group to attribute the failure to.
+A check that could not evaluate reports its failure on the outcome as a `CheckFailure`, with no groups, for every source.
+`record_outcomes` writes the machine's ERRORED or BROKEN onto `check_status`, leaves every instance alone, and writes one history row with the empty grouping key and the nil UUID as `alert_id`, which stands in for "no instance" because the sort key rejects Nullable.
+So a failed grouped check posts one error message, not one per group.
+The check input hands the shared machine the configuration's status in place of each instance's state while it is not OK,
+so the machine reads what it read when both shared one field.
+
+A configuration's `snooze_until` mutes every instance, and an instance's own `snooze_until` mutes one group.
+The check input and the read API show each instance the later of the two.
+
+A configuration's `grouping` holds `max_instances` (100 by default), the most instance rows it keeps.
+A source calls `check.admit(keys)` with its groups in priority order: a group that already has an instance is always admitted, so it can resolve, and new groups fill the remaining room front first.
+The count it turned away travels on the delivery as `overflowed`, and the first message of that delivery says how many groups were not tracked.
+`record_outcomes` enforces the cap again and drops a group past it, counted on `alerts_platform_groups_over_cap_total`.
+An instance that is not firing, not muted, and that no check returned for longer than both 24 hours and its cooldown is deleted, which frees its slot.
+Nothing is reaped while the configuration's checks fail, because a failed check returns no groups and every instance would look gone.
+
+Logs is the first source that groups, by `service_name` and `severity_text` only.
+A grouped logs alert leaves the batched cohort and runs `GroupedAlertCheckQuery`, one query per alert, with its open groups ordered first and the rest worst first.
+A group with no instance whose check decides nothing is left out, so a quiet service costs no row, and an open group the query does not return is checked against a zero count so it can resolve.
+
+Insight groups by breakdown value, with `keys` set to `["breakdown"]`.
+`check_alert_per_series` judges every series on its own, where production's `check_alert_for_insight` stops at the first series that breaches, and the adapter runs each value through the shared machine against its own instance.
+Only threshold alerts can group; a detector scores its series together.
 
 `alerts_platform_checks_skipped_total{source,reason}` counts these by reason.
 
 ### What a check leaves behind
 
-Every check writes one row to `platform_alert_events` in ClickHouse, including a check that
-confirmed the alert.
+Every check writes one row to `platform_alert_events` in ClickHouse for each group its outcome
+reports, including a check that confirmed the alert.
+An outcome carries what describes the whole check (the evaluation key, the failure count, `disable`,
+the next due time) once, and a `GroupOutcome` per group for what describes one instance (its state,
+firing and value). A source that does not group reports one group with the empty key.
 Postgres could not take that volume without a per-check retention flag, and a TTL'd ClickHouse
 table needs no such flag, so nothing has to decide which checks are worth keeping.
 
@@ -487,7 +513,7 @@ Run it only after the evaluation worker's chart sets `CLICKHOUSE_ALERTS_PLATFORM
 Insight checks tag their queries with `ClickHouseUser.ALERTS_PLATFORM_INSIGHT`, a user of their own, so the parallel run never takes from the per-user budget of the user that production insight alerts query as.
 Without that env the tag resolves to the worker's default user, which other workloads on the same servers already push against its concurrent query limit.
 Logs checks use their own user, `alerts_platform_logs`, on the logs cluster.
-Logs checks also wait for room in a fleet-wide pool of batches, `ALERTS_PLATFORM_LOGS_MAX_INFLIGHT_BATCHES` (default 5). A batch runs its cohort queries one after another, so this bounds the parallel run's concurrent logs queries however many teams are copied. A batch the pool turns away keeps its due time and a later tick picks it up, so a pool that is too small shows up as scheduler lag for `source=logs`.
+Logs checks also wait for room in a fleet-wide pool of batches, `ALERTS_PLATFORM_LOGS_MAX_INFLIGHT_BATCHES` (default 5). A batch runs its cohort queries one after another, so this bounds the parallel run's concurrent logs queries however many teams are copied. A batch the pool turns away waits on a workflow timer and tries again for up to 20 seconds, so it usually still runs within its own minute. The wait holds no worker slot, because it is a timer in the workflow rather than a sleep in the evaluation activity. A batch still without a slot after that keeps its due time and a later tick picks it up, so a pool that is too small shows up as scheduler lag for `source=logs` and as `alerts_platform_checks_deferred_total{source="logs"}`.
 
 Every copy adds ClickHouse load beside production's, so roll it out in steps.
 A full logs backfill hit ClickHouse's per-user concurrent query limit and had to be removed.
