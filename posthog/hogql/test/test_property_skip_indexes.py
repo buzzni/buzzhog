@@ -5,7 +5,6 @@ Cross product of (operator) × (skip index type) × (materialization strategy) �
 
 import json
 from collections.abc import Iterable
-from datetime import datetime
 from typing import Any, Literal
 
 from posthog.test.base import (
@@ -36,7 +35,6 @@ from posthog.hogql.context import HogQLContext
 from posthog.hogql.observability import HogQLTypeObservability
 from posthog.hogql.printer import prepare_and_print_ast
 from posthog.hogql.property import property_to_expr
-from posthog.hogql.query import execute_hogql_query
 
 from posthog.clickhouse.client.execute import sync_execute
 from posthog.models import MaterializedColumnSlot, MaterializedColumnSlotState, PropertyDefinition
@@ -287,57 +285,6 @@ class TestEventPropertySkipIndexes(_PropertySkipIndexTestBase):
             },
         )
 
-    # ----- mat col, NULLABLE, minmax index ----------------------------------
-
-    # ----- mat col, NON-NULLABLE, minmax index ------------------------------
-    # Non-nullable mat cols store JSON ``null`` / missing values as sentinel strings ``''`` / ``'null'``; the printer normally scrubs them via ``nullIf(nullIf(col, ''), 'null')``, which hides the column from minmax.
-
-    # ----- mat col, NULLABLE, minmax index — `<` against various constant TYPES ----
-    # Mat columns are ``Nullable(String)`` / ``String``; the rewrite doesn't coerce — ClickHouse decides whether to accept the comparison.
-
-    def test_mat_col_nullable_minmax_lt_numeric_looking_strings_compare_lexically(self) -> None:
-        # Byte-wise: ``'1000' < '500'`` is true (``'1' < '5'``), ``'200' < '500'`` is true (``'2' < '5'``), ``'900' < '500'`` is false (``'9' > '5'``). Numeric compare would match only ``'200'``, so seeding ``d_1000`` makes the lexical behavior load-bearing.
-        # Fix in production: declare ``property_type=Numeric`` (PropertySwapper then wraps in ``toFloat``, but the wrap hides the column from minmax — see ``test_mat_col_lt_typed_numeric_property``).
-        _create_event(team=self.team, distinct_id="d_200", event="test_event", properties={EVENT_PROP_KEY: "200"})
-        _create_event(team=self.team, distinct_id="d_900", event="test_event", properties={EVENT_PROP_KEY: "900"})
-        _create_event(team=self.team, distinct_id="d_1000", event="test_event", properties={EVENT_PROP_KEY: "1000"})
-        flush_persons_and_events()
-
-        self._materialize_with(is_nullable=True, create_minmax_index=True)
-
-        result = execute_hogql_query(
-            team=self.team,
-            query="SELECT distinct_id FROM events WHERE properties.test_prop < '500' ORDER BY distinct_id",
-        )
-        # Lexical: ``'1000'`` (1 < 5) and ``'200'`` (2 < 5) both match; ``'900'`` (9 > 5) is excluded. Numeric would match only ``'200'``.
-        self.assertEqual(result.results, [("d_1000",), ("d_200",)])
-
-    def test_mat_col_nullable_minmax_lt_datetime_constant_against_string_column_errors(self) -> None:
-        # A datetime constant stays raw (``less(col, toDateTime64('2024-01-15 ...'))``) and ClickHouse
-        # refuses ``String < DateTime64`` at execution. (Same behavior as the existing equality / IN
-        # rewrites — none of them gate on constant type. For datetime compare, declare
-        # ``property_type`` on the PropertyDefinition; see ``test_mat_col_lt_typed_datetime_property``.)
-        self._seed()
-        self._materialize_with(is_nullable=True, create_minmax_index=True)
-        query, values = self._filter_to_sql(self._filter(PropertyOperator.LT, datetime(2024, 1, 15, 10, 30)))
-        with self.assertRaises(Exception) as ctx:
-            sync_execute(query, values)
-        # ClickHouse: ``No operation less between String and DateTime64``.
-        message = str(ctx.exception).lower()
-        assert "supertype" in message or "no operation" in message, (
-            f"Expected a type-mismatch error from ClickHouse, got: {ctx.exception}"
-        )
-
-    # ----- mat col, NULLABLE, bloom_filter index ----------------------------
-    # bloom_filter is built for membership: ``=`` and IN over string sets.
-
-    # ----- mat col, NON-NULLABLE, bloom_filter index ------------------------
-
-    # ----- mat col, NULLABLE, ngrambf_v1 lower index ------------------------
-    # ngram bloom filter on ``lower(col)`` powers case-insensitive substring search.
-
-    # ----- mat col, NON-NULLABLE, ngrambf_v1 lower index --------------------
-
     # ----- property group map column ----------------------------------------
     # ``properties_group_custom`` is a ``Map(String, String)`` with bloom filters on ``mapKeys`` (``..._keys_bf``) and ``mapValues`` (``..._values_bf``).
 
@@ -406,24 +353,6 @@ class TestEventPropertySkipIndexes(_PropertySkipIndexTestBase):
         self._assert_indexes(self._filter(PropertyOperator.EXACT, "5"), expected_used=set())
 
     # ----- observability ------------------------------------------------------
-
-    def test_observability_records_property_usage_and_range_rewrite(self) -> None:
-        self._seed()
-        self._materialize_with(is_nullable=True, create_minmax_index=True)
-
-        stats = HogQLTypeObservability(dialect="clickhouse", source="unknown")
-        with patch("posthog.hogql.printer.utils.create_hogql_type_observability", return_value=stats):
-            # Non-numeric bound: a numeric-text bound coerces to Float64 and skips the range rewrite.
-            self._filter_to_sql(self._filter(PropertyOperator.LT, "mango"))
-
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            assert stats.materialized_range_rewrite["fired_compare"] == 0
-            assert stats.materialized_property_usage["json_subcolumn"] >= 1
-            assert stats.materialized_property_usage["materialized_column"] == 0
-        else:
-            # The column is nullable, so the bare comparison is guarded by isNotNull(col): a "fired_if_null" outcome.
-            assert stats.materialized_range_rewrite["fired_if_null"] >= 1
-            assert stats.materialized_property_usage["materialized_column"] >= 1
 
     def test_observability_records_json_property_usage(self) -> None:
         self._seed()

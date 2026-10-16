@@ -109,8 +109,6 @@
     'posthog.tasks.split_person.split_person',
     'posthog.tasks.surveys.sync_all_surveys_cache',
     'posthog.tasks.surveys.update_team_surveys_cache',
-    'posthog.tasks.sync_billing.sync_from_billing',
-    'posthog.tasks.sync_billing.sync_members_to_billing',
     'posthog.tasks.tasks.background_delete_model_task',
     'posthog.tasks.tasks.calculate_cohort',
     'posthog.tasks.tasks.calculate_decide_usage',

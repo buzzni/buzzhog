@@ -10,7 +10,7 @@ import {
 } from '../../src/lib/side-effects.js'
 
 const cases = JSON.parse(
-    readFileSync(new URL('../../../../ee/hogai/sandbox/turn_event_contract.json', import.meta.url), 'utf8')
+    readFileSync(new URL('../../../../products/tasks/backend/tests/fixtures/turn_event_contract.json', import.meta.url), 'utf8')
 ) as {
     name: string
     event: Record<string, unknown>

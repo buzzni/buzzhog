@@ -948,10 +948,10 @@ async def test_runner_records_a_cancelled_scan_as_a_failure(asuggestion_team):
 async def test_runner_scans_a_project_that_is_over_its_pr_quota(asuggestion_team):
     # A scan opens no pull request, so it charges nothing against the self-driving credits meter,
     # and a skip would still cost the team the whole refresh window stamped at dispatch. Patched
-    # at the limiter read every quota gate bottoms out on, so re-adding one in any form fails here.
+    # at the Signals quota gate, so a scan that starts asking it fails here.
     batch = ScoutSuggestionBatch(suggestions=[_custom()])
     with (
-        patch("products.signals.backend.quota.is_team_limited", return_value=True),
+        patch("products.signals.backend.quota.is_team_signals_quota_limited", return_value=True),
         patch(
             f"{_RUNNER}.MultiTurnSession.start", new_callable=AsyncMock, return_value=(_fake_session(), batch)
         ) as start,
@@ -1225,7 +1225,7 @@ class TestScoutSuggestionsAPI(APIBaseTest):
         # The refresh cannot mint a pull request, so the credits limit must not throttle it.
         self.organization.is_ai_data_processing_approved = True
         self.organization.save()
-        with patch("products.signals.backend.quota.is_team_limited", return_value=True):
+        with patch("products.signals.backend.quota.is_team_signals_quota_limited", return_value=True):
             response = self.client.post(f"/api/projects/{self.team.id}/signals/scout/suggestions/refresh/")
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
         mock_start.assert_called_once()

@@ -1,5 +1,6 @@
 """Open a new user's first agent session."""
 
+from functools import cache
 from uuid import UUID, uuid4
 
 from django.conf import settings
@@ -13,6 +14,7 @@ from posthog.event_usage import groups
 from posthog.models.team.team import Team
 from posthog.models.user import User
 from posthog.temporal.oauth import MCP_READ_SCOPES
+from posthog.utils import GenericEmails
 
 from products.signals.backend.facade.api import enable_onboarding_signal_sources, waiting_reports
 from products.tasks.backend.facade.api import (
@@ -40,28 +42,6 @@ from products.tasks.backend.logic.services.model_catalogue import filter_unsuppo
 from products.tasks.backend.models import Task, TaskClientProvenance
 
 logger = structlog.get_logger(__name__)
-
-# Free mailbox providers: an address there says nothing about the user's company.
-PERSONAL_EMAIL_DOMAINS = frozenset(
-    {
-        "gmail.com",
-        "googlemail.com",
-        "yahoo.com",
-        "outlook.com",
-        "hotmail.com",
-        "live.com",
-        "icloud.com",
-        "me.com",
-        "aol.com",
-        "proton.me",
-        "protonmail.com",
-        "gmx.com",
-        "mail.com",
-        "yandex.com",
-        "qq.com",
-        "163.com",
-    }
-)
 
 ONBOARDING_SESSION_TITLE = "Getting set up"
 ONBOARDING_SESSION_PAID_MODEL = "claude-opus-4-8"
@@ -92,9 +72,17 @@ def _started_session_id(team_id: int, user_id: int) -> UUID | None:
     )
 
 
+@cache
+def _generic_emails() -> GenericEmails:
+    # Read the list on first use, so importing this module opens no file.
+    return GenericEmails()
+
+
 def company_domain_from(email: str) -> str | None:
-    _, _, domain = email.strip().lower().partition("@")
-    if not domain or domain in PERSONAL_EMAIL_DOMAINS:
+    address = email.strip().lower()
+    _, _, domain = address.partition("@")
+    # An address at a free mailbox provider says nothing about the user's company.
+    if not domain or _generic_emails().is_generic(address):
         return None
     return normalize_target(domain)
 

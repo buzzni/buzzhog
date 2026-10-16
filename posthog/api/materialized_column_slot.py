@@ -121,8 +121,7 @@ class MaterializedColumnSlotViewSet(TeamAndOrgViewSetMixin, viewsets.ModelViewSe
     def auto_materialized(self, request, **kwargs):
         """Get properties that PostHog has automatically materialized.
 
-        These are managed by PostHog's automatic materialization system and cannot be modified here.
-        Uses the same cached function that HogQL uses for query rewriting.
+        This install has no automatic materialization, so the list is always empty.
         """
         return response.Response([])
 
