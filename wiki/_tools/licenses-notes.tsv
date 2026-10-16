@@ -2,7 +2,7 @@ path	note
 uv.lock	메인 Django 앱
 services/llm-gateway/uv.lock	
 services/stripe-mock/uv.lock	
-common/ingestion/acceptance_tests/requirements.txt	`==`로 고정한 직접 의존 9개만. 전이 의존은 잠금 파일이 없어 세지 않았다
+common/ingestion/acceptance_tests/requirements.txt	`==`로 고정한 직접 의존만. 전이 의존은 잠금 파일이 없어 세지 않았다
 services/llm-gateway/benchmarks/requirements.txt	버전 없는 이름 3개(`openai`, `anthropic`, `python-dotenv`). 벤치마크 스크립트용
 tools/infra-scripts/clitools/requirements.txt	`-c constraints.txt`와 `posthog>=7.67.1` 한 줄. 고정 버전이 없다
 pnpm-lock.yaml	루트 워크스페이스(`frontend`, `nodejs`, `products/*` 등)
@@ -15,7 +15,7 @@ products/canvas/packages/canvas_builder/package-lock.json
 products/visual_review/cli/package-lock.json	
 .github/actions/paths-filter/package-lock.json	CI 액션
 .depot/actions/paths-filter/package-lock.json	위와 같은 액션의 사본
-rust/batch-import-worker/scripts/package-lock.json	패키지 4개
+rust/batch-import-worker/scripts/package-lock.json	
 rust/Cargo.lock	Rust 서비스 워크스페이스
 cli/Cargo.lock	`posthog-cli` 바이너리
 funnel-udf/Cargo.lock	크레이트 이름 `funnels`
@@ -24,5 +24,5 @@ livestream/go.mod
 bin/hobby-installer/go.mod	
 tools/phrocs/go.mod	
 clickhouse-udfs/util/go.mod	
-services/hogql-language-service/go.mod	외부 모듈 1개
-packages/agent/agent-shadow/go.mod	`require`가 없다(외부 모듈 0개)
+services/hogql-language-service/go.mod	
+packages/agent/agent-shadow/go.mod	`require`가 없다

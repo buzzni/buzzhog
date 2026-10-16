@@ -6,15 +6,17 @@ Usage, from the repository root:
     python3 -I wiki/_tools/gen_licenses.py                      # rewrite wiki/licenses.md in place
     python3 -I wiki/_tools/gen_licenses.py --check              # exit 1 when licenses.md is out of date
     python3 -I wiki/_tools/gen_licenses.py --cache-dir DIR      # keep registry answers in DIR between runs
+    python3 -I wiki/_tools/gen_licenses.py --list               # print every entry outside 허용형 as TSV
 
 The script reads the lockfiles that `git ls-files` lists, asks the package registries
 (PyPI, the npm registry, the Go module proxy) for each license, and runs `cargo metadata --locked`.
 It needs network access and `cargo`.
-It writes nothing except `wiki/licenses.md`.
+In the repository it writes nothing except `wiki/licenses.md`, and `--list` writes nothing there.
 Every temporary file lives in a system temporary directory.
 `--cache-dir` must point outside the repository.
 The hand-written scope notes come from `wiki/_tools/licenses-notes.tsv`.
 Registry answers change over time, so `--check` can report drift without any change in the repository.
+A cached answer is not fetched again, so run without `--cache-dir`, or empty it, to see that drift.
 """
 
 from __future__ import annotations
@@ -23,12 +25,16 @@ import io
 import re
 import sys
 import json
+import time
 import shutil
+import hashlib
+import inspect
 import tomllib
 import zipfile
 import argparse
 import tempfile
 import subprocess
+import urllib.error
 import urllib.request
 from collections import Counter
 from collections.abc import Callable
@@ -52,7 +58,6 @@ PIP_RAW = re.compile(r"^(mit|apache|bsd|3-clause bsd|isc|cc0|http://www\.opensou
 LOCKFILE = re.compile(
     r"(^|/)(uv\.lock|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock|go\.mod|go\.sum|requirements[^/]*\.txt)$"
 )
-GO_REQUIRE = re.compile(r"^\s*(?:require\s+)?([\w.\-/~]+\.[\w.\-/~]+)\s+(v[\w.\-+]+)(\s*//\s*indirect)?\s*$", re.M)
 GO_SIGNATURES = [
     ("MPL-2.0", r"Mozilla Public License,? (v\. |version )?2\.0"),
     ("GPL", r"GNU (LESSER |LIBRARY )?GENERAL PUBLIC"),
@@ -134,6 +139,9 @@ def spdx_ok(expr: str) -> bool:
 
 
 def classify(eco: str, lic: str) -> str:
+    # spdx_ok takes one side of an `A OR B`, so a dual license with a permissive option counts as permissive.
+    if spdx_ok(lic[2:] if eco == "pip" and lic.startswith("E:") else lic):
+        return "permissive"
     if re.search(r"gpl|gnu", lic, re.I):
         return "copyleft"
     if re.search(r"\bmpl|mozilla|\bepl\b|eclipse public|cddl", lic, re.I):
@@ -150,10 +158,15 @@ def classify(eco: str, lic: str) -> str:
 
 
 class Cache:
-    """Registry answers kept as one JSON file per ecosystem. Errors are never stored."""
+    """Registry answers kept as one JSON file per ecosystem. Errors are never stored.
 
-    def __init__(self, directory: Path | None) -> None:
+    Each file carries the `tag` of the lookup code that wrote it. A file with another tag is ignored,
+    so a change to a fetch function (or a revert of one) cannot hide behind answers the old code gave.
+    """
+
+    def __init__(self, directory: Path | None, tag: str) -> None:
         self.directory = directory
+        self.tag = tag
         self.data: dict[str, dict[str, str]] = {}
 
     def _file(self, eco: str) -> Path | None:
@@ -162,14 +175,26 @@ class Cache:
     def load(self, eco: str) -> dict[str, str]:
         if eco not in self.data:
             f = self._file(eco)
-            self.data[eco] = json.loads(f.read_text()) if f and f.exists() else {}
+            stored: object = {}
+            if f and f.exists():
+                try:
+                    stored = json.loads(f.read_text())
+                except json.JSONDecodeError:
+                    print(f"warning: {f} is not valid JSON; asking the registry again", file=sys.stderr)  # noqa: T201
+            if isinstance(stored, dict) and stored.get("tag") == self.tag:
+                self.data[eco] = stored.get("answers", {})
+            else:
+                self.data[eco] = {}
         return self.data[eco]
 
     def save(self, eco: str) -> None:
         f = self._file(eco)
         if f:
             f.parent.mkdir(parents=True, exist_ok=True)
-            f.write_text(json.dumps(self.data[eco], sort_keys=True))
+            # Write a sibling file and rename it, so an interrupted run never leaves half a JSON file.
+            tmp = f.with_name(f.name + ".tmp")
+            tmp.write_text(json.dumps({"tag": self.tag, "answers": self.data[eco]}, sort_keys=True))
+            tmp.replace(f)
 
 
 def is_error(lic: str) -> bool:
@@ -179,7 +204,7 @@ def is_error(lic: str) -> bool:
 def lookup_all(
     eco: str, keys: list[tuple[str, str]], fetch: Callable[[str, str], str], workers: int, cache: Cache
 ) -> dict[tuple[str, str], str]:
-    """Return {(name, version): license}. `fetch` marks a failure with an "ERR " prefix; failures are not cached."""
+    """Return {(name, version): license}. Failures (see `is_error`) are returned but not cached."""
     known = cache.load(eco)
     todo = [k for k in keys if f"{k[0]}\t{k[1]}" not in known]
     fresh: dict[tuple[str, str], str] = {}
@@ -199,8 +224,10 @@ def http_json(url: str, timeout: int = 30) -> dict:
 
 
 def fetch_pip(name: str, version: str) -> str:
+    # A local version label (`2.9.1+cpu`) marks a build from another index. PyPI only knows the public version.
+    public_version = version.split("+", 1)[0]
     try:
-        d = http_json(f"https://pypi.org/pypi/{name}/{version}/json")["info"]
+        d = http_json(f"https://pypi.org/pypi/{name}/{public_version}/json")["info"]
     except Exception as e:  # noqa: BLE001 - any failure is a reported "unknown" license
         return "R:ERR " + str(e)[:40]
     classifiers = [c.split(" :: ")[-1] for c in d.get("classifiers", []) if c.startswith("License ::")]
@@ -214,7 +241,9 @@ def fetch_pip(name: str, version: str) -> str:
 
 def fetch_npm(name: str, version: str) -> str:
     err = ""
-    for _ in range(3):
+    for attempt in range(3):
+        if attempt:
+            time.sleep(2**attempt)
         try:
             d = http_json(f"https://registry.npmjs.org/{name.replace('/', '%2F')}/{version}")
             lic = d.get("license") or d.get("licenses")
@@ -223,6 +252,10 @@ def fetch_npm(name: str, version: str) -> str:
             if isinstance(lic, list):
                 lic = " OR ".join(x.get("type", "?") if isinstance(x, dict) else str(x) for x in lic)
             return str(lic) if lic else "UNKNOWN"
+        except urllib.error.HTTPError as e:
+            err = str(e)[:40]
+            if e.code == 404:
+                break
         except Exception as e:  # noqa: BLE001
             err = str(e)[:40]
     return "ERR " + err
@@ -259,15 +292,47 @@ def fetch_go(module: str, version: str) -> str:
         return "ERR " + str(e)[:40]
 
 
+def fetch_tag() -> str:
+    """Return a hash of the code that turns a registry answer into a license string, for `Cache`."""
+    code = (http_json, fetch_pip, fetch_npm, go_escape, fetch_go)
+    source = "".join(inspect.getsource(f) for f in code) + repr(GO_SIGNATURES)
+    return hashlib.sha256(source.encode()).hexdigest()[:16]
+
+
+def go_requires(text: str) -> list[tuple[str, str]]:
+    """Return (module, version) for each `require` entry in a go.mod, single-line or in a block."""
+    keys: list[tuple[str, str]] = []
+    in_block = False
+    for raw in text.splitlines():
+        fields = raw.split("//", 1)[0].split()
+        if in_block:
+            if fields == [")"]:
+                in_block = False
+                continue
+        elif fields[:1] == ["require"]:
+            fields = fields[1:]
+            if fields == ["("]:
+                in_block = True
+                continue
+        else:
+            continue
+        if len(fields) == 2:
+            keys.append((fields[0].strip('"'), fields[1]))
+    return keys
+
+
 def npm_keys(path: Path) -> list[tuple[str, str]]:
     text = path.read_text()
     if path.name.endswith(".json"):
+        # An npm alias (`node_modules/string-width-cjs`) installs the package that `name` gives.
         keys = {
-            (k.rsplit("node_modules/", 1)[1], v["version"])
+            (v.get("name") or k.rsplit("node_modules/", 1)[1], v["version"])
             for k, v in json.loads(text)["packages"].items()
             if "node_modules/" in k and "version" in v and not v.get("link")
         }
     else:
+        if "\npackages:\n" not in text:
+            return []
         section = text.split("\npackages:\n", 1)[1].split("\nsnapshots:\n", 1)[0]
         keys = set(re.findall(r"^  '?/?((?:@[^/@']+/)?[^@/'\s]+)[@/]([0-9][^':\s_(]*)[^:]*'?:\s*$", section, re.M))
     return sorted(keys)
@@ -345,7 +410,7 @@ def collect(root: Path, files: list[Lockfile], cache: Cache) -> dict[str, list[E
     go_by_file: dict[str, list[tuple[str, str]]] = {}
     for f in counted:
         if f.ecosystem == "go":
-            go_by_file[f.path] = [(m, v) for m, v, _ in GO_REQUIRE.findall((root / f.path).read_text())]
+            go_by_file[f.path] = go_requires((root / f.path).read_text())
     go_all = sorted({k for ks in go_by_file.values() for k in ks})
     go_lic = lookup_all("go", go_all, fetch_go, 8, cache)
     for path, ks in go_by_file.items():
@@ -404,7 +469,7 @@ def render_scope(files: list[Lockfile], notes: dict[str, str]) -> str:
         [
             GENERATED_NOTE,
             "",
-            f"`git ls-files | grep -E '(^|/)(uv\\.lock|pnpm-lock\\.yaml|package-lock\\.json|yarn\\.lock|Cargo\\.lock|go\\.mod|go\\.sum|requirements[^/]*\\.txt)$'`는 {len(files)}개 파일을 낸다.{absent}",
+            f"`git ls-files | grep -E '{LOCKFILE.pattern}'`는 {len(files)}개 파일을 낸다.{absent}",
             "",
             "| 파일 | 생태계 | 처리 | 비고 |",
             "| --- | --- | --- | --- |",
@@ -455,7 +520,7 @@ def render_top(files: list[Lockfile], data: dict[str, list[Entry]]) -> str:
     for eco in ECOSYSTEMS:
         entries = [e for p in go_paths for e in data[p]] if eco == "go" else data.get(TOP_PATHS[eco], [])
         counts = Counter(e.license for e in entries)
-        # Ties break by license name in reverse order, as `sort -rn` does on "count license" lines.
+        # Equal counts sort by license name, descending, so a rerun never reorders the table.
         top = sorted(counts.items(), key=lambda kv: kv[0], reverse=True)
         top = sorted(top, key=lambda kv: -kv[1])[:5]
         rows.append(f"| {names[eco]} | {', '.join(top_label(eco, k, v) for k, v in top)} | {TOP_BASIS[eco]} |")
@@ -475,7 +540,13 @@ def replace_region(text: str, name: str, body: str) -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--check", action="store_true", help="exit 1 when licenses.md differs from the output")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="exit 1 when licenses.md differs from the output")
+    mode.add_argument(
+        "--list",
+        action="store_true",
+        help="print category, lockfile, name, version and license of every entry outside 허용형, and write no page",
+    )
     ap.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2], help="repository root")
     ap.add_argument("--cache-dir", type=Path, help="directory outside the repository for registry answers")
     args = ap.parse_args()
@@ -501,10 +572,22 @@ def main() -> None:
     if stale:
         print(f"warning: notes rows without a lockfile: {', '.join(stale)}", file=sys.stderr)  # noqa: T201
 
-    data = collect(root, files, Cache(cache_dir))
-    errors = sorted({e.license for es in data.values() for e in es if is_error(e.license)})
-    if errors:
-        print(f"warning: {len(errors)} registry lookups failed; they count as 비OSI·독점·미확인", file=sys.stderr)  # noqa: T201
+    data = collect(root, files, Cache(cache_dir, fetch_tag()))
+    eco_of = {f.path: f.ecosystem for f in files}
+    failed = {(eco_of[p], e.name, e.version) for p, es in data.items() for e in es if is_error(e.license)}
+    if failed:
+        print(f"error: {len(failed)} registry lookups failed; nothing written. First ones:", file=sys.stderr)  # noqa: T201
+        for eco, name, version in sorted(failed)[:10]:
+            print(f"  {eco} {name} {version}", file=sys.stderr)  # noqa: T201
+        sys.exit(1)
+
+    if args.list:
+        for path, entries in data.items():
+            for e in entries:
+                category = classify(eco_of[path], e.license)
+                if category != "permissive":
+                    print("\t".join((category, path, e.name, e.version, e.license)))  # noqa: T201
+        return
 
     old = page.read_text()
     new = replace_region(old, "scope", render_scope(files, notes))

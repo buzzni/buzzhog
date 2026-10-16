@@ -47,7 +47,7 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `uv.lock` | pip | 집계 | 메인 Django 앱 |
 | `services/llm-gateway/uv.lock` | pip | 집계 | |
 | `services/stripe-mock/uv.lock` | pip | 집계 | |
-| `common/ingestion/acceptance_tests/requirements.txt` | pip | 집계 | `==`로 고정한 직접 의존 9개만. 전이 의존은 잠금 파일이 없어 세지 않았다 |
+| `common/ingestion/acceptance_tests/requirements.txt` | pip | 집계 | `==`로 고정한 직접 의존만. 전이 의존은 잠금 파일이 없어 세지 않았다 |
 | `services/llm-gateway/benchmarks/requirements.txt` | pip | 제외 | 버전 없는 이름 3개(`openai`, `anthropic`, `python-dotenv`). 벤치마크 스크립트용 |
 | `tools/infra-scripts/clitools/requirements.txt` | pip | 제외 | `-c constraints.txt`와 `posthog>=7.67.1` 한 줄. 고정 버전이 없다 |
 | `pnpm-lock.yaml` | npm | 집계 | 루트 워크스페이스(`frontend`, `nodejs`, `products/*` 등) |
@@ -60,7 +60,7 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `products/visual_review/cli/package-lock.json` | npm | 집계 | |
 | `.github/actions/paths-filter/package-lock.json` | npm | 집계 | CI 액션 |
 | `.depot/actions/paths-filter/package-lock.json` | npm | 집계 | 위와 같은 액션의 사본 |
-| `rust/batch-import-worker/scripts/package-lock.json` | npm | 집계 | 패키지 4개 |
+| `rust/batch-import-worker/scripts/package-lock.json` | npm | 집계 | |
 | `rust/Cargo.lock` | cargo | 집계 | Rust 서비스 워크스페이스 |
 | `cli/Cargo.lock` | cargo | 집계 | `posthog-cli` 바이너리 |
 | `funnel-udf/Cargo.lock` | cargo | 집계 | 크레이트 이름 `funnels` |
@@ -69,8 +69,8 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `bin/hobby-installer/go.mod` | go | 집계 | |
 | `tools/phrocs/go.mod` | go | 집계 | |
 | `clickhouse-udfs/util/go.mod` | go | 집계 | |
-| `services/hogql-language-service/go.mod` | go | 집계 | 외부 모듈 1개 |
-| `packages/agent/agent-shadow/go.mod` | go | 집계 | `require`가 없다(외부 모듈 0개) |
+| `services/hogql-language-service/go.mod` | go | 집계 | |
+| `packages/agent/agent-shadow/go.mod` | go | 집계 | `require`가 없다 |
 | `bin/hobby-installer/go.sum`, `clickhouse-udfs/util/go.sum`, `livestream/go.sum`, `services/hogql-language-service/go.sum`, `tools/phrocs/go.sum` | go | 제외 | 같은 디렉터리의 `go.mod` `require` 목록을 대신 썼다. `go.sum`은 검증용 해시 목록이고, 빌드에 들어가지 않는 모듈(`/go.mod` 줄)까지 담는다 |
 
 합계: 집계 25개, 제외 7개(`requirements.txt` 2개, `go.sum` 5개).
@@ -85,25 +85,25 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 
 | 파일 | 생태계 | 항목 수 | 허용형 | 약한 카피레프트(MPL, EPL, CDDL) | 강한·라이브러리 카피레프트(GPL, LGPL) | 비OSI·독점·미확인 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `uv.lock` | pip | 614 | 563 | 6 | 13 | 32 |
+| `uv.lock` | pip | 614 | 564 | 6 | 13 | 31 |
 | `services/llm-gateway/uv.lock` | pip | 98 | 92 | 4 | 0 | 2 |
 | `services/stripe-mock/uv.lock` | pip | 32 | 31 | 1 | 0 | 0 |
 | `common/ingestion/acceptance_tests/requirements.txt` | pip | 9 | 9 | 0 | 0 | 0 |
-| `pnpm-lock.yaml` | npm | 3984 | 3925 | 30 | 16 | 13 |
-| `products/desktop/pnpm-lock.yaml` | npm | 3097 | 3038 | 37 | 1 | 21 |
+| `pnpm-lock.yaml` | npm | 3984 | 3929 | 27 | 15 | 13 |
+| `products/desktop/pnpm-lock.yaml` | npm | 3097 | 3040 | 36 | 0 | 21 |
 | `packages/agent/pnpm-lock.yaml` | npm | 600 | 579 | 12 | 0 | 9 |
 | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml` | npm | 567 | 552 | 0 | 14 | 1 |
 | `frontend/@posthog/lemon-ui/pnpm-lock.yaml` | npm | 110 | 110 | 0 | 0 | 0 |
-| `tools/hedgebox-dummy/pnpm-lock.yaml` | npm | 450 | 432 | 2 | 14 | 2 |
+| `tools/hedgebox-dummy/pnpm-lock.yaml` | npm | 450 | 433 | 1 | 14 | 2 |
 | `products/canvas/packages/canvas_builder/package-lock.json` | npm | 226 | 226 | 0 | 0 | 0 |
 | `products/visual_review/cli/package-lock.json` | npm | 157 | 131 | 12 | 14 | 0 |
 | `.github/actions/paths-filter/package-lock.json` | npm | 550 | 548 | 1 | 0 | 1 |
 | `.depot/actions/paths-filter/package-lock.json` | npm | 550 | 548 | 1 | 0 | 1 |
 | `rust/batch-import-worker/scripts/package-lock.json` | npm | 4 | 4 | 0 | 0 | 0 |
-| `rust/Cargo.lock` | cargo | 1200 | 1180 | 10 | 1 | 9 |
-| `cli/Cargo.lock` | cargo | 446 | 438 | 5 | 1 | 2 |
-| `funnel-udf/Cargo.lock` | cargo | 61 | 60 | 0 | 1 | 0 |
-| `rust/common/hogvm/node/Cargo.lock` | cargo | 111 | 110 | 0 | 1 | 0 |
+| `rust/Cargo.lock` | cargo | 1200 | 1181 | 10 | 0 | 9 |
+| `cli/Cargo.lock` | cargo | 446 | 439 | 5 | 0 | 2 |
+| `funnel-udf/Cargo.lock` | cargo | 61 | 61 | 0 | 0 | 0 |
+| `rust/common/hogvm/node/Cargo.lock` | cargo | 111 | 111 | 0 | 0 | 0 |
 | `livestream/go.mod` | go | 86 | 84 | 1 | 0 | 1 |
 | `bin/hobby-installer/go.mod` | go | 25 | 23 | 1 | 0 | 1 |
 | `tools/phrocs/go.mod` | go | 30 | 30 | 0 | 0 | 0 |
@@ -159,7 +159,6 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `@img/sharp-libvips-*` 1.2.4(10개: darwin 2, linux 6, linuxmusl 2) | `pnpm-lock.yaml`, `tools/hedgebox-dummy/pnpm-lock.yaml` | 전이(`sharp` 0.34.5) | `LGPL-3.0-or-later` | `sharp`의 플랫폼별 선택 바이너리 |
 | `@img/sharp-win32-{arm64,ia32,x64}`, `@img/sharp-wasm32` 0.34.5 | 위와 같음 | 전이 | `Apache-2.0 AND LGPL-3.0-or-later`(wasm32는 `AND MIT` 추가) | 같음 |
 | `@img/sharp-libvips-*` 1.3.2(10개), `@img/sharp-win32-*`·`@img/sharp-wasm32` 0.35.3(4개) | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json` | 전이(두 `package.json`이 `sharp`를 직접 의존) | 위와 같은 표기 | 사이드카 이미지와 시각 회귀 CLI |
-| `node-forge` 1.4.0 | `pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | 전이(루트 `overrides`가 `>=1.4.0`으로 고정, `pnpm-lock.yaml:124`·`:134`) | `(BSD-3-Clause OR GPL-2.0)` | BSD 쪽을 고를 수 있다 |
 | `psycopg` 3.2.10 | `uv.lock` | 직접(`pyproject.toml:111`, `psycopg[binary]`) | 분류자 LGPLv3 | PostgreSQL 드라이버 |
 | `psycopg-binary` 3.2.10 | `uv.lock` | 전이(`psycopg[binary]`) | 분류자 LGPLv3 | 같음 |
 | `psycopg2-binary` 2.9.11 | `uv.lock` | 직접(`pyproject.toml:110`) | 분류자 LGPL | 같음 |
@@ -173,7 +172,8 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `suds-community` 1.2.0 | `uv.lock` | 전이(`bingads`) | 분류자 LGPL | |
 | `text-unidecode` 1.3 | `uv.lock` | 전이(`python-slugify`) | 분류자 `Artistic License`, GPL, GPLv2+가 함께 붙음 | 선택 가능한지 미확인 |
 | `tld` 0.13.2 | `uv.lock` | 전이(`courlan`) | `MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later` | 선택 가능 |
-| `r-efi` 5.3.0 | `rust/Cargo.lock`, `cli/Cargo.lock`, `funnel-udf/Cargo.lock`, `rust/common/hogvm/node/Cargo.lock` | 전이 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 허용형을 고를 수 있다 |
+
+`OR`의 한쪽이 허용형이면 허용형으로 센다(분류 규칙 1). 그래서 이 표에 두지 않은 이중 라이선스가 있다: `node-forge` 1.4.0(`(BSD-3-Clause OR GPL-2.0)`), `r-efi` 5.3.0(`MIT OR Apache-2.0 OR LGPL-2.1-or-later`), `dompurify`(`(MPL-2.0 OR Apache-2.0)`). 어느 쪽을 고르는지는 법무 검토 몫이다.
 
 ### 약한 카피레프트 (MPL, EPL, CDDL)
 
@@ -188,7 +188,6 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `axe-core` 4.5.1(루트), 4.11.1(desktop), 4.11.4(hedgebox-dummy), 4.12.1(paths-filter 2개) | 여러 npm 잠금 파일 | 전이 | MPL-2.0 |
 | `ip6addr` 0.2.5 | `pnpm-lock.yaml` | 전이 | MPL-2.0 |
 | `lightningcss`와 플랫폼별 바이너리 | 루트 24개(1.31.1과 1.32.0 각 12개), desktop 35개, agent 12개, visual_review CLI 12개 | 전이 | MPL-2.0 |
-| `dompurify` 3.2.7, 3.4.0, 3.4.13(루트), 3.4.13(desktop), 3.4.7(hedgebox-dummy) | 여러 npm 잠금 파일 | 루트는 직접(`frontend/package.json`), 나머지는 전이 | `(MPL-2.0 OR Apache-2.0)` |
 | `elkjs` 0.10.0 | `pnpm-lock.yaml` | 직접(`frontend`, `products/{data_modeling,engineering_analytics,product_analytics,workflows}`의 `package.json`) | EPL-2.0 |
 | `brownstone` 3.0.0, `fernet` 0.2.2, `indent_write` 2.2.0, `nom-supreme` 0.8.0, `option-ext` 0.2.0, `webpki-roots` 0.25.4, `colored` 3.1.1 | `rust/Cargo.lock` | 전이 | MPL-2.0 |
 | `smartstring` 1.0.1 | `rust/Cargo.lock` | 전이 | `MPL-2.0+` |
@@ -224,7 +223,6 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | npm(git·tarball 출처, 집계에서 빠짐) | `uWebSockets.js`: `nodejs/package.json:149`가 GitHub tarball URL로 고정. 레지스트리 조회 대상이 아니다 |
 | pip(`uv.lock`, PyPI 메타데이터 비어 있음) | `arro3-core` 0.6.5, `autoevals` 0.2.0, `braintrust` 0.2.4, `braintrust-core` 0.0.59, `braintrust-langchain` 0.0.4, `cramjam` 2.12.1, `docker-image-py` 0.1.13, `google-crc32c` 1.8.0, `mistralai` 1.6.0, `mypy-extensions` 1.1.0, `playwright` 1.60.0, `polyleven` 0.11.0 |
 | pip(`uv.lock`, 분류자가 `OSI Approved`뿐) | `umap-learn` 0.5.7(원문은 `BSD`) |
-| pip(`uv.lock`, PyPI 404) | `torch` 2.9.1+cpu. PyPI에 없는 로컬 버전이다. `torch` 2.9.1의 원문은 `BSD-3-Clause` |
 | pip(`services/llm-gateway/uv.lock`) | `mypy-extensions` 1.1.0(메타데이터 비어 있음), `prometheus-fastapi-instrumentator` 7.1.0(분류자 `OSI Approved`뿐) |
 | pip(git 출처, 집계에서 빠짐) | `infi-clickhouse-orm`, `pytest-split`(`pyproject.toml:344`, `:349`의 `[tool.uv.sources]`) |
 | go | `github.com/mattn/go-localereader` v0.0.1(`livestream/go.mod:58`, `bin/hobby-installer/go.mod:25`, 둘 다 `// indirect`). 모듈 zip에 `LICENSE` 파일이 없다. `README.md`만 "License: MIT"라고 적는다 |
@@ -320,12 +318,15 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 python3 -I wiki/_tools/gen_licenses.py                              # 구역을 다시 쓴다
 python3 -I wiki/_tools/gen_licenses.py --check                      # 페이지가 낡았으면 종료 코드 1
 python3 -I wiki/_tools/gen_licenses.py --cache-dir /tmp/lic-cache   # 레지스트리 답을 저장소 밖에 보관한다
+python3 -I wiki/_tools/gen_licenses.py --list                       # 허용형이 아닌 항목을 TSV로 낸다. 페이지는 쓰지 않는다
 ```
 
 - 스크립트는 `wiki/licenses.md` 말고는 저장소에 아무것도 쓰지 않는다. 임시 파일은 시스템 임시 디렉터리에만 둔다. `--cache-dir`이 저장소 안이면 거부한다.
 - 범위 표의 비고 열은 `wiki/_tools/licenses-notes.tsv`에서 온다. 잠금 파일이 늘면 스크립트가 "no notes row" 경고를 낸다. 그 파일에 한 줄을 더한다.
-- 조회 오류는 "비OSI·독점·미확인"으로 센다. 실패한 조회가 있으면 경고를 낸다(2026-10-16 실행에서는 PyPI에 없는 `torch` 2.9.1+cpu 한 건).
+- 실패한 조회가 하나라도 있으면 스크립트는 실패한 패키지 수와 앞쪽 10개를 오류로 내고, `licenses.md`를 쓰지 않은 채 0이 아닌 코드로 끝난다(2026-10-16 실행에서는 실패가 없었다).
 - 레지스트리 답은 시간이 지나면 바뀐다. 저장소가 그대로여도 `--check`가 낡았다고 말할 수 있다.
+- `--cache-dir`에 든 답은 다시 조회하지 않는다. 레지스트리 쪽 변화를 보려면 캐시 없이 돌리거나 캐시 디렉터리를 비운다. 조회 코드(`fetch_*`)가 바뀌면 스크립트가 그 캐시를 버린다.
+- `--list`는 열 다섯 개(분류, 잠금 파일, 이름, 버전, 라이선스)를 탭으로 나눠 낸다. 분류는 `weak`(약한 카피레프트), `copyleft`(강한·라이브러리 카피레프트), `other`(비OSI·독점·미확인)다.
 - 잠금 파일에는 라이선스 필드가 없다(cargo는 `cargo metadata`가 바로 준다). 그래서 이름·버전을 뽑아 레지스트리에 조회한다. `node_modules`나 가상 환경은 설치하지 않는다.
 
 
@@ -333,9 +334,9 @@ python3 -I wiki/_tools/gen_licenses.py --cache-dir /tmp/lic-cache   # 레지스�
 
 스크립트의 `classify()`가 정한다. 순서대로 먼저 맞는 것을 쓴다.
 
-1. 문자열에 `gpl` 또는 `gnu`가 있으면(대소문자 무시) 강한·라이브러리 카피레프트다. `A OR B`로 고를 수 있어도 이쪽으로 센다.
-2. `mpl`, `mozilla`, `epl`, `eclipse public`, `cddl`이 있으면 약한 카피레프트다.
-3. SPDX식(npm, cargo, go, pip의 `license_expression`)은 `OR`는 하나라도, `AND`는 모두 허용 목록에 있으면 허용형이다. `/`는 `OR`로, `WITH 예외`는 앞의 라이선스로 읽는다.
+1. SPDX식(npm, cargo, go, pip의 `license_expression`)은 `OR`는 한쪽이라도, `AND`는 모두 허용 목록에 있으면 허용형이다. `/`는 `OR`로, `WITH 예외`는 앞의 라이선스로 읽는다. `MIT OR GPL-2.0`처럼 `OR`의 한쪽이 허용형이면 카피레프트 쪽이 있어도 허용형으로 센다.
+2. 문자열에 `gpl` 또는 `gnu`가 있으면(대소문자 무시) 강한·라이브러리 카피레프트다.
+3. `mpl`, `mozilla`, `epl`, `eclipse public`, `cddl`이 있으면 약한 카피레프트다.
 4. pip 분류자는 `OSI Approved`, `DFSG approved`를 뺀 나머지가 모두 허용형 분류자(`MIT License`, `Apache Software License`, `BSD License`, `ISC License (ISCL)`, `Python Software Foundation License`, `Public Domain`, `The Unlicense (Unlicense)`)면 허용형이다.
 5. pip 원문은 `mit`, `apache`, `bsd`, `3-clause bsd`, `isc`, `cc0`, MIT 라이선스 URL로 시작하고 `proprietary`가 없으면 허용형이다.
 6. 나머지는 모두 비OSI·독점·미확인이다. `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류, `license_file`만 있는 크레이트, `CC-BY-*`, `WTFPL`, `CDLA-Permissive-2.0`, `bzip2-1.0.6`, `OpenSSL`이 여기에 든다.
@@ -350,13 +351,13 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 
 | 생태계 | 항목을 뽑는 곳 | 라이선스를 얻는 곳 |
 | --- | --- | --- |
-| pip(`uv.lock`) | 레지스트리 출처 패키지(`source.registry`). git 출처와 워크스페이스 멤버는 뺀다. `uv export`는 `inbox-ranking`과 `sentiment` 그룹이 충돌해(`pyproject.toml:330`의 `conflicts`) `--all-groups`로 실패하므로 쓰지 않는다 | PyPI JSON API(`license_expression`, `License ::` 분류자, `license` 원문 순) |
+| pip(`uv.lock`) | 레지스트리 출처 패키지(`source.registry`). git 출처와 워크스페이스 멤버는 뺀다. `uv export`는 `inbox-ranking`과 `sentiment` 그룹이 충돌해(`pyproject.toml:330`의 `conflicts`) `--all-groups`로 실패하므로 쓰지 않는다 | PyPI JSON API(`license_expression`, `License ::` 분류자, `license` 원문 순). 로컬 버전(`torch` 2.9.1+cpu처럼 `+`가 붙은 다른 인덱스의 빌드)은 `+` 앞의 공개 버전으로 조회한다 |
 | pip(`requirements.txt`) | `==`로 고정한 줄만 | 위와 같음 |
 | npm(`pnpm-lock.yaml` 형식 9.0과 5.4, `package-lock.json`) | pnpm은 `packages:` 절 키, `package-lock.json`은 `packages` 항목. 버전이 숫자로 시작하지 않는 항목(git·tarball 출처)과 링크는 뺀다 | `registry.npmjs.org`의 `license`(없으면 `licenses`) |
 | cargo(`Cargo.lock`) | `cargo metadata --locked`가 주는 `source`가 있는 패키지. 임시 디렉터리에서 돌리고 `--manifest-path`로 매니페스트를 가리킨다 | `Cargo.toml`의 `license`. 없으면 `license_file`만 있는 크레이트로 센다 |
 | go(`go.mod`) | `require` 줄(직접과 `// indirect` 모두). `go` 명령은 쓰지 않는다 | `proxy.golang.org` 모듈 zip의 최상위 `LICENSE*`·`LICENCE*`·`COPYING*` 본문을 정해진 문구로 판별한다. MPL 본문이 GNU 라이선스를 언급하므로 MPL을 먼저 본다 |
 
-직접/전이는 `pyproject.toml`의 `[project] dependencies`와 `[dependency-groups]`에 이름이 있는지로 갈랐다. 전이 의존을 끌어온 패키지는 `uv.lock`의 각 패키지 `dependencies`를 거꾸로 찾아 적었다. 이 구분은 스크립트가 하지 않는다. 아래 "법무 검토가 필요한 항목" 표를 손으로 쓸 때 한 것이다.
+직접/전이는 `pyproject.toml`의 `[project] dependencies`와 `[dependency-groups]`에 이름이 있는지로 갈랐다. 전이 의존을 끌어온 패키지는 `uv.lock`의 각 패키지 `dependencies`를 거꾸로 찾아 적었다. 이 구분은 스크립트가 하지 않는다. 위 "법무 검토가 필요한 항목" 표를 `--list` 출력에서 손으로 옮겨 쓸 때 한 것이다.
 
 `SEE LICENSE IN ...`인 패키지는 레지스트리 `dist.tarball`을 받아 각자 새 빈 디렉터리에 풀고 라이선스 파일만 읽었다. 이것도 손으로 한 일이다.
 
@@ -367,12 +368,22 @@ mkdir $d/x && tar -xzf $d/pkg.tgz -C $d/x --no-same-owner && cat $d/x/package/LI
 ```
 
 `license_file`만 있는 크레이트는 `~/.cargo/registry/src/index.crates.io-*/<이름>-<버전>/`에서 본문을 읽었다.
-`UNKNOWN`·`ERR`로 나온 항목은 "라이선스를 레지스트리에서 얻지 못한 항목" 표에 손으로 옮겼다.
+`UNKNOWN`·`ERR`·`NO-LICENSE-FILE`로 나온 항목은 `--list` 출력에서 골라 "라이선스를 레지스트리에서 얻지 못한 항목" 표에 손으로 옮겼다.
+
+워크스페이스 크레이트(`source == null`)의 `license` 필드 수([저장소 자체 라이선스](#저장소-자체-라이선스)의 "75개 중 73개" 등)도 스크립트가 세지 않는다. 저장소 루트에서 이렇게 셌다.
+
+```bash
+for m in rust cli funnel-udf rust/common/hogvm/node; do
+  (cd "$(mktemp -d)" && cargo metadata --manifest-path "$OLDPWD/$m/Cargo.toml" --format-version 1 --locked) |
+    jq -r '.packages[] | select(.source==null) | (.license // "UNSET")' | sort | uniq -c
+done
+```
 
 ### `@posthog/brand` 사용 파일 수
 
+저장소 루트에서 돌린다.
+
 ```bash
-cd $W
 git grep -l '@posthog/brand' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.css' '*.scss' | wc -l          # 173
 git grep -l '@posthog/brand' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.css' '*.scss' | grep -c '^products/desktop/'   # 5
 git grep -l -E "(from|import|@import|@use|require\(|import\() *['\"]@posthog/brand" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.css' '*.scss' | wc -l   # 163, desktop 3
