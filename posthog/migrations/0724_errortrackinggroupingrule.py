@@ -29,7 +29,10 @@ class Migration(migrations.Migration):
                 ("disabled_data", models.JSONField(blank=True, null=True)),
                 ("order_key", models.IntegerField()),
                 ("description", models.TextField(null=True)),
-                ("role", models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role")),
+                (
+                    "role",
+                    models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
+                ),
                 ("team", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="posthog.team")),
                 (
                     "user",

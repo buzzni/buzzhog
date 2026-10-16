@@ -58,7 +58,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="role_external_references",
-                        to="ee.role",
+                        to="access_control.role",
                     ),
                 ),
             ],

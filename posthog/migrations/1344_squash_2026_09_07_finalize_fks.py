@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         ("conversations", "0001_squash_2026_09_07_initial"),
         ("customer_analytics", "0001_squash_2026_09_07_initial"),
         ("dashboards", "0001_squash_2026_09_07_initial"),
-        ("ee", "0001_squash_2026_09_07_initial"),
+        ("access_control", "0000_rbac_models"),
         ("endpoints", "0001_squash_2026_09_07_initial"),
         ("event_definitions", "0001_squash_2026_09_07_initial"),
         ("experiments", "0001_squash_2026_09_07_initial"),
@@ -93,7 +93,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="default_for_organizations",
-                to="ee.role",
+                to="access_control.role",
             ),
         ),
         posthog.migration_helpers.squash_idempotent.AddFieldIfMissing(
@@ -140,7 +140,9 @@ class Migration(migrations.Migration):
             model_name="roleexternalreference",
             name="role",
             field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE, related_name="role_external_references", to="ee.role"
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="role_external_references",
+                to="access_control.role",
             ),
         ),
         posthog.migration_helpers.squash_idempotent.AddFieldIfMissing(

@@ -15,7 +15,6 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("posthog", "1213_filesystemfolderinstructions"),
-        ("ee", "0049_migrate_posthog_ai_models"),
     ]
 
     operations = [

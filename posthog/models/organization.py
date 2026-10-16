@@ -282,7 +282,7 @@ class Organization(ModelActivityMixin, UUIDTModel):
         help_text="When True, requests through the PostHog MCP server can read but not change this organization's data.",
     )
     default_role = models.ForeignKey(
-        "ee.Role",
+        "access_control.Role",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

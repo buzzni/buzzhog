@@ -13,7 +13,6 @@ class Migration(migrations.Migration):
         ("ai_observability", "0001_adopt_llm_analytics_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("posthog", "1205_delete_batch_export_models"),
-        ("ee", "0046_migrate_cdp_models"),
     ]
 
     operations = [

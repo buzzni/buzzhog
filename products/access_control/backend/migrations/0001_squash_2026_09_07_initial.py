@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("ee", "0059_scimprovisioneduser_unique_config"),
+        ("access_control", "0000_rbac_models"),
         ("event_definitions", "0009_drop_eventproperty_proj_event_coalesce_idx"),
         ("posthog", "1340_drop_userproductlist_reason_columns"),
     ]
@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="property_access_controls",
                         related_query_name="property_access_controls",
-                        to="ee.role",
+                        to="access_control.role",
                     ),
                 ),
                 (

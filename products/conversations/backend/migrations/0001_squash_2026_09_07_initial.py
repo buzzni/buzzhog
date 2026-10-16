@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("ee", "0059_scimprovisioneduser_unique_config"),
+        ("access_control", "0000_rbac_models"),
         ("posthog", "1340_drop_userproductlist_reason_columns"),
     ]
 
@@ -790,7 +790,10 @@ class Migration(migrations.Migration):
                         null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
                     ),
                 ),
-                ("role", models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role")),
+                (
+                    "role",
+                    models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
+                ),
             ],
             options={
                 "db_table": "posthog_conversations_ticket_assignment",

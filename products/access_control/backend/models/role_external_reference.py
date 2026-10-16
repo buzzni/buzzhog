@@ -29,7 +29,7 @@ class RoleExternalReference(UUIDModel):
         related_name="role_external_references",
     )
     role = models.ForeignKey(
-        "ee.Role",
+        "access_control.Role",
         on_delete=models.CASCADE,
         related_name="role_external_references",
     )
