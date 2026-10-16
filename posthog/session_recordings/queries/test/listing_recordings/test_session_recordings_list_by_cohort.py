@@ -1,11 +1,7 @@
 from uuid import UUID, uuid4
 
 import time_machine
-from posthog.test.base import (
-    APIBaseTest,
-    ClickhouseTestMixin,
-    snapshot_clickhouse_queries,
-)
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin, snapshot_clickhouse_queries
 from unittest.mock import patch
 
 from django.utils.timezone import now

@@ -83,10 +83,6 @@ REVIEWED_WRITABLE: dict[str, str] = {
     "products.cdp.backend.api.hog_function.HogFunctionSerializer.base_updated_at": "Optimistic-concurrency guard: the client echoes the timestamp it loaded, and the view pops it before save",
     "products.managed_migrations.backend.api.batch_imports.BatchImportDateRangeSourceCreateSerializer.start_date": "Client picks the import window; write-only input, never stored on the model",
     "products.managed_migrations.backend.api.batch_imports.BatchImportDateRangeSourceCreateSerializer.end_date": "Client picks the import window; write-only input, never stored on the model",
-    "ee.api.subscription.SubscriptionSerializer.start_date": "Client sets when delivery starts",
-    "ee.api.subscription.SubscriptionSerializer.until_date": "Client sets when delivery stops, or null for indefinite",
-    "ee.api.subscription.SubscriptionWriteSerializer.start_date": "Client sets when delivery starts",
-    "ee.api.subscription.SubscriptionWriteSerializer.until_date": "Client sets when delivery stops, or null for indefinite",
     "posthog.api.advanced_activity_logs.viewset.ActivityLogFlatExportSerializer.created_at": "TODO: server-owned audit timestamp, make read-only",
     "posthog.api.advanced_activity_logs.viewset.ActivityLogSerializer.created_at": "TODO: server-owned audit timestamp, make read-only",
     "posthog.api.event_definition.EventDefinitionSerializer.created_at": "TODO: server-owned, set when ingestion first sees the event",
@@ -157,9 +153,6 @@ UNCHECKED: dict[str, str] = {}
 HARD_TO_DISCOVER = {
     "products.product_analytics.backend.presentation.insight.MCPInsightSerializer": (
         "chosen by get_serializer_class only when the x-posthog-client request header is mcp"
-    ),
-    "ee.api.ee_event_definition.EnterpriseEventDefinitionSerializer": (
-        "assigned to a local inside get_serializer_class from an import made in the function body"
     ),
 }
 

@@ -1,10 +1,7 @@
 import re
 from dataclasses import dataclass
 
-from posthog.test.base import (
-    APIBaseTest,
-    QueryMatchingTest,
-)
+from posthog.test.base import APIBaseTest, QueryMatchingTest
 from unittest.mock import patch
 
 from parameterized import param, parameterized
@@ -21,7 +18,6 @@ from posthog.hogql.property import property_to_expr
 from posthog.models import PropertyDefinition
 
 from products.event_definitions.backend.models.property_definition import PropertyType
-
 
 JOINED = PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED
 

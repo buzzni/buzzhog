@@ -8,13 +8,7 @@ from typing import Any, Optional
 
 import pytest
 import time_machine
-from posthog.test.base import (
-    APIBaseTest,
-    ClickhouseTestMixin,
-    _create_event,
-    _create_person,
-    flush_persons_and_events,
-)
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin, _create_event, _create_person, flush_persons_and_events
 from unittest.mock import MagicMock, patch
 
 from django.test import override_settings

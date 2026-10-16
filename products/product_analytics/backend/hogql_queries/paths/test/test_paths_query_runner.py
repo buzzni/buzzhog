@@ -1,13 +1,7 @@
 import dataclasses
 
 import time_machine
-from posthog.test.base import (
-    APIBaseTest,
-    BaseTest,
-    ClickhouseTestMixin,
-    _create_event,
-    _create_person,
-)
+from posthog.test.base import APIBaseTest, BaseTest, ClickhouseTestMixin, _create_event, _create_person
 
 from django.utils.timezone import now
 

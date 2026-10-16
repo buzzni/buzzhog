@@ -43,7 +43,6 @@ from posthog.models import MaterializedColumnSlot, MaterializedColumnSlotState, 
 
 from products.event_definitions.backend.models.property_definition import PropertyType
 
-
 # Property key chosen to land in ``properties_group_custom`` — no ``$`` prefix and not in ``ignore_custom_properties`` (``token``, ``distinct_id``, ``utm_*``, ...).
 EVENT_PROP_KEY = "test_prop"
 PERSON_PROP_KEY = "test_prop"

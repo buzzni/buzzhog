@@ -35,7 +35,6 @@ from posthog.models.event.sql import EVENTS_PROPERTIES_JSON_TYPE, PERSON_PROPERT
 
 from products.event_definitions.backend.models.property_definition import PropertyDefinition
 
-
 # Plain text alone almost never lands in the accepted set, so bias half the draws to printable ASCII.
 _PROPERTY_VALUES = st.one_of(
     st.text(),

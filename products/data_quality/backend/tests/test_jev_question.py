@@ -597,7 +597,6 @@ def test_gateway_access_and_attribution(enabled: bool) -> None:
             CLICKHOUSE_USE_HTTP_PER_TEAM=[],
         ),
         patch("posthog.hogql.transforms.prompt_jev.feature_enabled_or_false", return_value=enabled),
-        patch("ee.billing.quota_limiting.is_team_over_ai_credit_budget", return_value=False),
         patch.object(
             httpx.AsyncClient,
             "send",

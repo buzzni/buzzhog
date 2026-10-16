@@ -19,11 +19,7 @@ This file checks two things:
 
 import re
 
-from posthog.test.base import (
-    APIBaseTest,
-    ClickhouseTestMixin,
-)
-
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin
 
 from posthog.clickhouse.client.execute import sync_execute
 from posthog.models import Team

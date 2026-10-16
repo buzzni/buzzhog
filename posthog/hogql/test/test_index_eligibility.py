@@ -51,7 +51,6 @@ from posthog.schema_enums import PredicateFixAction, QueryIndexUsage
 from products.event_definitions.backend.models.property_definition import PropertyDefinition
 from products.event_definitions.backend.property_type import PropertyType
 
-
 Op = ast.CompareOperationOp
 
 
