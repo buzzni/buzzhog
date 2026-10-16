@@ -39,48 +39,6 @@ layer = "modules"
 utility = true
 
 [[modules]]
-path = "ee"
-depends_on = [
-    # Facade-only: a Slack subscription asks whether the bot can answer a follow-up on its report.
-    "products.slack_app",
-    "products.cohorts",
-    "posthog",
-    "products.access_control",
-    "products.actions",
-    "products.approvals",
-    "products.alerts",
-    "products.cdp",
-    "products.conversations",
-    "products.customer_analytics",
-    "products.dashboards",
-    "products.data_modeling",
-    "products.data_tools",
-    "products.demo",
-    "products.error_tracking",
-    "products.event_definitions",
-    "products.experiments",
-    "products.feature_flags",
-    "products.ai_observability",
-    "products.mcp_store",
-    "products.notebooks",
-    "products.notifications",
-    "products.posthog_ai",
-    "products.product_analytics",
-    "products.replay",
-    "products.replay_vision",
-    "products.skills",
-    "products.revenue_analytics",
-    "products.security",
-    "products.surveys",
-    "products.tasks",
-    "products.business_knowledge",
-    "products.warehouse_sources",
-    "products.exports",
-    "products.workflows",
-]
-layer = "modules"
-
-[[modules]]
 path = "posthog"
 depends_on = [
     "products.account_audits",
@@ -88,7 +46,6 @@ depends_on = [
     "products.ai_training",
     "products.autoresearch",
     "products.cohorts",
-    "ee",
     "products.access_control",
     "products.aeo",
     "products.analytics_platform",
@@ -186,7 +143,6 @@ from = [
 path = "products.alerts"
 depends_on = [
     "products.alerts_platform",
-    "ee",
     "posthog",
     "products.cdp",
     "products.product_analytics", "products.access_control",
@@ -220,7 +176,6 @@ layer = "modules"
 [[modules]]
 path = "products.approvals"
 depends_on = [
-    "ee",
     "posthog",
     "products.feature_flags",
     "products.notifications", "products.access_control",
@@ -241,7 +196,6 @@ layer = "modules"
 [[modules]]
 path = "products.batch_exports"
 depends_on = [
-    "ee",
     "posthog",
     "products.access_control",
     "products.notifications",
@@ -254,7 +208,6 @@ layer = "modules"
 path = "products.cdp"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.actions",
     "products.batch_exports",
@@ -274,7 +227,6 @@ layer = "modules"
 [[modules]]
 path = "products.conversations"
 depends_on = [
-    "ee",
     "posthog", "products.tasks", "products.business_knowledge", "products.warehouse_sources", "products.customer_analytics", "products.access_control",
     # Facade-only: the deleted-ticket purge retracts the ticket's signal embeddings. products.signals
     # depends on products.conversations in turn, so keep this direction on the facade.
@@ -291,7 +243,6 @@ layer = "modules"
 path = "products.dashboards"
 depends_on = [
     "products.notebooks",
-    "ee",
     "posthog",
     "products.alerts",
     "products.ai_observability",
@@ -387,7 +338,6 @@ layer = "modules"
 [[modules]]
 path = "products.warehouse_sources"
 depends_on = [
-    "ee",
     "posthog",
     "products.batch_exports",
     "products.cdp",
@@ -406,7 +356,6 @@ layer = "modules"
 [[modules]]
 path = "products.data_warehouse"
 depends_on = [
-    "ee",
     "posthog",
     "products.cdp",
     "products.data_quality",
@@ -439,7 +388,6 @@ layer = "modules"
 path = "products.early_access_features"
 depends_on = [
     "posthog",
-    "ee",
     "products.feature_flags", "products.access_control",
     # Enrollment changes emit internal events through products.cdp.backend.internal_events.
     "products.cdp",
@@ -462,7 +410,6 @@ layer = "modules"
 path = "products.error_tracking"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.cdp",
     # Facade-only: new issue severity inference calls the shared decision-model client.
@@ -484,7 +431,6 @@ layer = "modules"
 path = "products.experiments"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.access_control",
     "products.actions",
@@ -508,7 +454,6 @@ layer = "modules"
 path = "products.feature_flags"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.alerts",
     "products.approvals",
@@ -525,7 +470,6 @@ layer = "modules"
 [[modules]]
 path = "products.growth"
 depends_on = [
-    "ee",
     "posthog", "products.access_control",
     "products.signals", "products.tasks",
     "products.warehouse_sources", "products.wizard",
@@ -550,7 +494,6 @@ layer = "modules"
 path = "products.ai_observability"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.dashboards",
     "products.exports",
@@ -587,7 +530,6 @@ layer = "modules"
 path = "products.billing_alerts"
 depends_on = [
     "products.alerts_platform",
-    "ee",
     "posthog",
     "products.alerts",
     "products.cdp",
@@ -597,7 +539,6 @@ layer = "modules"
 [[modules]]
 path = "products.context_layer"
 depends_on = [
-    "ee",
     "posthog",
     "products.tasks", "products.access_control",
 ]
@@ -642,7 +583,6 @@ from = [
 [[modules]]
 path = "products.mcp_store"
 depends_on = [
-    "ee",
     "posthog", "products.access_control",
     # Presentation-only: the server icon endpoint serves through
     # products.cdp.backend.presentation.icons.
@@ -669,7 +609,6 @@ layer = "modules"
 [[modules]]
 path = "products.metrics"
 depends_on = [
-    "ee",
     "posthog",
     "products.access_control",
     "products.dashboards",
@@ -691,7 +630,6 @@ from = [
 [[modules]]
 path = "products.notebooks"
 depends_on = [
-    "ee",
     "posthog",
     "products.canvas",
     "products.dashboards",
@@ -703,7 +641,6 @@ layer = "modules"
 [[modules]]
 path = "products.pulse"
 depends_on = [
-    "ee",
     "posthog",
     "products.ai_observability",
     "products.alerts",
@@ -726,7 +663,6 @@ layer = "modules"
 [[modules]]
 path = "products.notifications"
 depends_on = [
-    "ee",
     "posthog", "products.access_control",
 ]
 layer = "modules"
@@ -734,7 +670,6 @@ layer = "modules"
 [[modules]]
 path = "products.platform_features"
 depends_on = [
-    "ee",
     "posthog",
 ]
 layer = "modules"
@@ -742,7 +677,6 @@ layer = "modules"
 [[modules]]
 path = "products.posthog_ai"
 depends_on = [
-    "ee",
     "posthog",
     "products.error_tracking",
     "products.event_definitions",
@@ -761,7 +695,6 @@ layer = "modules"
 path = "products.product_analytics"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.actions",
     "products.alerts",
@@ -822,7 +755,6 @@ layer = "modules"
 [[modules]]
 path = "products.replay"
 depends_on = [
-    "ee",
     "posthog", "products.access_control",
 ]
 layer = "modules"
@@ -831,7 +763,6 @@ layer = "modules"
 path = "products.replay_vision"
 depends_on = [
     "products.alerts_platform",
-    "ee",
     "posthog",
     "products.actions",
     "products.alerts",
@@ -854,7 +785,6 @@ layer = "modules"
 [[modules]]
 path = "products.revenue_analytics"
 depends_on = [
-    "ee",
     "posthog", "products.warehouse_sources", "products.data_modeling", "products.data_tools", "products.access_control",
 ]
 layer = "modules"
@@ -862,7 +792,6 @@ layer = "modules"
 [[modules]]
 path = "products.review_hog"
 depends_on = [
-    "ee",
     "posthog",
     "products.engineering_analytics",
     "products.signals",
@@ -880,7 +809,6 @@ depends_on = [
     # Facade-only: a scout report asks whether the bot can answer a follow-up on it. products.slack_app
     # depends on products.signals in turn, so both directions stay facade-only to keep the pair honest.
     "products.slack_app",
-    "ee",
     "products.cohorts",
     "posthog",
     "products.actions",
@@ -925,7 +853,6 @@ layer = "modules"
 # temporary coupling from the standalone-product extraction, slated for cleanup.
 path = "products.skills"
 depends_on = [
-    "ee",
     "posthog",
     # Facade-only: authenticated scout runs read their pinned skill variant.
     "products.signals",
@@ -957,7 +884,6 @@ depends_on = [
     # Link unfurls render insight charts through the exports facade.
     "products.exports",
     # Mention workflows check billing quota limits before they start a task.
-    "ee",
 ]
 layer = "modules"
 
@@ -965,7 +891,6 @@ layer = "modules"
 path = "products.surveys"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.actions",
     "products.approvals",
@@ -978,7 +903,6 @@ layer = "modules"
 [[modules]]
 path = "products.customer_analytics"
 depends_on = [
-    "ee",
     "posthog",
     "products.cdp",
     "products.conversations",
@@ -995,7 +919,6 @@ layer = "modules"
 [[modules]]
 path = "products.managed_warehouse"
 depends_on = [
-    "ee",
     "posthog",
     "products.data_warehouse",
     "products.data_modeling",
@@ -1006,7 +929,6 @@ layer = "modules"
 [[modules]]
 path = "products.marketing_analytics"
 depends_on = [
-    "ee",
     "posthog",
     "products.access_control",
     "products.actions",
@@ -1019,7 +941,6 @@ layer = "modules"
 path = "products.tasks"
 depends_on = [
     "products.cdp",
-    "ee",
     "posthog",
     "products.canvas",
     "products.context_layer",
@@ -1091,7 +1012,6 @@ depends_on = [
     "products.access_control",
     "products.aeo",
     "products.cohorts",
-    "ee",
     "posthog",
     "products.actions",
     "products.analytics_platform",
@@ -1106,7 +1026,6 @@ layer = "modules"
 path = "products.workflows"
 depends_on = [
     "products.cohorts",
-    "ee",
     "posthog",
     "products.actions",
     "products.cdp",
@@ -1200,7 +1119,7 @@ from = [
     "products.streamlit_apps",
 ]
 
-# Legacy leaks — core (posthog/ee) imports these internals directly.
+# Legacy leaks — core (posthog) imports these internals directly.
 # Each block below should shrink as imports migrate to the facade.
 # These products have had backend:contract-check removed from package.json
 # so CI treats them as non-isolated until the leaks are cleaned up.
@@ -1342,7 +1261,6 @@ from = [
 [[modules]]
 path = "products.legal_documents"
 depends_on = [
-    "ee",
     "posthog",
 ]
 layer = "modules"
@@ -1351,7 +1269,6 @@ layer = "modules"
 path = "products.access_control"
 depends_on = [
     "posthog",
-    "ee",
     "products.event_definitions",
 ]
 layer = "modules"
@@ -1369,7 +1286,7 @@ from = [
     "products.access_control",
 ]
 
-# Legacy leaks — core (posthog/ee) still imports these internals directly.
+# Legacy leaks — core (posthog) still imports these internals directly.
 
 [[interfaces]]
 expose = [
@@ -1409,7 +1326,7 @@ from = [
     "products.alerts",
 ]
 
-# Legacy leaks — core (posthog/ee), customer_analytics, reminders and signals still
+# Legacy leaks — core (posthog), customer_analytics, reminders and signals still
 # import the Notebook ORM directly: file-system / search / reminders registries dispatch
 # on the model class, middleware returns a raw queryset, the read_data and notebook-context
 # Max tools need the instance for access-control checks, sharing re-fetches it for the
@@ -1426,7 +1343,7 @@ from = [
 
 [[modules]]
 path = "products.business_knowledge"
-depends_on = ["posthog", "ee", "products.access_control", "products.tasks"]
+depends_on = ["posthog", "products.access_control", "products.tasks"]
 layer = "modules"
 
 [[interfaces]]
@@ -1497,7 +1414,7 @@ from = [
 [[modules]]
 path = "products.exports"
 # products.slack_app is facade-only: an AI subscription asks whether the bot can answer a follow-up.
-depends_on = ["posthog", "products.actions", "products.dashboards", "ee", "products.annotations", "products.ai_observability", "products.posthog_ai", "products.product_analytics", "products.access_control", "products.slack_app"]
+depends_on = ["posthog", "products.actions", "products.dashboards", "products.annotations", "products.ai_observability", "products.posthog_ai", "products.product_analytics", "products.access_control", "products.slack_app"]
 layer = "modules"
 
 [[modules]]
@@ -1513,7 +1430,7 @@ layer = "modules"
 # Isolation debt: outside test suites build tasks rows and read its enums straight
 # from the models. Drain by adding factories to facade/testing.py and migrating the
 # suites, then delete this block. Consumers: canvas, slack_app, review_hog,
-# replay_vision, posthog_ai, stamphog, conversations, signals, ee.
+# replay_vision, posthog_ai, stamphog, conversations, signals.
 [[interfaces]]
 expose = [
     "backend\\.models\\.(Channel|SandboxEnvironment|Task|TaskRun|TaskThreadMessage)",
@@ -1638,7 +1555,6 @@ from = [
 [[modules]]
 path = "products.today"
 depends_on = [
-    "ee",
     "posthog",
     "products.access_control",
     "products.conversations",

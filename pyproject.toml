@@ -435,7 +435,6 @@ select = [
 ".github/**" = ["PLC0415"]
 "bin/**" = ["PLC0415"]
 "common/**" = ["PLC0415"]
-"ee/**" = ["PLC0415"]
 "manage.py" = ["PLC0415"]
 "posthog/**" = ["PLC0415"]
 "scripts/**" = ["PLC0415"]
@@ -589,7 +588,7 @@ include_external_packages = true
 name = "packages/owners-yaml is a leaf"
 type = "forbidden"
 source_modules = ["owners_yaml"]
-forbidden_modules = ["posthog", "ee", "products", "common", "django", "rest_framework"]
+forbidden_modules = ["posthog", "products", "common", "django", "rest_framework"]
 
 # Presentation must only reach product internals through the facade.
 # Forbid all backend imports, then allowlist facade + self-imports.
