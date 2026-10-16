@@ -1,6 +1,6 @@
 # 용어집
 
-확인 기준 커밋: 70371e9eb38
+확인 기준 커밋: 79b3714e131
 
 코드에서 쓰이는 이름과 위치를 기준으로 정리했다.
 데이터가 지나가는 경로는 [데이터 흐름](data-flow.md), 구성 요소는 [시스템 구성도](architecture.md)를 본다.
@@ -9,8 +9,8 @@
 
 SDK가 사용자를 구분하려고 이벤트에 붙이는 식별자.
 하나의 person에 여러 `distinct_id`가 연결될 수 있다.
-매핑은 ClickHouse `person_distinct_id2`와 Postgres 쪽에 있고, 접근은 personhog를 거친다.
-정의: `posthog/models/person/person.py:Person.distinct_ids`, 테이블은 `posthog/models/person/sql.py:PERSON_DISTINCT_ID2_TABLE`.
+매핑은 두 곳에 있다. Postgres(persons DB)의 `posthog_persondistinctid`(`PersonDistinctId`)는 personhog로 접근하고, ClickHouse `person_distinct_id2`는 HogQL `person_distinct_ids`로 읽는다(`posthog/hogql/database/schema/person_distinct_ids.py`).
+정의: `posthog/models/person/person.py:Person.distinct_ids`, `PersonDistinctId`, 테이블은 `posthog/models/person/sql.py:PERSON_DISTINCT_ID2_TABLE`.
 
 ## person
 
@@ -21,10 +21,10 @@ SDK가 사용자를 구분하려고 이벤트에 붙이는 식별자.
 ## organization / project / team
 
 - organization: 최상위 소유 단위. `posthog/models/organization.py`.
-- project: organization 아래 묶음. `posthog/models/project.py`.
-- team: 데이터가 실제로 격리되는 단위. 거의 모든 테넌트 테이블에 `team_id`가 있다. `posthog/models/team/team.py`.
+- project: organization 아래 단위이고 team을 하나 이상 가진다. `posthog/models/project.py`. 기본 team의 id는 그 project의 id와 같다(`Project.id` 주석 "Same as Team.id field").
+- team: UI에서 environment라 부르는 단위이며 데이터 격리 키는 `team_id`다. 거의 모든 테넌트 테이블에 있다. `posthog/models/team/team.py`.
 
-코드에서는 team과 project가 섞여 쓰이는 곳이 있다. 이 구분의 이력은 확인하지 못했다(미확인).
+예전에는 team이 project를 뜻했고, 그래서 코드에 두 이름이 섞여 있다(`Team` docstring: "historically it meant project", `verbose_name = "environment (aka team)"`).
 
 ## group
 
@@ -41,12 +41,12 @@ ClickHouse 테이블은 `groups`(`posthog/models/group/sql.py`).
 
 PostHog의 SQL 방언.
 ClickHouse 쿼리로 변환되어 실행된다.
-구현: `posthog/hogql/`, 파서: `common/hogql_parser/`.
+구현: `posthog/hogql/`. 파서 백엔드는 둘이다. 기본은 Rust(`rust/hogql/parser/`, 패키지 `hogql_parser_rs`)이고, C++(`common/hogql_parser/`, 패키지 `hogql_parser`)은 표본 shadow 비교와 Rust 패키지를 불러오지 못할 때의 대체로 쓰인다. 선택은 `posthog/hogql/parser.py:_resolve_parser_mode`가 한다.
 
 ## session
 
 한 방문자의 연속된 활동 묶음.
-ClickHouse `sessions` 테이블이 `session_id` 단위로 집계한다(`posthog/models/sessions/sql.py`).
+HogQL `sessions`는 기본적으로 ClickHouse `raw_sessions`를 `session_id` 단위로 집계해 보여 준다(`posthog/models/raw_sessions/sessions_v2.py`, `posthog/hogql/database/database.py`). ClickHouse `sessions` 테이블(`posthog/models/sessions/sql.py`)은 일부 team 한정 V1 레거시다.
 세션 리플레이(화면 녹화)는 별도 경로이며 토픽이 다르다.
 
 ## action
@@ -69,12 +69,12 @@ ClickHouse `sessions` 테이블이 `session_id` 단위로 집계한다(`posthog/
 ## product
 
 `products/<name>/` 아래의 기능 단위 Django 앱과 프런트엔드.
-UI의 "제품"(Product analytics 등)과 같은 말이다.
+UI의 "제품"(Product analytics 등)과 겹치는 경우가 많지만 같지는 않다. `products/actions`, `products/cohorts`는 `products/` 폴더이지만 UI 제품 목록(`frontend/src/products.tsx:getTreeItemsProducts`, 각 `manifest.tsx`의 `treeItemsProducts`)에 없다. `products/README.md`는 product를 backend와 frontend를 함께 가진 vertical slice로 정의한다.
 규칙은 [products/README.md](../products/README.md).
 
 ## personhog
 
-person·group 데이터 접근을 중개하는 서비스와 클라이언트.
+person·group·cohort 데이터 접근을 중개하는 서비스와 클라이언트.
 Rust 크레이트 `rust/personhog-*`와 Python 클라이언트 `posthog/personhog_client/`로 구성된다.
 ORM 직접 접근 금지 규칙은 루트 `AGENTS.md`에 있다.
 
@@ -84,7 +84,7 @@ ORM 직접 접근 금지 규칙은 루트 `AGENTS.md`에 있다.
 | --- | --- |
 | 수집 서비스 | capture, `rust/capture` |
 | ingestion 컨슈머 | plugin-server 계열 이름(`KAFKA_EVENTS_PLUGIN_INGESTION` 등 토픽 이름에 남아 있음), `nodejs/` |
-| person 병합 | merge, person override(`clickhouse_person_override`) |
-| 이벤트 테이블 | `events`(분산), `sharded_events`(저장) |
+| person 병합 | merge, `person_distinct_id_overrides`(ClickHouse, `clickhouse_person_distinct_id` 토픽에서 채움). `clickhouse_person_override`·`person_overrides`는 쓰이지 않는 레거시 |
+| 이벤트 테이블 | `events`(분산), `sharded_events`(저장). native JSON 새 스키마는 `events_json`(분산), `sharded_events_json`(저장) |
 
 Decided in: buzzhog-6y7m
