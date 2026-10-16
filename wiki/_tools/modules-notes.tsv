@@ -1,0 +1,101 @@
+module	role	flags	evidence	verdict	reason
+access_control	`Role`·`RoleMembership`로 역할 기반 접근 권한(RBAC)을 관리하는 모듈		products/access_control/backend/models	핵심	코어 104곳·product 51개가 import
+account_audits	웹훅 요청으로 `account-audit` 작업을 시작하고 마무리하는 모듈		products/account_audits/backend/facade/api.py	검토	`tasks`·`signals` 에이전트 실행에 기대는 작은 모듈
+actions	`Action`·`ActionStep`으로 이벤트 선택 규칙(액션)을 관리하는 모듈		products/actions/backend/models	핵심	코어 23곳·product 12개가 import
+aeo	`AEOPrompt`·`AEOCitationCheck`로 AI 답변 엔진의 도메인 인용을 점검하는 POC 모듈	external	products/aeo/README.md	검토	POC, `web_analytics`만 사용
+ai_observability	`EvaluationConfig`·`LLMPrompt` 중심의 LLM 트레이스, 평가, 프롬프트 관리 모듈	external	products/ai_observability/README.md	유지	독립 기능, `ee` import 3곳 정리 필요
+ai_training	`AITrainingDeletionRequest`로 ML 학습 데이터 삭제 요청을 처리하는 모듈		products/ai_training/README.md	제거 후보	PostHog 자체 ML 학습 데이터 삭제 통제(코어 6곳 결합)
+alerts	`Alert`·`Threshold`로 인사이트 알림을 평가하고 `llm` 감지기를 두는 모듈	external	products/alerts/AGENTS.md	유지	`product_analytics`·`logs`와 상호 의존
+alerts_platform	`PlatformAlertConfiguration`·`PlatformAlert`로 플랫폼 알림 설정과 전달을 다루는 모듈		products/alerts_platform/backend/models	유지	`alerts`·`logs`·`billing_alerts`가 기반으로 사용
+analytics_platform	`PreaggregationJob`으로 사전 집계 작업 상태와 precompute 디버그 화면을 관리하는 모듈		products/analytics_platform/backend/models/preaggregation_job.py	유지	`web_analytics`·`experiments` 사전 집계 기반
+annotations	`Annotation` 모델로 차트 주석을 저장하고 API로 제공하는 모듈		products/annotations/backend/models	유지	작고 결합 낮음
+apm	`unified-apm-product` 플래그로 막아 둔 미출시 APM 이상 탐지 백엔드 모듈		products/apm/backend/feature_flags.py	검토	미출시 플래그 뒤 코드, `logs`만 사용
+approvals	`ChangeRequest`·`ApprovalPolicy`로 게이트된 작업의 변경 요청을 승인하는 모듈		products/approvals/backend/models.py	유지	`feature_flags`와 상호 의존
+autoresearch	`AutoresearchModel`·`AutoresearchRun`으로 목표 이벤트 예측 모델을 탐색·학습하는 모듈	external	products/autoresearch/AGENTS.md	검토	`tasks` 에이전트 묶음에 기댐, 들어오는 의존 없음
+batch_exports	`BatchExport`·`BatchExportDestination`으로 이벤트를 외부 목적지로 내보내는 모듈	external	products/batch_exports/backend/models	유지	`cdp`·`data_warehouse`가 사용
+billing	백엔드 없이 빌링 API 생성 클라이언트, MCP 도구 정의, 사용량 스킬, 프론트 e2e 테스트만 있는 모듈	stub	products/billing/frontend/generated/api.ts	검토	백엔드 없음, 프론트 코어 17곳이 import
+billing_alerts	조직 단위 `BillingAlertConfiguration`으로 빌링 사용량 알림을 평가하는 모듈	cloud	products/billing_alerts/README.md	제거 후보	PostHog Cloud 빌링 전용(`posthog.cloud_utils`), 들어오는 의존 없음
+business_intelligence	`BIWorksheetsScene` 워크시트 기반 BI 분석 화면만 제공하는 프론트엔드 모듈		products/business_intelligence/manifest.tsx	유지	프론트 전용, 코어 프론트 22곳이 import
+business_knowledge	`KnowledgeLibrary`·`KnowledgeChunk`로 웹과 GitHub 자료를 모아 지식 라이브러리를 만드는 모듈	external	products/business_knowledge/backend/models	검토	에이전트 묶음(`tasks`), `ee` import 2곳
+canvas	`Canvas`·`CanvasBuild`로 캔버스 소스를 빌드하고 저장하는 모듈		products/canvas/backend/models.py	검토	에이전트 묶음(`tasks`와 상호 의존)
+cdp	`HogFunction`·`HogFunctionTemplate`로 외부 목적지에 이벤트를 전달하는 CDP 모듈	external	products/cdp/backend/models/hog_function_template.py	핵심	코어 53곳·product 17개가 import
+cohorts	`Cohort` 모델로 코호트 정의·계산·백필을 관리하는 모듈		products/cohorts/backend/models/cohort.py	핵심	코어 58곳·product 15개가 import
+commands	GitHub App으로 받은 PR 댓글의 `@posthog` 명령을 파싱해 각 제품으로 보내는 모듈	external	products/commands/README.md	검토	`@posthog` PR 명령 라우터(`github-commands` 롤아웃 뒤), `review_hog`·`stamphog`·`tasks`의 진입점, `slack_app`만 사용
+context_layer	`ContextLayerConfig`·`WikiPageProposal`로 조직 마크다운 위키를 git 번들로 관리하는 모듈	external	products/context_layer/README.md	검토	에이전트 묶음(`tasks`와 상호 의존)
+conversations	`EmailThread`·`ConversationDelivery`로 지원 티켓과 이메일, Slack 연동을 처리하는 모듈	external	products/conversations/backend/models	유지	고객 지원 기능, 결합 큼(나감 10개)
+core_events	`Core events` 메뉴 항목만 등록하는 manifest 전용 모듈	stub	products/core_events/manifest.tsx	유지	manifest만 있음, 코어 프론트 4곳이 import
+cross_project_dashboards	`CrossProjectDashboard`·`CrossProjectDashboardTile`로 여러 프로젝트 타일을 묶는 모듈		products/cross_project_dashboards/backend/models.py	유지	작고 들어오는 의존 없음
+customer_analytics	`Account`·`Meeting`으로 고객 계정과 Google 캘린더·Gmail 동기화를 다루는 모듈	external	products/customer_analytics/backend/models	유지	결합 큼(나감 14개), 단독 분리는 어려움
+dashboards	`Dashboard`·`DashboardTile`로 대시보드, 타일, 템플릿을 관리하는 모듈		products/dashboards/backend/models	핵심	코어 45곳·프론트 73곳·product 15개가 import
+data_catalog	`Metric`·`TableCertification`으로 메트릭 카탈로그와 테이블 인증을 관리하는 모듈		products/data_catalog/backend/models	유지	데이터 묶음
+data_modeling	`DAG`·`GitHubSyncConfig`로 저장 쿼리의 의존 그래프와 GitHub 동기화를 다루는 모듈	external	products/data_modeling/backend/models	핵심	코어 42곳, 데이터 묶음 중심
+data_quality	`DataQualityCheck`·`DataQualitySuiteRun`으로 데이터 품질 검사를 실행하고 기록하는 모듈	external	products/data_quality/backend/models	유지	데이터 묶음
+data_tools	`DataWarehouseJoin`·`DataWarehouseExpression`로 쿼리 도구의 조인과 표현식을 저장하는 모듈		products/data_tools/backend/models/join.py	핵심	작지만 product 6개·코어 6곳이 import
+data_warehouse	`TeamDataWarehouseConfig`로 외부 DB와 SaaS 소스를 연결해 웨어하우스 테이블을 만드는 모듈	external	products/data_warehouse/backend/direct_snowflake.py	핵심	프론트 86곳·product 11개가 import, 데이터 묶음 중심
+demo	`MatrixManager`와 `HedgeboxMatrix`로 데모 데이터를 생성한다		products/demo/backend/facade/api.py	유지	개발용 데모 데이터, product 11개를 import
+desktop	PostHog Desktop과 모바일 앱, 에이전트 프레임워크의 소스 저장소다		products/desktop/README.md	검토	독립 pnpm 워크스페이스(약 72만 줄), 다른 product와 import 없음
+early_access_features	얼리 액세스 기능 목록을 저장하는 `EarlyAccessFeature` 모델이다		products/early_access_features/backend/models.py	유지	`feature_flags`와 상호 의존
+endpoints	저장된 쿼리를 `EndpointVersion`으로 버전 관리해 API 엔드포인트로 노출한다		products/endpoints/backend/models.py	유지	`data_modeling`·`product_analytics` 위에 얹힘
+engineering_analytics	팀이 연결한 GitHub 저장소의 PR과 CI 데이터를 웨어하우스 뷰로 분석한다	external	products/engineering_analytics/README.md	검토	기능 플래그 뒤 제품(`PostHog/posthog`로 dogfood), `signals`와 상호 의존
+error_tracking	`ErrorTrackingIssue`의 병합, 할당, 지문으로 에러 이슈를 관리한다		products/error_tracking/backend/models.py	유지	독립 기능, 들어오는 의존 product 12개
+event_definitions	이벤트와 속성 정의를 `EventDefinition`, `PropertyDefinition`으로 저장한다		products/event_definitions/backend/models/__init__.py	핵심	코어 30곳·product 11개가 import
+experiments	`Experiment`와 `WebExperiment`로 A/B 실험의 설정과 상태를 관리한다		products/experiments/backend/models/	핵심	코어 42곳·프론트 174곳이 import
+exports	`Subscription`과 `ExportedAsset`으로 정기 전송과 자산 내보내기를 다룬다		products/exports/backend/models/subscription.py	핵심	코어 32곳·product 11개가 import, `ee` import 10곳
+feature_flags	`FeatureFlag` 모델로 기능 플래그와 예약 변경·정책을 관리하는 모듈		products/feature_flags/backend/models/feature_flag.py	핵심	코어 63곳·프론트 71곳·product 16개가 import
+field_notes	툴바에서 남긴 UI 필드 노트를 `FieldNote`로 저장해 MCP 에이전트에 넘긴다		products/field_notes/backend/models.py	검토	작고 의존 없음(독립)
+games	내장 미니 게임 3종(368Hedgehogs, FlappyHog, ShipIt) 씬을 제공한다		products/games/manifest.tsx	제거 후보	미니 게임, 의존 없음
+groups	그룹 목록 씬과 백엔드 앱을 제공하며 모델은 없다		products/groups/manifest.tsx	유지	프론트 11곳·product 5개가 사용
+growth	`ProductPushCampaign`과 `OrganizationEnrichment`로 가입 조직 보강과 제품 푸시를 다룬다 (internal,external)		products/growth/backend/models.py	제거 후보	PostHog 가입 조직 보강(Clay 등)과 제품 푸시
+inbox	자율 인박스 메뉴와 탭만 등록돼 있고 씬과 백엔드가 없다	stub	products/inbox/manifest.tsx	검토	manifest만 있음
+ingestion	수집 경고 해결용 스킬 문서만 담고 있으며 코드가 없다	stub	products/ingestion/skills/resolving-ingestion-warnings/SKILL.md	유지	스킬 문서만 있음, 코드 없음
+integrations	환경 통합 API 작업을 MCP 도구로 노출하는 정의 파일이다		products/integrations/mcp/tools.yaml	유지	코어 프론트 17곳이 import(생성 API)
+legal_documents	BAA, DPA, MSA 법무 문서와 서명 상태를 `LegalDocument`로 관리한다		products/legal_documents/backend/models.py	제거 후보	PostHog와의 BAA·DPA·MSA 계약 문서
+links	퇴역한 단축 링크 제품이며 `Link` 모델만 테이블 정리용으로 남았다	stub	products/links/backend/models.py	제거 후보	퇴역, `Link` 모델만 남음
+live_debugger	퇴역한 라이브 디버거의 `LiveDebuggerBreakpoint` 모델만 남았다	stub	products/live_debugger/backend/models.py	제거 후보	퇴역, 모델만 남음
+llm_analytics	`ai_observability`로 옮긴 모델의 과거 마이그레이션과 데이터 신선도 설정(`DATA_SOURCES`)만 남은 앱이다	stub	products/llm_analytics/backend/apps.py	유지	마이그레이션 34개(LOC에서 빠짐)를 `ai_observability` 마이그레이션 0001이 이어 받음
+logs	로그 조회, `LogsAlertConfiguration` 알림, 로그 보존 규칙을 다룬다		products/logs/backend/models.py	유지	관측성 묶음 중심
+managed_migrations	외부 데이터를 가져오는 일괄 작업 `BatchImport`의 상태를 관리한다		products/managed_migrations/backend/models/batch_imports.py	유지	작고 의존 없음
+managed_warehouse	관리형 `DuckgresServer`와 Trino 기반 웨어하우스 소스 작업을 관리한다	cloud	products/managed_warehouse/backend/models.py	검토	PostHog 운영 `DuckgresServer` 전제, 코어 25곳 결합
+marketing_analytics	`MarketingAnalyticsGoalMapping`으로 마케팅 전환 목표를 매핑한다		products/marketing_analytics/backend/models/	유지	들어오는 의존 없음, 프론트 24곳
+mcp_analytics	`MCPSession`과 의도 클러스터로 MCP 도구 호출을 분석한다		products/mcp_analytics/backend/models.py	유지	`dashboards`와 상호 의존
+mcp_registry	공식 MCP 레지스트리를 크롤링해 서버를 순위 매기는 `MCPRegistryServer` 인덱스다	external	products/mcp_registry/README.md	검토	외부 MCP 레지스트리 크롤러, 들어오는 의존 없음
+mcp_store	서드파티 MCP 서버 카탈로그 `MCPServerTemplate`을 제공하는 마켓플레이스다	external	products/mcp_store/README.md	유지	`tasks`·`signals`·`canvas`가 사용
+messaging	Customer.io 메시지 템플릿과 수신 설정 `MessageTemplate`을 관리한다	external	products/messaging/backend/services/customerio_client.py	유지	`workflows`와 상호 의존(Customer.io 클라이언트 포함)
+metrics	메트릭 대시보드 템플릿 `MetricsDashboardTemplate`과 쿼리 러너를 제공한다		products/metrics/backend/models.py	유지	관측성 묶음
+ml_inference	질문마다 AI 게이트웨이의 결정 모델에 답을 받아 돌려주는 `DecisionViewSet` API다. 결과는 저장하지 않고 Django 모델도 없다	external	products/ml_inference/backend/presentation/views.py	유지	product 6개가 사용, 외부 AI 게이트웨이 필요
+notebooks	`Notebook`과 `NotebookRun`으로 노트북과 커널 실행을 관리한다		products/notebooks/backend/models.py	유지	프론트 30곳·product 9개가 사용
+notifications	`NotificationEvent`와 읽음, 보관 상태로 인앱 알림을 관리한다		products/notifications/backend/models.py	핵심	product 15개가 import
+persons	`Person`, `Persons` 씬으로 사람 상세와 목록 UI를 제공한다		products/persons/manifest.tsx	핵심	프론트 59곳·product 15개가 import(프론트 전용)
+platform_features	활동 로그 MCP 도구 정의와 프록시 진단 AI 도구 `DiagnoseProxyTool`만 있는 모듈	external	products/platform_features/mcp/tools.yaml	유지	프론트 45곳이 생성 API를 import, 백엔드는 `ee` 의존 도구 1개
+posthog_ai	`posthog_ai` 에이전트 화면과 다른 제품의 연동 지점을 담당한다	external	products/posthog_ai/README.md	검토	에이전트 묶음 중심, `ee.hogai` 제거로 import 6곳 끊김
+product_analytics	인사이트 씬과 `project_id` 기준 접근·공유 규칙을 담당한다		products/product_analytics/AGENTS.md	핵심	코어 47곳·프론트 158곳·product 25개가 import
+product_tours	`ProductTour` 모델로 온보딩 투어를 저장하고 REST API를 제공한다		products/product_tours/ARCHITECTURE.md	검토	product.yaml에 deprecated, 담당 팀 없음
+pulse	`ProductBrief`, `Opportunity` 모델로 LLM 기반 제품 제안을 만든다	external	products/pulse/backend/models.py	검토	LLM 제안, 들어오는 의존 없음
+reminders	`Reminder` 모델로 예약 알림을 만들고 발송 일정을 관리한다		products/reminders/backend/models/reminder.py	유지	작고 들어오는 의존 없음
+replay	`ExportedRecording`으로 세션 리플레이 내보내기 기록을 관리한다		products/replay/backend/models/exported_recording.py	유지	작음
+replay_vision	`Scanner` 설정으로 녹화 세션에 AI 스캔을 돌려 결과를 기록한다	external	products/replay_vision/README.md	검토	AI 스캔, 나감 18개·`ee` import 8곳
+revenue_analytics	Stripe 데이터 소스 기반 `Revenue Analytics` 씬과 뷰를 제공한다	external	products/revenue_analytics/backend/views/sources/stripe/subscription.py	유지	데이터 묶음(Stripe 소스)
+review_hog	`ReviewReport`로 GitHub PR 자동 리뷰 결과를 저장하고 게시한다	external	products/review_hog/backend/models.py	검토	공개 전 제한 출시(`review-hog` 플래그, 근거: `products/review_hog/ARCHITECTURE.md`), `tasks`·`signals`에 기댐
+security	`decide`로 접근 규칙을 허용·차단 판정하고 Temporal로 스냅샷을 동기화한다 (cloud,external)		products/security/README.md	제거 후보	PostHog 보안 허브 연동, 단 코어 29곳 결합 해소 필요
+session_replay	세션 리플레이 온보딩 단계 UI 한 파일만 있는 얇은 모듈이다	stub	products/session_replay/frontend/onboarding/steps.tsx	유지	온보딩 UI 한 파일
+signals	`SignalReport`로 신호를 묶어 LLM·GitHub 기반 리포트를 생성한다	external	products/signals/ARCHITECTURE.md	검토	에이전트 묶음 중심, 나감 31개로 가장 강결합
+skills	`CommunitySkill`로 커뮤니티 스킬의 등록·설치를 관리한다		products/skills/backend/models/community_skills.py	검토	에이전트 묶음
+slack_app	`SlackSettings`, `SlackChannel`로 Slack 채널의 PostHog 응답 라우팅을 관리한다	external	products/slack_app/backend/models.py	검토	에이전트 묶음(`tasks`·`signals`와 상호 의존)
+stamphog	`ReviewRun`으로 GitHub PR을 검토해 승인 여부를 정하고 게시한다	external	products/stamphog/README.md	검토	조직이 설치하는 GitHub App PR 승인 봇, `tasks` 샌드박스에 의존
+streamlit_apps	`StreamlitApp`, `StreamlitAppVersion`으로 Streamlit 앱 버전을 관리한다		products/streamlit_apps/backend/models.py	검토	`tasks`에만 의존, 들어오는 의존 없음
+subscriptions	인사이트·대시보드 구독 목록과 상세 씬만 있다 (백엔드 없음)		products/subscriptions/manifest.tsx	유지	프론트 전용, 코어 프론트 17곳이 import
+support	지원팀이 프로젝트를 정리하는 일회성 CLI 스크립트 모음이다	internal	products/support/scripts/AGENTS.md	제거 후보	PostHog 지원팀 일회성 CLI
+surveys	`Survey`, `SurveyResponseArchive`로 설문과 응답 보관을 관리한다		products/surveys/backend/models.py	유지	독립 기능, product 8개가 사용
+tasks	`SandboxSession`, `Channel`로 에이전트 작업 실행과 채널을 관리한다	external	products/tasks/backend/models.py	검토	에이전트 묶음 중심, `ee` import 15곳 끊김
+today	`TodayHighlights`로 사용자별 일일 하이라이트를 저장한다		products/today/backend/models.py	검토	`signals`·`conversations` 하이라이트, 프론트 24곳
+toolbar	`Toolbar` 씬 등록만 있는 얇은 모듈이다 (`/toolbar` 경로)	stub	products/toolbar/manifest.tsx	유지	manifest만 있음
+tracing	`TracingView`, `TracesRetentionRule`로 트레이스 보기와 보존 규칙을 관리한다		products/tracing/backend/models.py	유지	관측성 묶음
+user_interviews	`UserInterview`로 사용자 인터뷰 기록과 분류·주제를 관리한다		products/user_interviews/backend/models.py	제거 후보	모델만 있고 의존 없음
+visual_review	`Run`, `Artifact`로 스크린샷 기준 이미지 비교와 승인을 관리한다	external	products/visual_review/README.md	검토	독립 도구(의존 거의 없음), 떼어 내기 쉬움
+warehouse_sources	외부 SaaS 데이터를 웨어하우스로 가져오는 ELT 소스를 관리한다	external	products/warehouse_sources/manifest.tsx	핵심	코어 109곳·product 20개가 import
+warehouse_sources_queue	`QueueJob`, `SourceBatch`로 웨어하우스 동기화 작업 큐를 관리한다		products/warehouse_sources_queue/backend/models.py	유지	`warehouse_sources` 전용
+warehouse_suggestions	`WarehouseSuggestion`으로 웨어하우스 테이블 추천 결과를 저장한다		products/warehouse_suggestions/backend/models.py	유지	데이터 묶음, 들어오는 의존 없음
+web_analytics	웹 분석 씬과 사전 집계 쿼리 서빙을 담당한다		products/web_analytics/PRECOMPUTATION.md	유지	코어 39곳이 import
+webmcp	`WebMCPViewSet` 뷰셋으로 WebMCP 관련 REST 엔드포인트를 제공한다		products/webmcp/backend/presentation/views.py	검토	작고 의존 없음
+wizard	`WizardRun`으로 PostHog 설치 마법사 실행과 산출물을 관리한다	external	products/wizard/backend/models.py	검토	PostHog 설치 마법사, `tasks` 에이전트에 의존
+workflows	`hog_flow` 모델로 트리거와 액션을 잇는 워크플로 편집·실행을 담당한다		products/workflows/CONTRIBUTING.md	유지	`cdp`·`messaging`과 함께 쓰임, 나감 17개
