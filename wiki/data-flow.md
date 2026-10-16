@@ -1,5 +1,7 @@
 # 데이터 흐름
 
+확인 기준 커밋: 70371e9eb38
+
 이벤트 하나가 수집되어 쿼리 가능해지기까지의 경로를 코드에서 확인한 범위로 적는다.
 전체 구성은 [시스템 구성도](architecture.md)를 본다.
 
@@ -10,13 +12,13 @@
 3. `nodejs/src/ingestion/`의 컨슈머(`ingestion-consumer.ts`)가 이 토픽을 읽는다. person·group 처리 등을 거친다.
 4. 컨슈머가 결과를 ClickHouse용 토픽(`clickhouse_events_json`, `clickhouse_person` 등)에 쓴다.
 5. ClickHouse의 Kafka 엔진 테이블과 materialized view가 토픽을 읽어 `sharded_events` 등 저장 테이블에 넣는다. 정의는 `posthog/models/event/sql.py`(`KAFKA_EVENTS_TABLE_JSON_SQL`, `EVENTS_TABLE_JSON_MV_SQL` 등)에 있다.
-6. Django가 HogQL 쿼리를 ClickHouse 쿼리로 변환해 `events` 분산 테이블을 읽는다.
+6. Django가 HogQL 쿼리를 ClickHouse 쿼리로 변환해 `events` 분산 테이블을 읽는다(근거: `posthog/hogql/`, `posthog/models/event/sql.py:DISTRIBUTED_EVENTS_JSON_TABLE_SQL`).
 
 3~5단계의 세부 변환은 직접 추적하지 않았다. 토픽 이름과 SQL 정의 파일 이름은 코드에서 확인했다.
 
 ## Kafka 토픽
 
-상수는 `posthog/kafka_client/topics.py`에 있다.
+상수는 `posthog/kafka_client/topics.py`의 `KAFKA_*` 변수에 있다(예: `KAFKA_EVENTS_JSON`, `KAFKA_PERSON`, `KAFKA_GROUPS`).
 실제 이름은 `KAFKA_PREFIX`와 `SUFFIX`가 앞뒤에 붙는다.
 
 | 분류 | 토픽 (접두·접미 제외) |

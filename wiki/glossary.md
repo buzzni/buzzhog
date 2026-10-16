@@ -1,5 +1,7 @@
 # 용어집
 
+확인 기준 커밋: 70371e9eb38
+
 코드에서 쓰이는 이름과 위치를 기준으로 정리했다.
 데이터가 지나가는 경로는 [데이터 흐름](data-flow.md), 구성 요소는 [시스템 구성도](architecture.md)를 본다.
 
@@ -8,7 +10,7 @@
 SDK가 사용자를 구분하려고 이벤트에 붙이는 식별자.
 하나의 person에 여러 `distinct_id`가 연결될 수 있다.
 매핑은 ClickHouse `person_distinct_id2`와 Postgres 쪽에 있고, 접근은 personhog를 거친다.
-정의: `posthog/models/person/`.
+정의: `posthog/models/person/person.py:Person.distinct_ids`, 테이블은 `posthog/models/person/sql.py:PERSON_DISTINCT_ID2_TABLE`.
 
 ## person
 

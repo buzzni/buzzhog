@@ -1,5 +1,7 @@
 # buzzhog 위키
 
+확인 기준 커밋: 70371e9eb38
+
 buzzhog는 PostHog 포크다.
 이 위키는 세 가지를 위해 쓴다.
 
