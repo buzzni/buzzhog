@@ -1,3 +1,5 @@
+from posthog.test.base import APIBaseTest
+
 from parameterized import parameterized
 from rest_framework import status
 
@@ -6,10 +8,8 @@ from posthog.models.organization import Organization, OrganizationMembership
 from products.access_control.backend.models.role import Role
 from products.access_control.backend.models.role_external_reference import RoleExternalReference
 
-from ee.api.test.base import APILicensedTest
 
-
-class TestRoleExternalReferenceAPI(APILicensedTest):
+class TestRoleExternalReferenceAPI(APIBaseTest):
     CLASS_DATA_LEVEL_SETUP = False
 
     def setUp(self) -> None:
@@ -84,7 +84,7 @@ class TestRoleExternalReferenceAPI(APILicensedTest):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class TestRoleExternalReferencePermissions(APILicensedTest):
+class TestRoleExternalReferencePermissions(APIBaseTest):
     CLASS_DATA_LEVEL_SETUP = False
 
     def setUp(self) -> None:
@@ -119,7 +119,7 @@ class TestRoleExternalReferencePermissions(APILicensedTest):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
-class TestRoleExternalReferenceCrossOrgIsolation(APILicensedTest):
+class TestRoleExternalReferenceCrossOrgIsolation(APIBaseTest):
     CLASS_DATA_LEVEL_SETUP = False
 
     def setUp(self) -> None:

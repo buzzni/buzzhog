@@ -943,12 +943,6 @@ class Team(UUIDTClassicModel):
         self.api_token = generate_random_token_project()
         self._persist_api_token_change(old_token=old_token, user=user, is_impersonated_session=is_impersonated_session)
 
-    def _notify_vercel_of_token_rotation(self) -> None:
-        """Push updated API token to Vercel integrations in the background."""
-        from posthog.tasks.integrations import push_vercel_secrets
-
-        push_vercel_secrets.delay(self.id)
-
     def set_token_and_save(self, *, new_token: str, user: "User", is_impersonated_session: bool):
         new_token = new_token.strip()
         if not new_token:
@@ -1000,8 +994,6 @@ class Team(UUIDTClassicModel):
                 ],
             ),
         )
-
-        self._notify_vercel_of_token_rotation()
 
     def rotate_secret_token_and_save(self, *, user: "User", is_impersonated_session: bool):
         from posthog.models.activity_logging.activity_log import Change, Detail, log_activity

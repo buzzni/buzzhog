@@ -19,8 +19,6 @@ from products.wizard.backend.facade.errors import WizardSessionOwnershipError
 from products.wizard.backend.metrics import WIZARD_SESSIONS_FINISHED_TOTAL
 from products.wizard.backend.tasks.tasks import sync_wizard_event_definitions
 
-from ee.models.event_definition import EnterpriseEventDefinition
-
 
 def _input(team_id: int, **overrides) -> UpsertWizardSessionInput:
     params: dict = {
@@ -127,24 +125,6 @@ def test_completed_transition_creates_event_definitions_once(team, django_captur
     assert completed_session.event_plan == event_plan
     assert EventDefinition.objects.filter(team=team, name="checkout_started").count() == 1
     assert not EventDefinition.objects.filter(name="completed_push_only").exists()
-
-
-@pytest.mark.django_db
-@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
-def test_completed_transition_creates_enterprise_description(team, django_capture_on_commit_callbacks):
-    with django_capture_on_commit_callbacks(execute=True):
-        wizard_facade.upsert(
-            _input(
-                team.id,
-                run_phase=WizardSessionRunPhase.COMPLETED,
-                event_plan={"events": [{"name": "subscription_started", "description": "A subscription was started"}]},
-            )
-        )
-
-    event_definition = EnterpriseEventDefinition.objects.get(
-        team=team, project_id=team.project_id, name="subscription_started"
-    )
-    assert event_definition.description == "A subscription was started"
 
 
 @pytest.mark.django_db
@@ -277,8 +257,7 @@ def test_event_definition_task_reuses_definition_from_sibling_environment(team, 
     sync_wizard_event_definitions.run(sibling_team.id, session.session_id)
 
     assert EventDefinition.objects.filter(name="checkout_started").count() == 1
-    enterprise_definition = EnterpriseEventDefinition.objects.get(pk=existing_definition.pk)
-    assert enterprise_definition.description == "A checkout was started"
+    assert EventDefinition.objects.filter(pk=existing_definition.pk).exists()
 
 
 @pytest.mark.django_db

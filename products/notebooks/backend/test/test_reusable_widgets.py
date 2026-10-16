@@ -720,7 +720,6 @@ class TestReusableWidgets(APIBaseTest):
         )
         generation_id = uuid4()
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             patch("products.notebooks.backend.widgets.start_widget_generation_workflow") as start_workflow,
             patch(
                 "products.canvas.backend.facade.notebooks.list_notebook_canvas_versions",

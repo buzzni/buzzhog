@@ -1,12 +1,5 @@
 1 common/hogvm/python/execute.py
 1 common/hogvm/python/stl/__init__.py
-1 ee/billing/salesforce_enrichment/conversations_signals.py
-1 ee/billing/salesforce_enrichment/usage_signals.py
-1 ee/clickhouse/models/test/test_action.py
-1 ee/clickhouse/views/test/funnel/util.py
-1 ee/hogai/artifacts/handlers/base.py
-1 ee/hogai/core/agent_modes/factory.py
-1 ee/hogai/queue.py
 1 posthog/api/capture.py
 1 posthog/api/oauth/toolbar_service.py
 1 posthog/api/test/test_event_definition.py
@@ -44,7 +37,6 @@
 1 posthog/models/person/util.py
 1 posthog/personhog_client/fake_client.py
 1 posthog/persons_seed.py
-1 posthog/session/backfill.py
 1 posthog/storage/auth_token_cache_verifier.py
 1 posthog/storage/hypercache_verifier.py
 1 posthog/tasks/alerts/detector.py
@@ -53,8 +45,6 @@
 1 posthog/temporal/ai/anomaly_investigation/runner.py
 1 posthog/temporal/ai/anomaly_investigation/tools.py
 1 posthog/temporal/ai/anomaly_investigation/workflow.py
-1 posthog/temporal/ai/research_agent.py
-1 products/slack_app/backend/temporal/posthog_code_slack_interactivity.py
 1 posthog/temporal/ai_observability/eval_reports/emit_signal.py
 1 posthog/temporal/ai_observability/evaluation_clustering/data.py
 1 posthog/temporal/ai_observability/trace_clustering/coordinator.py
@@ -88,7 +78,6 @@
 1 products/batch_exports/backend/temporal/destinations/postgres_batch_export.py
 1 products/batch_exports/backend/temporal/destinations/snowflake_batch_export.py
 1 products/batch_exports/backend/temporal/destinations/workflows_batch_export.py
-1 products/batch_exports/backend/temporal/heartbeat.py
 1 products/batch_exports/backend/temporal/noop.py
 1 products/batch_exports/backend/temporal/pipeline/producer.py
 1 products/batch_exports/backend/tests/temporal/destinations/databricks/test_client.py
@@ -120,10 +109,8 @@
 1 products/experiments/stats/frequentist/tests.py
 1 products/exports/backend/models/subscription.py
 1 products/exports/backend/tasks/csv_exporter.py
-1 products/exports/backend/temporal/subscriptions/activities.py
 1 products/feature_flags/backend/flag_status.py
 1 products/feature_flags/backend/management/commands/audit_flag_filters.py
-1 products/growth/backend/cross_sell_candidate_selector.py
 1 products/growth/backend/enrichment/fields.py
 1 products/growth/backend/enrichment/providers.py
 1 products/growth/backend/enrichment/snapshot.py
@@ -1270,15 +1257,12 @@
 10 products/signals/backend/temporal/summary.py
 10 products/tasks/backend/temporal/process_task/activities/provision_sandbox.py
 104 posthog/hogql/ast.py
-12 ee/clickhouse/materialized_columns/columns.py
 14 products/marketing_analytics/backend/hogql_queries/adapters/base.py
 16 posthog/temporal/ai_observability/eval_reports/types.py
-17 products/exports/backend/temporal/subscriptions/types.py
 18 posthog/temporal/ai_observability/trace_clustering/models.py
 19 products/conversations/backend/temporal/ai_reply/schemas.py
 19 products/signals/backend/temporal/types.py
 2 common/hogvm/python/objects.py
-2 ee/tasks/subscriptions/slack_subscriptions.py
 2 posthog/api/embedding_worker.py
 2 posthog/dags/common/overrides_manager.py
 2 posthog/dags/data_deletion_requests.py
@@ -1296,7 +1280,6 @@
 2 posthog/models/resource_transfer/types.py
 2 posthog/plugins/site.py
 2 posthog/tasks/report_utils.py
-2 posthog/temporal/ai/chat_agent.py
 2 posthog/temporal/ai_observability/evaluation_llm_judge.py
 2 posthog/temporal/ai_observability/sentiment/schema.py
 2 posthog/temporal/ai_observability/team_discovery.py
@@ -1313,7 +1296,6 @@
 2 posthog/temporal/mcp_analytics/intent_clustering/models.py
 2 posthog/temporal/proxy_service/cloudflare.py
 2 posthog/temporal/proxy_service/delete.py
-2 posthog/temporal/salesforce_enrichment/workflow.py
 2 posthog/temporal/tests/common/test_error_tracking.py
 2 posthog/temporal/tests/common/test_posthog_client_team_id.py
 2 posthog/temporal/tests/test_slo_interceptor.py
@@ -1330,7 +1312,6 @@
 2 products/experiments/backend/experiment_summary_data_service.py
 2 products/experiments/stats/shared/cuped.py
 2 products/growth/backend/product_push/service.py
-2 products/growth/dags/user_product_list.py
 2 products/managed_warehouse/backend/facade/contracts.py
 2 products/managed_warehouse/backend/temporal/types.py
 2 products/marketing_analytics/backend/demo/events.py
@@ -1360,7 +1341,6 @@
 2 products/slack_app/backend/api.py
 2 products/slack_app/backend/services/integration_resolver.py
 2 products/stamphog/backend/temporal/activities.py
-2 products/tasks/backend/logic/services/loop_runs.py
 2 products/tasks/backend/temporal/build_image/workflow.py
 2 products/tasks/backend/temporal/create_snapshot/activities/create_sandbox.py
 2 products/tasks/backend/temporal/create_snapshot/activities/get_snapshot_context.py
@@ -1402,8 +1382,6 @@
 2 products/web_analytics/backend/path_cleaning_suggestions/service.py
 22 products/batch_exports/backend/service.py
 23 products/review_hog/backend/temporal/activities.py
-3 ee/api/vercel/types.py
-3 ee/clickhouse/views/test/test_clickhouse_trends.py
 3 posthog/api/app_metrics2.py
 3 posthog/api/test/rust_integration/conftest.py
 3 products/cdp/backend/internal_events.py
@@ -1452,15 +1430,12 @@
 3 products/warehouse_sources/backend/temporal/data_imports/sources/stripe/stripe.py
 3 products/warehouse_sources/backend/temporal/data_imports/workflow_activities/acquire_v3_lock.py
 3 products/web_analytics/backend/hogql_queries/external/summary_query_runner.py
-4 ee/vercel/client.py
 4 posthog/dags/distinct_id_usage.py
 4 posthog/tasks/usage_report.py
 4 posthog/temporal/ai_observability/eval_reports/report_agent/schema.py
 4 posthog/temporal/ai_observability/evaluation_workflow_activities.py
 4 posthog/temporal/ai_observability/run_session_evaluation.py
 4 posthog/temporal/proxy_service/monitor.py
-4 posthog/temporal/salesforce_enrichment/conversations_slack_workflow.py
-4 posthog/temporal/salesforce_enrichment/usage_workflow.py
 4 products/alerts/backend/evaluation/contract.py
 4 products/approvals/backend/services.py
 4 products/batch_exports/backend/temporal/destinations/file_download_batch_export.py
@@ -1495,8 +1470,6 @@
 6 posthog/hogql/scripts/build_grammar_strategies.py
 6 posthog/local_bootstrap/config.py
 6 products/slack_app/backend/temporal/types.py
-6 posthog/temporal/ai/sync_vectors.py
-6 posthog/temporal/salesforce_enrichment/stripe_workflow.py
 6 products/batch_exports/backend/temporal/destinations/redshift_batch_export.py
 6 products/conversations/backend/temporal/zendesk_import/activities.py
 6 products/managed_warehouse/backend/temporal/ducklake_copy_data_imports_workflow.py
@@ -1512,7 +1485,6 @@
 7 products/skills/backend/api/skill_services.py
 7 products/web_analytics/backend/temporal/digest_notification/types.py
 7 products/web_analytics/backend/temporal/weekly_digest/types.py
-8 ee/vercel/integration.py
 8 posthog/temporal/ai_observability/evaluation_clustering/activities.py
 8 posthog/temporal/delete_teams/types.py
 8 products/signals/backend/temporal/signal_queries.py

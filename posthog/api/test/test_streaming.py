@@ -21,9 +21,8 @@ from posthog.api.streaming import (
     _try_reserve_stream_slot,
     sse_streaming_response,
     streaming_response,
+    sync_stream_to_async,
 )
-
-from ee.hogai.utils.asgi import SyncIterableToAsync
 
 
 def _gen() -> Iterator[bytes]:
@@ -213,7 +212,7 @@ class TestSSEAsyncCancellation:
         # (baseline-relative: this test runs outside the slot-isolation fixture).
         baseline = streaming._active_stream_count
         endpoint = f"test_async_cancel_{synchronous}"
-        source = SyncIterableToAsync(blocking_sync()) if synchronous else blocking()
+        source = sync_stream_to_async(blocking_sync()) if synchronous else blocking()
         stream = _instrument_stream(source, endpoint, _reserve_slot())
         assert isinstance(stream, AsyncIterable)
 

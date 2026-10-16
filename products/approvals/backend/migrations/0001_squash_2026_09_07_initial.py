@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("ee", "0059_scimprovisioneduser_unique_config"),
+        ("access_control", "0000_rbac_models"),
         ("posthog", "1340_drop_userproductlist_reason_columns"),
     ]
 
@@ -131,7 +131,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         db_table="posthog_approvalpolicy_bypass_roles",
                         related_name="bypass_policies",
-                        to="ee.role",
+                        to="access_control.role",
                     ),
                 ),
                 (

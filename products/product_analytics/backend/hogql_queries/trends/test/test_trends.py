@@ -13,7 +13,6 @@ from posthog.test.base import (
     _create_event,
     _create_person,
     also_test_with_different_timezones,
-    also_test_with_materialized_columns,
     also_test_with_person_on_events_v2,
     create_person_id_override_by_distinct_id,
     flush_persons_and_events,
@@ -861,7 +860,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             weekly_response[0]["aggregated_value"],
         )
 
-    @also_test_with_materialized_columns(["$math_prop"])
     def test_trends_single_aggregate_math(self):
         self._create_person(
             team_id=self.team.pk,
@@ -1202,7 +1200,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             )
 
     @also_test_with_person_on_events_v2
-    @also_test_with_materialized_columns(person_properties=["name"], verify_no_jsonextract=False)
     def test_trends_breakdown_single_aggregate_cohorts(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["Jane"], properties={"name": "Jane"})
         self._create_person(team_id=self.team.pk, distinct_ids=["John"], properties={"name": "John"})
@@ -2142,7 +2139,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(response1[0]["count"], 5)
         self.assertEqual(response2[0]["count"], 4)
 
-    @also_test_with_materialized_columns(["$math_prop", "$some_property"])
     def test_trends_breakdown_with_math_func(self):
         with time_machine.travel("2020-01-01 00:06:34", tick=False):
             for i in range(20):
@@ -2160,11 +2156,11 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
                     properties={"$some_property": f"value_{i}", "$math_prop": 1},
                 )
 
-            self._create_person(team_id=self.team.pk, distinct_ids=[f"person21"])
+            self._create_person(team_id=self.team.pk, distinct_ids=["person21"])
             self._create_event(
                 team=self.team,
                 event="sign up",
-                distinct_id=f"person21",
+                distinct_id="person21",
                 properties={"$some_property": "value_21", "$math_prop": 25},
             )
 
@@ -2739,7 +2735,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             ],
         )
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_property_filtering(self):
         self._create_events()
         with time_machine.travel("2020-01-04", tick=False):
@@ -3243,7 +3238,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         )
 
     @also_test_with_person_on_events_v2
-    @also_test_with_materialized_columns(person_properties=["name"])
     def test_filter_events_by_cohort(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["person_1"], properties={"name": "John"})
         self._create_person(team_id=self.team.pk, distinct_ids=["person_2"], properties={"name": "Jane"})
@@ -3498,7 +3492,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             {"label": f"$pageview - {cohort.name}", "breakdown_value": cohort.pk},
         )
 
-    @also_test_with_materialized_columns(["key"])
     def test_breakdown_with_filter(self):
         self._create_person(
             team_id=self.team.pk,
@@ -3719,7 +3712,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             )
         self.assertEqual(response[0]["data"], [0, 0, 0, 0, 0, 0, 0, 0])
 
-    @also_test_with_materialized_columns(person_properties=["email", "bar"])
     def test_trends_regression_filtering_by_action_with_person_properties(self):
         self._create_person(
             team_id=self.team.pk,
@@ -3883,43 +3875,33 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertAlmostEqual(action_response[0]["data"][-1], expected_value, delta=0.5)
         self.assertEntityResponseEqual(action_response, event_response)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_sum_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.SUM, values=[2, 3, 5.5, 7.5], expected_value=18)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_avg_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.AVG, values=[2, 3, 5.5, 7.5], expected_value=4.5)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_min_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.MIN, values=[2, 3, 5.5, 7.5], expected_value=2)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_max_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.MAX, values=[2, 3, 5.5, 7.5], expected_value=7.5)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_median_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.MEDIAN, values=range(101, 201), expected_value=150)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_p75_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.P75, values=range(101, 201), expected_value=175)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_p90_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.P90, values=range(101, 201), expected_value=190)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_p95_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.P95, values=range(101, 201), expected_value=195)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_p99_filtering(self):
         self._test_math_property_aggregation(PropertyMathType.P99, values=range(101, 201), expected_value=199)
 
-    @also_test_with_materialized_columns(["some_number"])
     def test_avg_filtering_non_number_resiliency(self):
         sign_up_action, person = self._create_events()
         self._create_person(team_id=self.team.pk, distinct_ids=["someone_else"])
@@ -3975,7 +3957,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(action_response[0]["data"][-1], 5)
         self.assertEntityResponseEqual(action_response, event_response)
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_per_entity_filtering(self):
         self._create_events()
         with time_machine.travel("2020-01-04T13:00:01Z", tick=False):
@@ -4104,7 +4085,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
 
         return (person1, person2, person3, person4)
 
-    @also_test_with_materialized_columns(person_properties=["name"])
     @snapshot_clickhouse_queries
     def test_person_property_filtering(self):
         self._create_multiple_people()
@@ -4141,7 +4121,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(response[0]["labels"][5], "2-Jan-2020")
         self.assertEqual(response[0]["data"][5], 0)
 
-    @also_test_with_materialized_columns(["name"], person_properties=["name"])
     @snapshot_clickhouse_queries
     def test_person_property_filtering_clashing_with_event_property(self):
         # This test needs to choose the right materialised column for it to pass.
@@ -4212,7 +4191,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(response[0]["labels"][5], "2-Jan-2020")
         self.assertEqual(response[0]["data"][5], 0)
 
-    @also_test_with_materialized_columns(person_properties=["name"])
     def test_entity_person_property_filtering(self):
         self._create_multiple_people()
         with time_machine.travel("2020-01-04", tick=False):
@@ -4272,7 +4250,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(sum(event_response[0]["data"]), 1)
 
     @also_test_with_person_on_events_v2
-    @also_test_with_materialized_columns(person_properties=["name"], verify_no_jsonextract=False)
     def test_breakdown_by_cohort(self):
         person1, person2, person3, person4 = self._create_multiple_people()
         cohort = _create_cohort(
@@ -4473,7 +4450,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
                     f"breakdown by element {breakdown}",
                 )
 
-    @also_test_with_materialized_columns(verify_no_jsonextract=False)
     def test_interval_filtering_breakdown(self):
         self._create_events(use_time=True)
         cohort = _create_cohort(
@@ -4710,7 +4686,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         assert response[1]["count"] == 1
         assert response[2]["count"] == 1
 
-    @also_test_with_materialized_columns(["name"], person_properties=["name"])
     def test_breakdown_by_person_property_for_person_on_events(self):
         person1, person2, person3, person4 = self._create_multiple_people()
 
@@ -4970,7 +4945,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(people_value_2[0][0]["distinct_ids"][0], "person2")
             self.assertEqual(people_value_2[0][2], 1)  # 1 event with fake_prop="value_2" in the time range
 
-    @also_test_with_materialized_columns(person_properties=["name"])
     def test_breakdown_by_person_property_pie(self):
         self._create_multiple_people()
 
@@ -5046,7 +5020,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
                 {"breakdown_value": ["person3"], "aggregated_value": 1}.items(), event_response[2].items()
             )
 
-    @also_test_with_materialized_columns(person_properties=["name"])
     def test_breakdown_by_person_property_pie_with_event_dau_filter(self):
         self._create_multiple_people()
 
@@ -5101,7 +5074,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
                 {"breakdown_value": ["person2"], "aggregated_value": 1}.items(), event_response[1].items()
             )
 
-    @also_test_with_materialized_columns(person_properties=["name"])
     def test_filter_test_accounts_cohorts(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["person_1"], properties={"name": "John"})
         self._create_person(team_id=self.team.pk, distinct_ids=["person_2"], properties={"name": "Jane"})
@@ -5467,7 +5439,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
                     self.team,
                 )
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_breakdown_filtering_limit(self):
         self._create_breakdown_events()
         with time_machine.travel("2020-01-04T13:01:01Z", tick=False):
@@ -5513,7 +5484,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             )
             self.assertEqual(len(response), 25)
 
-    @also_test_with_materialized_columns(event_properties=["order"], person_properties=["name"])
     def test_breakdown_with_person_property_filter(self):
         self._create_multiple_people()
         action = _create_action(name="watched movie", team=self.team)
@@ -5559,7 +5529,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertLessEqual({"count": 1, "breakdown_value": ["1"]}.items(), event_response[1].items())
         self.assertEntityResponseEqual(event_response, action_response)
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_breakdown_filtering(self):
         self._create_events()
 
@@ -5707,7 +5676,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(response[0]["label"], "sign up - Safari::2")
         self.assertEqual(response[1]["label"], "sign up - $$_posthog_breakdown_other_$$::$$_posthog_breakdown_other_$$")
 
-    @also_test_with_materialized_columns(person_properties=["email"])
     def test_breakdown_filtering_persons(self):
         self._create_person(
             team_id=self.team.pk,
@@ -5779,7 +5747,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(response[2]["count"], 1)
 
     # ensure that column names are properly handled when subqueries and person subquery share properties column
-    @also_test_with_materialized_columns(event_properties=["key"], person_properties=["email"])
     def test_breakdown_filtering_persons_with_action_props(self):
         self._create_person(
             team_id=self.team.pk,
@@ -5854,7 +5821,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(response[1]["count"], 1)
             self.assertEqual(response[2]["count"], 1)
 
-    @also_test_with_materialized_columns(["$current_url", "$os", "$browser"])
     def test_breakdown_filtering_with_properties(self):
         with time_machine.travel("2020-01-03T13:01:01Z", tick=False):
             self._create_event(
@@ -6201,7 +6167,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(sum(event_response[1]["data"]), 3)
             self.assertEqual(event_response[1]["data"][5], 1)
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_dau_with_breakdown_filtering(self):
         sign_up_action, _ = self._create_events()
         with time_machine.travel("2020-01-02T13:01:01Z", tick=False):
@@ -6331,7 +6296,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
 
             self.assertEntityResponseEqual(action_response, event_response)
 
-    @also_test_with_materialized_columns(["$os", "$some_property"])
     def test_dau_with_breakdown_filtering_with_prop_filter(self):
         sign_up_action, _ = self._create_events()
         with time_machine.travel("2020-01-02T13:01:01Z", tick=False):
@@ -6418,7 +6382,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
 
             self.assertEntityResponseEqual(action_response, event_response)
 
-    @also_test_with_materialized_columns(event_properties=["$host"], person_properties=["$some_prop"])
     def test_against_clashing_entity_and_property_filter_naming(self):
         # Regression test for https://github.com/PostHog/posthog/issues/5814
         self._create_person(
@@ -6490,7 +6453,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(response[0]["count"], 1)
 
     # this ensures that the properties don't conflict when formatting params
-    @also_test_with_materialized_columns(["$current_url"])
     def test_action_with_prop(self):
         self._create_person(
             team_id=self.team.pk,
@@ -6553,7 +6515,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         # if the params were shared it would be 1 because action would take precedence
         self.assertEqual(action_response[0]["count"], 0)
 
-    @also_test_with_materialized_columns(["$current_url"], verify_no_jsonextract=False)
     def test_combine_all_cohort_and_icontains(self):
         # This caused some issues with SQL parsing
         sign_up_action, _ = self._create_events()
@@ -6634,7 +6595,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(action_response[0]["breakdown_value"], "other_value")
         self.assertEqual(action_response[0]["count"], 1)
 
-    @also_test_with_materialized_columns(event_properties=["key"], person_properties=["email"])
     def test_breakdown_user_props_with_filter(self):
         self._create_person(
             team_id=self.team.pk,
@@ -6710,7 +6670,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(response[0]["breakdown_value"], "test@gmail.com")
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(event_properties=["key"], person_properties=["email", "$os", "$browser"])
     def test_trend_breakdown_user_props_with_filter_with_partial_property_pushdowns(self):
         self._create_person(
             team_id=self.team.pk,
@@ -7421,7 +7380,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             [1.0, 3.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 1.0, 0.0],
         )
 
-    @also_test_with_materialized_columns(["key"])
     def test_breakdown_weekly_active_users_daily(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["p1"], properties={"name": "p1"})
         self._create_event(
@@ -7485,7 +7443,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 2.0],
         )
 
-    @also_test_with_materialized_columns(person_properties=["name"])
     @snapshot_clickhouse_queries
     def test_weekly_active_users_filtering(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["p1"], properties={"name": "person-1"})
@@ -7660,7 +7617,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 2.0],
         )
 
-    @also_test_with_materialized_columns(["key"])
     @snapshot_clickhouse_queries
     def test_breakdown_weekly_active_users_aggregated(self):
         self._create_active_users_events()
@@ -7693,7 +7649,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(result[1]["breakdown_value"], "val")
         self.assertEqual(result[1]["aggregated_value"], 2)
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_breakdown_filtering_bar_chart_by_value(self):
         self._create_events()
 
@@ -7725,7 +7680,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(response[2]["aggregated_value"], 2)  # the events without breakdown value
         self.assertEqual(response[0]["days"], [])
 
-    @also_test_with_materialized_columns(person_properties=["key", "key_2"], verify_no_jsonextract=False)
     def test_breakdown_multiple_cohorts(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["p1"], properties={"key": "value"})
         self._create_event(
@@ -7797,7 +7751,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(res[0]["count"], 2)
         self.assertEqual(res[1]["count"], 1)
 
-    @also_test_with_materialized_columns(person_properties=["key", "key_2"], verify_no_jsonextract=False)
     def test_breakdown_single_cohort(self):
         self._create_person(team_id=self.team.pk, distinct_ids=["p1"], properties={"key": "value"})
         self._create_event(
@@ -7857,7 +7810,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
 
         self.assertEqual(res[0]["count"], 1)
 
-    @also_test_with_materialized_columns(["key", "$current_url"])
     def test_filtering_with_action_props(self):
         self._create_event(
             event="sign up",
@@ -8747,7 +8699,6 @@ class TestTrends(ClickhouseTestMixin, APIBaseTest):
         )
         self.assertEqual(response[0]["data"], [2.0])
 
-    @also_test_with_materialized_columns(event_properties=["email", "name"], person_properties=["email", "name"])
     def test_ilike_regression_with_current_clickhouse_version(self):
         # CH upgrade to 22.3 has this problem: https://github.com/ClickHouse/ClickHouse/issues/36279
         # While we're waiting to upgrade to a newer version, a workaround is to set `optimize_move_to_prewhere = 0`

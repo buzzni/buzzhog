@@ -1,6 +1,7 @@
 import json
 import uuid
 
+from posthog.test.base import APIBaseTest
 from unittest.mock import MagicMock, patch
 
 from django.apps import apps
@@ -38,10 +39,8 @@ from products.notebooks.backend.models import Notebook
 from products.product_analytics.backend.facade.models import Insight
 from products.warehouse_sources.backend.models import DataWarehouseTable, ExternalDataSource
 
-from ee.api.test.base import APILicensedTest
 
-
-class BaseAccessControlTest(APILicensedTest):
+class BaseAccessControlTest(APIBaseTest):
     def setUp(self):
         super().setUp()
         self.organization.available_product_features = [

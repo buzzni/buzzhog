@@ -28,13 +28,6 @@ LIST_VIEWSETS_WITHOUT_DIRECT_SHARED_PAGINATION = {
 }
 
 EXISTING_CUSTOM_LIST_VIEWSETS = {
-    "ee.api.billing.BillingViewset",
-    "ee.api.quota_limits.QuotaLimitsViewSet",
-    "ee.api.subscription.SubscriptionDeliveryViewSet",
-    "ee.api.subscription.SubscriptionViewSet",
-    "ee.clickhouse.views.experiment_saved_metrics.ExperimentSavedMetricViewSet",
-    "ee.clickhouse.views.person.EnterprisePersonViewSet",
-    "ee.clickhouse.views.person.LegacyEnterprisePersonViewSet",
     "posthog.api.advanced_activity_logs.viewset.ActivityLogViewSet",
     "posthog.api.advanced_activity_logs.viewset.AdvancedActivityLogsViewSet",
     "posthog.api.advanced_activity_logs.viewset.OrganizationAdvancedActivityLogsViewSet",

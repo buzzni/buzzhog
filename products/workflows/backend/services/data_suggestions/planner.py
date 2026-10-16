@@ -3,14 +3,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from posthog.dataclasses import frozen
+from posthog.llm.untrusted import as_untrusted_data
 from posthog.models import Team, User
 
 from products.messaging.backend.facade.api import EmailTemplateSummary
 from products.workflows.backend.facade.contracts import LifecycleStage, OutlineKind
 from products.workflows.backend.services.data_suggestions.llm import invoke_structured
 from products.workflows.backend.services.hog_flow_templates import StepTemplate
-
-from ee.hogai.utils.untrusted import as_untrusted_data
 
 MAX_PLANNED_STEPS = 20
 

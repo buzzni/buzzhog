@@ -4,13 +4,12 @@ from unittest.mock import MagicMock, patch
 
 from parameterized import parameterized
 
+from products.tasks.backend.logic.stream.agent_events import BACKGROUND_TURN_COMPLETE_METHOD, TURN_COMPLETE_METHOD
 from products.tasks.backend.temporal.process_task.activities.slack_agent_design_signals import (
     SlackAgentDesignSignalEmitter,
     _event_method,
     _resume_position,
 )
-
-from ee.hogai.sandbox import BACKGROUND_TURN_COMPLETE_METHOD, TURN_COMPLETE_METHOD
 
 SLACK_CTX = {"channel": "C1", "integration_id": 7}
 

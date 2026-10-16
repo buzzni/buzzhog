@@ -1,7 +1,7 @@
-"""Signals credit quota enforcement.
+"""Signals credit quota gates.
 
-Lives in its own module (not `billing.py`) to avoid a circular import: `billing.py` is imported by
-`posthog.tasks.usage_report`, which `ee.billing.quota_limiting` imports in turn.
+A self-hosted install has no billing, so no team is ever over its Signals credits quota. The gates stay
+so the pipeline stages keep one place to ask.
 """
 
 from dataclasses import dataclass
@@ -13,8 +13,6 @@ from temporalio import activity
 
 from posthog.event_usage import groups
 from posthog.temporal.common.metrics import get_metric_meter
-
-from ee.billing.quota_limiting import QuotaLimitingCaches, QuotaResource, is_team_limited
 
 if TYPE_CHECKING:
     from posthog.models import Team
@@ -41,20 +39,8 @@ def record_quota_check_failed_open() -> None:
 
 
 def is_team_signals_quota_limited(team_api_token: str) -> bool:
-    """Whether a team is currently over its Signals credits quota.
-
-    Fails open on a quota-limiter read error so an infra blip lets work through rather than stalling.
-    Records `signals_quota_check_failed_open_total` so the bypass is alertable.
-    Synchronous (Redis read); wrap in `sync_to_async` when calling from async code.
-    """
-    try:
-        return is_team_limited(
-            team_api_token, QuotaResource.SIGNALS_CREDITS, QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY
-        )
-    except Exception:
-        logger.warning("signals_quota_check_failed_open", exc_info=True)
-        record_quota_check_failed_open()
-        return False
+    """Whether a team is currently over its Signals credits quota. Always False without billing."""
+    return False
 
 
 @dataclass(frozen=True)
@@ -141,7 +127,7 @@ def notify_scout_quota_paused(team: "Team") -> None:
     must never fail the gate that called it. Requires `team.organization` to be loaded.
     """
     try:
-        usage = (team.organization.usage or {}).get(QuotaResource.SIGNALS_CREDITS.value) or {}
+        usage = (team.organization.usage or {}).get("signals_credits") or {}
         quota_limited_until = usage.get("quota_limited_until") or 0
         limit = usage.get("limit") or 0
         from products.notifications.backend.facade.api import (  # noqa: PLC0415 (keeps the heavy dep off the import path)

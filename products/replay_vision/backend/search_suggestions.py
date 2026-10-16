@@ -26,6 +26,7 @@ from google.genai.types import GenerateContentConfig
 from posthoganalytics.ai.gemini import genai
 from pydantic import BaseModel, Field
 
+from posthog.llm.untrusted import neutralize_markup
 from posthog.models.team import Team
 from posthog.models.team.extensions import get_or_create_team_extension
 from posthog.utils import safe_cache_add
@@ -35,8 +36,6 @@ from products.replay_vision.backend.models.replay_scanner import ReplayScanner, 
 from products.replay_vision.backend.models.team_replay_vision_config import TeamReplayVisionConfig
 from products.replay_vision.backend.observation_formatting import describe_output, explanation_text, read_output
 from products.replay_vision.backend.scanner_access import scanner_experiment_scope_q, snapshot_experiment_scope_q
-
-from ee.hogai.utils.untrusted import neutralize_markup
 
 logger = structlog.get_logger(__name__)
 

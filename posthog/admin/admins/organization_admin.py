@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, timedelta
+from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
@@ -241,13 +241,10 @@ class OrganizationAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "plugins_access_level",
-        "billing_link",
         "usage_posthog",
         "usage_display",
-        "limited_products_display",
         "customer_trust_scores",
         "bulk_delete_data_display",
-        "sync_to_billing_display",
         "is_active",
         "is_not_active_reason",
         "is_platform",
@@ -274,13 +271,10 @@ class OrganizationAdmin(admin.ModelAdmin):
         "id",
         "created_at",
         "updated_at",
-        "billing_link",
         "usage_posthog",
         "usage_display",
-        "limited_products_display",
         "customer_trust_scores",
         "bulk_delete_data_display",
-        "sync_to_billing_display",
         "ai_training_opt_in_history_display",
         "trigger_deletion_display",
     ]
@@ -292,7 +286,6 @@ class OrganizationAdmin(admin.ModelAdmin):
         "plugins_access_level",
         "members_count",
         "first_member",
-        "billing_link",
     )
     list_display_links = (
         "id",
@@ -322,54 +315,10 @@ class OrganizationAdmin(admin.ModelAdmin):
             else "None"
         )
 
-    def billing_link(self, organization: Organization) -> str:
-        url = f"{settings.BILLING_SERVICE_URL}/admin/billing/customer/?q={organization.pk}"
-        return format_html(f'<a href="{url}">Billing →</a>')
-
     def usage_posthog(self, organization: Organization):
         return format_html(
             '<a target="_blank" href="/insights/new?insight=TRENDS&interval=day&display=ActionsLineGraph&events=%5B%7B%22id%22%3A%22%24pageview%22%2C%22name%22%3A%22%24pageview%22%2C%22type%22%3A%22events%22%2C%22order%22%3A0%2C%22math%22%3A%22dau%22%7D%5D&properties=%5B%7B%22key%22%3A%22organization_id%22%2C%22value%22%3A%22{}%22%2C%22operator%22%3A%22exact%22%2C%22type%22%3A%22person%22%7D%5D&actions=%5B%5D&new_entity=%5B%5D">See usage on PostHog →</a>',
             organization.id,
-        )
-
-    @admin.display(description="Limited Products")
-    def limited_products_display(self, organization: Organization):
-        from datetime import datetime
-
-        limited = organization.get_limited_products()
-        total_teams = organization.teams.count()
-
-        # Format Unix timestamps to human-readable dates
-        for _resource, info in limited.items():
-            redis_until = info.get("redis_quota_limited_until")
-            if redis_until and redis_until != 0:
-                try:
-                    dt = datetime.fromtimestamp(redis_until, tz=UTC)
-                    info["redis_quota_limited_until_formatted"] = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-                except (ValueError, OSError, OverflowError):
-                    info["redis_quota_limited_until_formatted"] = str(redis_until)
-            else:
-                info["redis_quota_limited_until_formatted"] = "-"
-
-            usage_until = info.get("usage_quota_limited_until")
-            if usage_until and usage_until != 0:
-                try:
-                    dt = datetime.fromtimestamp(usage_until, tz=UTC)
-                    info["usage_quota_limited_until_formatted"] = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-                except (ValueError, OSError, OverflowError):
-                    info["usage_quota_limited_until_formatted"] = str(usage_until)
-            else:
-                info["usage_quota_limited_until_formatted"] = "-"
-
-        # Access request stored during change_view
-        request = getattr(self, "_current_request", None)
-        # nosemgrep: python.django.security.audit.avoid-mark-safe.avoid-mark-safe (admin-only, renders trusted template)
-        return mark_safe(
-            render_to_string(
-                "admin/organization/limited_products.html",
-                {"limited": limited, "organization_id": organization.id, "total_teams": total_teams},
-                request=request,
-            )
         )
 
     @admin.display(description="Usage")
@@ -440,20 +389,6 @@ class OrganizationAdmin(admin.ModelAdmin):
         return render_to_string(
             "admin/organization/ai_training_opt_in_history.html",
             {"history": get_ai_training_opt_in_history(organization)},
-        )
-
-    @admin.display(description="Sync to billing")
-    def sync_to_billing_display(self, organization: Organization):
-        if not organization.pk:
-            return "-"
-        request = getattr(self, "_current_request", None)
-        # nosemgrep: python.django.security.audit.avoid-mark-safe.avoid-mark-safe (admin-only, renders trusted template)
-        return mark_safe(
-            render_to_string(
-                "admin/organization/sync_to_billing.html",
-                {"organization_id": organization.pk},
-                request=request,
-            )
         )
 
     @admin.display(description="Danger zone")
@@ -554,65 +489,6 @@ class OrganizationAdmin(admin.ModelAdmin):
         )
         return redirect(change_url)
 
-    def sync_to_billing_view(self, request, organization_id):
-        from posthog.tasks.sync_billing import sync_members_to_billing
-
-        try:
-            organization = Organization.objects.get(id=organization_id)
-        except Organization.DoesNotExist:
-            messages.error(request, f"Organization with id {organization_id} not found.")
-            return redirect(reverse("admin:posthog_organization_changelist"))
-
-        if request.method == "POST":
-            try:
-                sync_members_to_billing.delay(organization.id)
-                messages.success(
-                    request, f"Queued sync to billing for organization {organization.name} ({organization.id})."
-                )
-            except Exception as e:
-                messages.error(request, f"Error queuing sync to billing: {e}")
-
-        return redirect(reverse("admin:posthog_organization_change", args=[organization_id]))
-
-    def limit_product_view(self, request, organization_id):
-        from ee.billing.quota_limiting import QuotaResource
-
-        organization: Organization = Organization.objects.get(id=organization_id)
-        assert organization
-
-        if request.method == "POST":
-            resource_name = request.POST.get("resource")
-            try:
-                resource = QuotaResource(resource_name)
-                organization.limit_product_until_end_of_billing_cycle(resource)
-                messages.success(request, f"Successfully limited {resource_name} for organization {organization.name}")
-            except ValueError:
-                messages.error(request, f"Invalid resource: {resource_name}")
-            except Exception as e:
-                messages.error(request, f"Error limiting {resource_name}: {str(e)}")
-
-        return redirect(reverse("admin:posthog_organization_change", args=[organization_id]))
-
-    def unlimit_product_view(self, request, organization_id):
-        from ee.billing.quota_limiting import QuotaResource
-
-        organization = Organization.objects.get(id=organization_id)
-
-        if request.method == "POST":
-            resource_name = request.POST.get("resource")
-            try:
-                resource = QuotaResource(resource_name)
-                organization.unlimit_product(resource)
-                messages.success(
-                    request, f"Successfully unlimited {resource_name} for organization {organization.name}"
-                )
-            except ValueError:
-                messages.error(request, f"Invalid resource: {resource_name}")
-            except Exception as e:
-                messages.error(request, f"Error unlimiting {resource_name}: {str(e)}")
-
-        return redirect(reverse("admin:posthog_organization_change", args=[organization_id]))
-
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -630,24 +506,9 @@ class OrganizationAdmin(admin.ModelAdmin):
                 name="organization_bulk_deactivate",
             ),
             path(
-                "<path:organization_id>/limit-product/",
-                self.admin_site.admin_view(self.limit_product_view),
-                name="limit_product",
-            ),
-            path(
-                "<path:organization_id>/unlimit-product/",
-                self.admin_site.admin_view(self.unlimit_product_view),
-                name="unlimit_product",
-            ),
-            path(
                 "<path:organization_id>/model-counts/",
                 self.admin_site.admin_view(self.model_counts_view),
                 name="organization_model_counts",
-            ),
-            path(
-                "<path:organization_id>/sync-to-billing/",
-                self.admin_site.admin_view(self.sync_to_billing_view),
-                name="organization_sync_to_billing",
             ),
             path(
                 "<path:organization_id>/trigger-deletion/",

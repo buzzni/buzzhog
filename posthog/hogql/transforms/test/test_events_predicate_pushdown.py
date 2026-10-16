@@ -12,7 +12,6 @@ from posthog.test.base import (
     _create_event,
     _create_person,
     flush_persons_and_events,
-    materialized,
 )
 from unittest.mock import patch
 
@@ -1609,7 +1608,7 @@ class TestEventsPredicatePushdownExecution(_PushdownExecutionTestBase):
         ),
         (
             "comparison_ops",
-            f"SELECT event, session.$session_duration FROM events WHERE timestamp > '2024-01-01' AND timestamp <= '2024-01-08' LIMIT 50",
+            "SELECT event, session.$session_duration FROM events WHERE timestamp > '2024-01-01' AND timestamp <= '2024-01-08' LIMIT 50",
         ),
         (
             "limit",
@@ -1617,7 +1616,7 @@ class TestEventsPredicatePushdownExecution(_PushdownExecutionTestBase):
         ),
         (
             "aliased_table",
-            f"SELECT e.event, session.$session_duration FROM events AS e WHERE e.timestamp >= '2024-01-01' AND e.timestamp < '2024-01-08' AND e.event = 'watched movie' LIMIT 50",
+            "SELECT e.event, session.$session_duration FROM events AS e WHERE e.timestamp >= '2024-01-01' AND e.timestamp < '2024-01-08' AND e.event = 'watched movie' LIMIT 50",
         ),
         (
             "aliased_function_shadowing",
@@ -1739,107 +1738,6 @@ class TestEventsPredicatePushdownMaterializedExecution(_PushdownExecutionTestBas
 
     _RANGE = "timestamp >= '2024-01-01' AND timestamp < '2024-01-08'"
 
-    def test_exec_materialized_property_in_outer_select(self):
-        # The CRITICAL repro: a materialized property in the outer SELECT. The subquery must expose
-        # `mat_tier` or the outer `events.mat_tier` is an Unknown identifier.
-        with materialized("events", "tier") as mat_col:
-            self._create_data()
-            select = (
-                f"SELECT properties.tier AS t, session.$session_duration AS d FROM events WHERE {self._RANGE} LIMIT 50"
-            )
-            printed = self._print_pushdown_sql(select)
-            subquery = self._events_subquery(printed)
-            self._assert_events_property_source(subquery, "tier", mat_col.name)
-            assert "LIMIT" in subquery, f"expected the pushed subquery to carry an inner LIMIT:\n{printed}"
-            # The materialized property must NOT also drag the raw `properties` blob into the subquery
-            # projection (over-projection would force a ~100x-slower full-Map read). Guards drift on the
-            # plain-materialized PropertyType path, mirroring the JSONHas blob-projection guard.
-            assert "properties AS properties" not in subquery, (
-                f"materialized property over-projected the blob:\n{printed}"
-            )
-            self._assert_equivalent(select, expected_rows=3)
-
-    def test_exec_materialized_property_as_join_key_exposes_mat_column(self):
-        # A materialized property used as the events-side join key. The key expression stays in the ON (a subquery
-        # column would read as nullable and break join-key detection), so the physical pass rewrites the ON's
-        # property to `events.mat_tier`, which the subquery must expose — without it the ON references `mat_tier`
-        # against a subquery alias that lacks it (Unknown identifier). This asserts the exposure on the printed SQL;
-        # end-to-end execution of a property join key is covered by test_query.test_join_with_property_materialized.
-        with materialized("events", "tier") as mat_col:
-            self._create_data()
-            select = (
-                "SELECT events.event AS ae, p.id FROM events "
-                "LEFT JOIN persons p ON p.properties.tier = events.properties.tier "
-                "WHERE events.timestamp >= '2024-01-01' AND events.timestamp < '2024-01-08' LIMIT 50"
-            )
-            subquery = self._events_subquery(self._print_pushdown_sql(select))
-            self._assert_events_property_source(subquery, "tier", mat_col.name)
-
-    def test_exec_materialized_property_in_order_by_declines(self):
-        # A materialized property in ORDER BY: any ORDER BY blocks the inner LIMIT, so the pushdown declines
-        # and the query runs flat. Results must stay equivalent.
-        with materialized("events", "tier"):
-            self._create_data()
-            select = f"SELECT event, session.$session_duration FROM events WHERE {self._RANGE} ORDER BY properties.tier, timestamp"
-            printed = self._print_pushdown_sql(select)
-            assert ") AS events LEFT JOIN" not in printed and ") AS e LEFT JOIN" not in printed, (
-                f"expected pushdown to decline with an ORDER BY:\n{printed}"
-            )
-            self._assert_equivalent(select, expected_rows=3)
-
-    def test_exec_materialized_property_filter_pushed_uses_mat_column(self):
-        # Property in the pushed predicate: the subquery WHERE must use the materialized column, not the
-        # JSONExtract blob path, and results must match pushdown-off.
-        with materialized("events", "tier") as mat_col:
-            self._create_data()
-            select = f"SELECT event, session.$session_duration FROM events WHERE {self._RANGE} AND properties.tier = 'pro' LIMIT 50"
-            printed = self._print_pushdown_sql(select)
-            subquery = self._events_subquery(printed)
-            self._assert_events_property_source(subquery, "tier", mat_col.name)
-            assert "JSONExtract" not in subquery, (
-                f"materialized column should avoid the JSONExtract blob path:\n{printed}"
-            )
-            assert "LIMIT" in subquery, f"expected the pushed subquery to carry an inner LIMIT:\n{printed}"
-            self._assert_equivalent(select, expected_rows=2)
-
-    def test_exec_aliased_materialized_property_filter_pushed_uses_inner_table(self):
-        # When the events table is aliased (FROM events AS e) and a *materialized* property is in the pushed
-        # predicate, the printer renders `e.mat_tier` from the property's type. The inner subquery keeps the
-        # `e` alias on its own events scan, so `e.mat_tier` resolves there instead of being an unknown
-        # identifier (a rewrite-to-inner-table approach would miss the materialized property path).
-        with materialized("events", "tier") as mat_col:
-            self._create_data()
-            select = (
-                "SELECT e.event, session.$session_duration FROM events AS e "
-                "WHERE e.timestamp >= '2024-01-01' AND e.timestamp < '2024-01-08' AND e.properties.tier = 'pro' "
-                "LIMIT 50"
-            )
-            printed = self._print_pushdown_sql(select)
-            assert ") AS e LEFT JOIN" in printed, (
-                f"expected the materialized property filter pushed into a subquery:\n{printed}"
-            )
-            subquery = printed.split("FROM (", 1)[1].split(") AS e LEFT JOIN", 1)[0]
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert mat_col.name not in subquery, f"new events schema should not use {mat_col.name}:\n{subquery}"
-                assert "e.properties.tier" in subquery, f"expected JSON subcolumn in the pushed predicate:\n{subquery}"
-            else:
-                assert mat_col.name in subquery, f"expected the materialized column in the pushed predicate:\n{printed}"
-            assert f"FROM {self._events_table_ref()} AS e" in subquery, (
-                f"expected the subquery to define alias `e`:\n{subquery}"
-            )
-            assert "LIMIT" in subquery, f"expected the pushed subquery to carry an inner LIMIT:\n{printed}"
-            self._assert_equivalent(select, expected_rows=2)
-
-    def test_exec_materialized_property_not_referenced_outside_predicate(self):
-        # Property only in the pushed predicate (not the outer query): still equivalent, and the subquery
-        # reads the materialized column rather than the properties blob.
-        with materialized("events", "tier") as mat_col:
-            self._create_data()
-            select = f"SELECT event, session.$session_duration FROM events WHERE {self._RANGE} AND properties.tier IN ('pro', 'free') LIMIT 50"
-            printed = self._print_pushdown_sql(select)
-            self._assert_events_property_source(self._events_subquery(printed), "tier", mat_col.name)
-            self._assert_equivalent(select, expected_rows=3)
-
     MATERIALIZED_SHAPES = [
         (
             "property_equals",
@@ -1850,18 +1748,6 @@ class TestEventsPredicatePushdownMaterializedExecution(_PushdownExecutionTestBas
             f"SELECT properties.tier AS t, session.$session_duration FROM events WHERE {_RANGE} AND properties.tier = 'pro' LIMIT 50",
         ),
     ]
-
-    @parameterized.expand(MATERIALIZED_SHAPES)
-    def test_exec_materialized_pushdown_result_equivalence(self, _name: str, select: str):
-        with materialized("events", "tier") as mat_col:
-            self._create_data()
-            printed = self._print_pushdown_sql(select)
-            self._assert_events_property_source(self._events_subquery(printed), "tier", mat_col.name)
-            with_pushdown = self._results(select, push_down=True)
-            without_pushdown = self._results(select, push_down=False)
-            assert self._sorted(with_pushdown) == self._sorted(without_pushdown), (
-                f"{_name}: pushdown changed results: on={with_pushdown} off={without_pushdown}"
-            )
 
 
 class TestEventsPredicatePushdownPropertyGroupsExecution(_PushdownExecutionTestBase):

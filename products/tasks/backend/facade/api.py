@@ -3268,48 +3268,6 @@ def _send_wizard_pr_ready_email_for_pr(run: TaskRun) -> None:
     transaction.on_commit(lambda: send_wizard_pr_ready_email.delay(str(run.id)))
 
 
-def _refresh_self_driving_quota_for_pr(run: TaskRun, old_pr_url: str | None) -> None:
-    """Queue an org-level self-driving quota re-evaluation when a self-driving-origin run records its first
-    PR URL. That write is the report's billable moment (products/signals/backend/billing.py), so
-    re-evaluating now lets the quota limiter flag the org within seconds of the PR that crosses
-    its limit (for runs created the same UTC day; `refresh_org_self_driving_quota` documents the
-    cross-midnight gap); the 15-minute quota cron only re-reads usage on its next tick. Dispatched
-    on commit so the task reads the committed pr_url; best-effort because the cron is the backstop.
-    Never raises: the callers signal workflow completion and run other PR side effects right after,
-    and a refresh hiccup must not abort those or turn an already-committed run write into a 500.
-    """
-    try:
-        if old_pr_url:
-            return
-        new_pr_url = (run.output or {}).get("pr_url") if isinstance(run.output, dict) else None
-        if not new_pr_url or run.task.origin_product != Task.OriginProduct.SIGNAL_REPORT:
-            return
-        # Billing only ever counts GitHub PR URLs (billing.py validates the same prefix), so a
-        # recompute for any other output.pr_url string is a guaranteed no-op; don't let arbitrary
-        # client-written values enqueue org-wide refreshes. Literal kept local because tasks code
-        # must not import signals internals.
-        if not new_pr_url.startswith(GITHUB_PR_URL_PREFIX):
-            return
-        organization_id = Team.objects.filter(id=run.task.team_id).values_list("organization_id", flat=True).first()
-        if organization_id is None:
-            return
-        from ee.tasks.quota_limiting import (
-            refresh_org_self_driving_quota_task,  # noqa: PLC0415 — keep billing deps off the api import path
-        )
-
-        def _dispatch() -> None:
-            try:
-                refresh_org_self_driving_quota_task.delay(str(organization_id))
-            except Exception:
-                logger.warning(
-                    "self_driving_quota_refresh_dispatch_failed", extra={"run_id": str(run.id)}, exc_info=True
-                )
-
-        transaction.on_commit(_dispatch)
-    except Exception:
-        logger.warning("self_driving_quota_refresh_failed", extra={"run_id": str(run.id)}, exc_info=True)
-
-
 def enforce_self_driving_free_trial(
     team: Team, *, report_id: str | None = None, stage: str = "manual_create", enabled: bool | None = None
 ) -> None:
@@ -3564,7 +3522,6 @@ def update_task_run(
             notify_task_run_cancelled(run)
     new_pr_url = (run.output or {}).get("pr_url") if isinstance(run.output, dict) else None
     if new_pr_url and new_pr_url != old_pr_url:
-        _refresh_self_driving_quota_for_pr(run, old_pr_url)
         _post_slack_update_for_pr(run)
         _send_wizard_pr_ready_email_for_pr(run)
         post_pr_created_thread_update(run, new_pr_url)
@@ -3633,7 +3590,6 @@ def set_task_run_output(
         run.output = _apply_caller_output(existing, output, merged)
         run.save(update_fields=["output", "updated_at"])
         PullRequestReconciler.schedule(run, previous_output=existing, previous_branch=run.branch)
-    _refresh_self_driving_quota_for_pr(run, existing.get("pr_url"))
     if task.json_schema and not (run.state or {}).get("caller_ends_run"):
         signal_workflow_completion(run.id, TaskRun.Status.COMPLETED, None)
     run.publish_stream_state_event()

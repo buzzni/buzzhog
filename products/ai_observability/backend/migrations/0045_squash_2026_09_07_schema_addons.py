@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
         ("data_tools", "0001_squash_2026_09_07_initial"),
         ("data_warehouse", "0001_squash_2026_09_07_initial"),
         ("early_access_features", "0001_squash_2026_09_07_initial"),
-        ("ee", "0061_squash_2026_09_07_finalize_fks"),
+        ("access_control", "0000_rbac_models"),
         ("endpoints", "0001_squash_2026_09_07_initial"),
         ("error_tracking", "0001_squash_2026_09_07_initial"),
         ("event_definitions", "0001_squash_2026_09_07_initial"),

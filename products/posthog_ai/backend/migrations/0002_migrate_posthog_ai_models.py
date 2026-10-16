@@ -14,7 +14,6 @@ class Migration(migrations.Migration):
         ("posthog", "1207_migrate_ai_observability_models"),
         ("posthog_ai", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("ee", "0047_migrate_ai_observability_models"),
     ]
 
     operations = [

@@ -35,7 +35,7 @@ from posthog.api.forbid_destroy_model import ForbidDestroyModel
 from posthog.api.routing import TeamAndOrgViewSetMixin
 from posthog.api.shared import UserBasicSerializer
 from posthog.api.sharing_publish_gate import blocked_access_in_notebook_edit, is_publicly_shared
-from posthog.api.streaming import sse_streaming_response
+from posthog.api.streaming import async_stream_to_sync, sse_streaming_response
 from posthog.api.utils import action
 from posthog.auth import SessionAuthentication
 from posthog.constants import AvailableFeature
@@ -192,8 +192,6 @@ from products.notebooks.backend.sql_v2_state import (
 from products.notebooks.backend.sql_v2_variables import build_notebook_variables
 from products.tasks.backend.facade.exceptions import SandboxProvisionError
 from products.tasks.backend.facade.sandbox import SandboxStatus
-
-from ee.hogai.utils.aio import async_to_sync
 
 logger = structlog.get_logger(__name__)
 
@@ -2770,11 +2768,11 @@ class NotebookViewSet(TeamAndOrgViewSetMixin, AccessControlViewSetMixin, ForbidD
         last_event_id = request.headers.get("Last-Event-ID")
 
         # On ASGI (Granian in prod) the async generator runs as one cheap task per connection.
-        # On WSGI (tests, fallback) async_to_sync bridges it via a worker thread + queue.
+        # On WSGI (tests, fallback) async_stream_to_sync bridges it via a worker thread + queue.
         return sse_streaming_response(
             collab_stream.stream_collab_sse(team_id, notebook_id, last_event_id=last_event_id)
             if SERVER_GATEWAY_INTERFACE == "ASGI"
-            else async_to_sync(
+            else async_stream_to_sync(
                 lambda: collab_stream.stream_collab_sse(team_id, notebook_id, last_event_id=last_event_id)
             ),
             endpoint="notebook_collab",

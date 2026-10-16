@@ -381,13 +381,6 @@ class QueryViewSet(TeamAndOrgViewSetMixin, PydanticModelMixin, viewsets.ViewSet)
                 else status.HTTP_200_OK
             )
 
-            if is_mcp_client:
-                with tracer.start_as_current_span("posthog.query.format_for_llm") as llm_span:
-                    formatted = self._try_format_for_llm(query, result)
-                    llm_span.set_attribute("query.formatted", formatted is not None)
-                    if formatted is not None:
-                        result["formatted_results"] = formatted
-
             response = Response(result, status=response_status)
             cost = get_request_query_cost()
             if cost is not None and get_query_tag_value("access_method") == "personal_api_key":
@@ -646,18 +639,6 @@ class QueryViewSet(TeamAndOrgViewSetMixin, PydanticModelMixin, viewsets.ViewSet)
             raise ValidationError(
                 f'Query kind mismatch: path kind "{query_kind}" does not match body kind "{body_kind}".'
             )
-
-    def _try_format_for_llm(self, query: BaseModel, result: dict) -> str | None:
-        """Try to format query results as LLM-friendly text. Returns None on failure."""
-        if not settings.EE_AVAILABLE:
-            return None
-        try:
-            from ee.hogai.context.insight.format import format_query_results_for_llm
-
-            return format_query_results_for_llm(query, result, self.team)
-        except Exception:
-            logger.warning("mcp_llm_format_failed", exc_info=True)
-            return None
 
 
 MAX_QUERY_TIMEOUT = 600

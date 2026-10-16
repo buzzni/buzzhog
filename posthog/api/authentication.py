@@ -1511,6 +1511,25 @@ def social_reauth(
         raise AuthFailed(backend, "reauth_user_mismatch")
 
 
+def social_sso_enforcement_allows(
+    strategy: DjangoStrategy,
+    backend: BaseAuth,
+    details: dict[str, Any] | None = None,
+    user: User | None = None,
+    **kwargs: Any,
+) -> None:
+    """Refuse a social login through any provider other than the one the address's domain enforces."""
+    email = (details or {}).get("email") or ""
+    if "@" not in email:
+        email = user.email if user else ""
+    if "@" not in email:
+        return
+    enforced = sso_enforcement_for_login_address(email, user)
+    if enforced and enforced != backend.name:
+        logger.warning("social_login_sso_enforced", backend=backend.name, enforced=enforced)
+        raise AuthFailed(backend, "sso_enforced")
+
+
 def social_access_rules_allow(
     strategy: DjangoStrategy, backend: BaseAuth, user: User | None = None, **kwargs: Any
 ) -> None:

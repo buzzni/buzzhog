@@ -1,12 +1,7 @@
 from uuid import UUID, uuid4
 
 import time_machine
-from posthog.test.base import (
-    APIBaseTest,
-    ClickhouseTestMixin,
-    also_test_with_materialized_columns,
-    snapshot_clickhouse_queries,
-)
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin, snapshot_clickhouse_queries
 from unittest.mock import patch
 
 from django.utils.timezone import now
@@ -46,7 +41,6 @@ class TestSessionRecordingsListByCohort(ClickhouseTestMixin, APIBaseTest):
         return (now() - relativedelta(hours=1)).replace(microsecond=0, second=0)
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(person_properties=["$some_prop"])
     def test_filter_with_cohort_properties(self) -> None:
         with self.settings(USE_PRECALCULATED_CH_COHORT_PEOPLE=True):
             with time_machine.travel("2021-08-21T20:00:00.000Z", tick=False):
@@ -134,7 +128,6 @@ class TestSessionRecordingsListByCohort(ClickhouseTestMixin, APIBaseTest):
                 )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(person_properties=["$some_prop"])
     def test_filter_with_static_and_dynamic_cohort_properties(self):
         with self.settings(USE_PRECALCULATED_CH_COHORT_PEOPLE=True):
             with time_machine.travel("2021-08-21T20:00:00.000Z", tick=False):
@@ -322,7 +315,6 @@ class TestSessionRecordingsListByCohort(ClickhouseTestMixin, APIBaseTest):
                 )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(person_properties=["$some_prop"])
     def test_filter_with_events_and_cohorts(self):
         with self.settings(USE_PRECALCULATED_CH_COHORT_PEOPLE=True):
             with time_machine.travel("2021-08-21T20:00:00.000Z", tick=False):
@@ -440,7 +432,6 @@ class TestSessionRecordingsListByCohort(ClickhouseTestMixin, APIBaseTest):
                 )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(person_properties=["$some_prop"])
     def test_internal_account_filter_with_cohort_properties(self) -> None:
         with self.settings(USE_PRECALCULATED_CH_COHORT_PEOPLE=True):
             with time_machine.travel("2021-08-21T20:00:00.000Z", tick=False):

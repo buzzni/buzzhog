@@ -562,7 +562,7 @@ class PathsQueryRunner(AnalyticsQueryRunner[PathsQueryResponse]):
             end_point = self._normalize_target(self.query.pathsFilter.endPoint)
             clauses: list[ast.Expr] = [
                 ast.Alias(
-                    alias=f"start_target_index",
+                    alias="start_target_index",
                     expr=ast.Call(
                         name="indexOf",
                         args=[
@@ -577,7 +577,7 @@ class PathsQueryRunner(AnalyticsQueryRunner[PathsQueryResponse]):
             clauses.append(filtered_limited[0])
             clauses.append(
                 ast.Alias(
-                    alias=f"end_target_index",
+                    alias="end_target_index",
                     expr=ast.Call(
                         name="indexOf",
                         args=[

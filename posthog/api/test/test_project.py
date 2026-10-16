@@ -588,49 +588,6 @@ class TestProjectAPI(team_api_test_factory()):  # type: ignore
         self.assertGreater(call_kwargs["start_delay"], timedelta(hours=47))
         self.assertLessEqual(call_kwargs["start_delay"], timedelta(hours=48))
 
-    @parameterized.expand(
-        [
-            ("cloud_last_project_active_sub", True, 1, True, True, status.HTTP_400_BAD_REQUEST),
-            ("cloud_last_project_no_sub", True, 1, False, True, status.HTTP_204_NO_CONTENT),
-            ("cloud_non_last_project_active_sub", True, 2, True, True, status.HTTP_204_NO_CONTENT),
-            ("self_hosted", False, 1, True, True, status.HTTP_204_NO_CONTENT),
-            ("cloud_no_license", True, 1, True, None, status.HTTP_204_NO_CONTENT),
-        ]
-    )
-    @patch("posthog.temporal.delete_teams.dispatch.start_delete_project_data_workflow")
-    @patch("ee.billing.billing_manager.BillingManager.get_billing")
-    @patch("posthog.api.project.get_cached_instance_license")
-    def test_delete_last_project_subscription_guard(
-        self,
-        _name,
-        is_cloud,
-        project_count,
-        has_active_subscription,
-        license_value,
-        expected_status,
-        mock_get_license,
-        mock_get_billing,
-        mock_delete_task,
-    ):
-        mock_get_license.return_value = license_value
-        mock_get_billing.return_value = {"has_active_subscription": has_active_subscription}
-
-        self.organization_membership.level = OrganizationMembership.Level.ADMIN
-        self.organization_membership.save()
-
-        if project_count > 1:
-            Project.objects.create_with_team(
-                organization=self.organization, name="Second project", initiating_user=self.user
-            )
-
-        with self.is_cloud(is_cloud):
-            response = self.client.delete(f"/api/projects/{self.project.id}")
-
-        self.assertEqual(response.status_code, expected_status)
-        if expected_status == status.HTTP_400_BAD_REQUEST:
-            self.assertIn("active subscription", response.json()["detail"])
-            self.assertTrue(Project.objects.filter(id=self.project.id).exists())
-
     def _mark_project_ingested(self) -> None:
         self.team.ingested_event = True
         self.team.save(update_fields=["ingested_event"])

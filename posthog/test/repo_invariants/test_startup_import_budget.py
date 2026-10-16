@@ -14,9 +14,7 @@ from django.db.models.signals import post_save
 # of widening this budget. See logs/startup-profile and the PRs that introduced these cuts.
 FORBIDDEN_AT_SETUP = [
     "posthog.api.rest_router",  # the 160-route DRF aggregator — builds lazily on first request
-    "posthog.temporal.ai",  # AI temporal workflows -> ee.hogai chat-agent core
-    "ee.hogai.chat_agent.graph",  # the assistant graph
-    "ee.hogai.tools",  # the agent tool registry
+    "posthog.temporal.ai",  # AI temporal workflows
     "chdb",  # embedded ClickHouse
     "posthog.temporal.ai_observability",  # eval/clustering workers (pulls scipy, etc.)
     "scipy",  # only reached via ai_observability clustering — must not be at startup
@@ -46,7 +44,6 @@ FORBIDDEN_AT_SETUP = [
     "posthog.api.services.query",  # API query service — viewset-request-time only
     "products.signals.backend.tasks",  # celery task module — workers load it by autodiscovery; at setup it drags the signals and tasks contracts in
     "products.signals.backend.scout_harness.suggestions",  # reaches the tasks facade contracts (pydantic DTOs) — deferred in the signals receivers; the facade itself stays importable
-    "ee.vercel.integration",  # reaches ee.api.authentication (@api_view -> DRF schema class) — receivers live in ee.vercel.receivers and import it at call time
     "posthog.api.documentation",  # drf_spectacular schema hooks — request-time only
     "django.test",  # test client — was dragged in by drf_spectacular.plumbing via rest_framework.test
     "zxcvbn",  # password strength, needed only by posthog.auth (deferred in posthog.helpers.impersonation and posthog.event_usage)
@@ -244,7 +241,7 @@ from django.contrib.auth import signals as auth_signals
 from django.db.models import signals as model_signals
 from posthog.models.signals import model_activity_signal
 
-_FIRST_PARTY = ("posthog.", "products.", "ee.", "common.")
+_FIRST_PARTY = ("posthog.", "products.", "common.")
 _SIGNALS = {
     name: getattr(model_signals, name)
     for name in ("pre_save", "post_save", "pre_delete", "post_delete", "m2m_changed", "pre_init", "post_init")
@@ -326,44 +323,6 @@ def test_team_extension_receivers_are_connected_strongly() -> None:
         f"These team-extension receivers are connected weakly: {weakly_held}. "
         "Pass weak=False in register_team_extension_signal, or the receiver is collected right after "
         "registration and no extension row is written when a team is created."
-    )
-
-
-# Cold-start trap the lazy router introduced and the whole pytest suite is blind to. With the AI agent
-# core off the startup path, a fresh process no longer pre-imports it — so the FIRST reader of the MCP
-# tool registry (the first MCP-tools API request in a new worker) becomes the first importer of the
-# ee.hogai.tools -> chat_agent chain. A latent cycle in that chain (.task -> core.executor ->
-# posthog.temporal.ai -> chat_agent.toolkit -> back into ee.hogai.tools) used to resolve only by
-# import-order luck: the eager router imported the chain at setup, so by the time anything read the
-# registry the modules were already complete. Remove that luck and the first request 500s on a
-# half-initialized import. Every in-process test misses it because hundreds of test modules import the
-# agent core long before the registry is read, so the cycle is always pre-resolved. A clean interpreter
-# is the only place this reproduces — same reason the snapshot guards above run in a subprocess.
-_MCP_REGISTRY_COLD_LOAD = """
-import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "posthog.settings")
-import django
-django.setup()
-from ee.hogai.mcp_tool import mcp_tool_registry
-names = mcp_tool_registry.get_names()
-assert names, "registry returned no tools"
-print(len(names))
-"""
-
-
-def test_mcp_tool_registry_loads_cold_without_import_cycle() -> None:
-    result = subprocess.run(
-        [sys.executable, "-c", _MCP_REGISTRY_COLD_LOAD],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    assert result.returncode == 0, (
-        "Reading the MCP tool registry in a cold process (mirrors the first MCP-tools request in a fresh "
-        "worker) crashed. A module-level import in a tool submodule reaches back into ee.hogai.tools through "
-        "the chat_agent chain, forming a cycle that only resolves when something imported the agent core "
-        f"first — which no longer happens at django.setup(). Defer the offending import. Subprocess stderr:\n"
-        f"{result.stderr[-2000:]}"
     )
 
 

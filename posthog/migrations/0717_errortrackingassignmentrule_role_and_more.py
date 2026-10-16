@@ -14,12 +14,12 @@ from django.db import migrations, models
 #         migrations.AddField(
 #             model_name="errortrackingassignmentrule",
 #             name="role",
-#             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role"),
+#             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
 #         ),
 #         migrations.AddField(
 #             model_name="errortrackingissueassignment",
 #             name="role",
-#             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role"),
+#             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
 #         ),
 #     ]
 
@@ -36,12 +36,16 @@ class Migration(migrations.Migration):
                 migrations.AddField(
                     model_name="errortrackingassignmentrule",
                     name="role",
-                    field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role"),
+                    field=models.ForeignKey(
+                        null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"
+                    ),
                 ),
                 migrations.AddField(
                     model_name="errortrackingissueassignment",
                     name="role",
-                    field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role"),
+                    field=models.ForeignKey(
+                        null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"
+                    ),
                 ),
             ],
             database_operations=[

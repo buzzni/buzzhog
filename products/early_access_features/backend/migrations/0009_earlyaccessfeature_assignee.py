@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("early_access_features", "0008_backfill_earlyaccessfeature_created_by"),
-        ("ee", "0028_alter_conversation_type"),
+        ("access_control", "0000_rbac_models"),
     ]
 
     operations = [
@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="+",
-                to="ee.role",
+                to="access_control.role",
             ),
         ),
     ]

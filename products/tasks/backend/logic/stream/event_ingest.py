@@ -30,7 +30,15 @@ from products.tasks.backend.logic.services.process_killed import (
     parse_process_killed,
     process_killed_event_uuid,
 )
-from products.tasks.backend.logic.stream.agent_events import is_agent_command_dispatched, is_agent_generation_event
+from products.tasks.backend.logic.stream.agent_events import (
+    PI_RUNTIME_ERROR_MESSAGE,
+    is_agent_command_dispatched,
+    is_agent_generation_event,
+    is_idle_resume_turn_complete,
+    is_turn_complete,
+    pi_turn_error,
+    turn_completed_successfully,
+)
 from products.tasks.backend.logic.stream.budget_steer import BudgetSteerCapture
 from products.tasks.backend.logic.stream.redis_stream import (
     TaskRunRedisStream,
@@ -42,14 +50,6 @@ from products.tasks.backend.logic.stream.redis_stream import (
 from products.tasks.backend.metrics import observe_sandbox_process_killed, observe_stream_write_skipped
 from products.tasks.backend.models import TaskRun
 from products.tasks.backend.turn_completed import dispatch_turn_completed
-
-from ee.hogai.sandbox import (
-    PI_RUNTIME_ERROR_MESSAGE,
-    is_idle_resume_turn_complete,
-    is_turn_complete,
-    pi_turn_error,
-    turn_completed_successfully,
-)
 
 logger = structlog.get_logger(__name__)
 

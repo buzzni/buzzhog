@@ -74,9 +74,8 @@ class TestTeamAdminSetApiTokenView(BaseTest):
         assert context["team"].api_token == "phc_admin_test_old"
         assert context["title"] == f"Set API token - {self.team.name}"
 
-    @patch("posthog.tasks.integrations.push_vercel_secrets.delay")
     @patch("posthog.models.team.team.set_team_in_cache")
-    def test_post_with_valid_token_invokes_model_method_and_redirects(self, _mock_set_cache, _mock_push_vercel) -> None:
+    def test_post_with_valid_token_invokes_model_method_and_redirects(self, _mock_set_cache) -> None:
         http_request = self.factory.post(self.set_api_token_url, {"new_token": "phc_admin_test_new"})
         http_request.user = self.user
         _attach_messages(http_request)

@@ -12,7 +12,6 @@ from posthog.test.base import (
     QueryMatchingTest,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     flush_persons_and_events,
     override_settings,
     snapshot_clickhouse_queries,
@@ -72,7 +71,6 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["id"], person.pk)
 
-    @also_test_with_materialized_columns(event_properties=["email"], person_properties=["email"])
     @snapshot_clickhouse_queries
     def test_search(self) -> None:
         _create_person(
@@ -248,7 +246,6 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         self.assertTrue(completed[0]["has_search"])
         self.assertEqual(completed[0].get("answered_by"), expected_answered_by)
 
-    @also_test_with_materialized_columns(event_properties=["email"], person_properties=["email"])
     @snapshot_clickhouse_queries
     def test_search_person_id(self) -> None:
         person = _create_person(
@@ -404,7 +401,6 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["results"], [])
 
-    @also_test_with_materialized_columns(event_properties=["email"], person_properties=["email"])
     @snapshot_clickhouse_queries
     def test_properties(self) -> None:
         _create_person(
@@ -482,7 +478,6 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.json())
         self.assertEqual(len(response.json()["results"]), expected_count)
 
-    @also_test_with_materialized_columns(person_properties=["random_prop"])
     @snapshot_clickhouse_queries
     def test_person_property_values(self):
         _create_person(
@@ -551,7 +546,6 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
             assert args[0] == ExecutionMode[expected_mode_name]
             assert "analytics_props" in kwargs
 
-    @also_test_with_materialized_columns(event_properties=["email"], person_properties=["email"])
     @snapshot_clickhouse_queries
     def test_filter_person_email(self):
         _create_person(
@@ -873,7 +867,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         _create_event(event="test", team=self.team, distinct_id="someone_else")
 
         response = self.client.post(
-            f"/api/person/bulk_delete/", {"ids": [person.uuid, person2.uuid], "delete_events": True}
+            "/api/person/bulk_delete/", {"ids": [person.uuid, person2.uuid], "delete_events": True}
         )
 
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.content)
@@ -919,7 +913,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         _create_event(event="test", team=self.team, distinct_id="anonymous_id")
         _create_event(event="test", team=self.team, distinct_id="someone_else")
 
-        response = self.client.post(f"/api/person/bulk_delete/", {"distinct_ids": ["anonymous_id", "person_2"]})
+        response = self.client.post("/api/person/bulk_delete/", {"distinct_ids": ["anonymous_id", "person_2"]})
 
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.content)
         data = response.json()
@@ -959,7 +953,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         flush_persons_and_events()
 
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [person.uuid], "delete_events": True, "keep_person": True},
         )
 
@@ -988,7 +982,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         )
 
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [person.uuid], "delete_recordings": True},
         )
 
@@ -1004,7 +998,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         """Test that bulk_delete rejects more than 1000 IDs"""
         # Test with ids
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [str(uuid4()) for _ in range(1001)]},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -1012,7 +1006,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
 
         # Test with distinct_ids
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"distinct_ids": [f"id_{i}" for i in range(1001)]},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -1021,7 +1015,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
     def test_bulk_delete_validation_missing_ids(self):
         """Test that bulk_delete requires either ids or distinct_ids"""
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"delete_events": True},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -1029,7 +1023,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
 
     def test_bulk_delete_validation_rejects_both_ids_and_distinct_ids(self):
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [str(uuid4())], "distinct_ids": ["did_1"]},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -1037,7 +1031,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
 
     def test_bulk_delete_no_matching_persons(self):
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [str(uuid4()), str(uuid4())], "delete_events": True},
         )
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
@@ -1058,11 +1052,11 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         )
 
         self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [person.uuid], "delete_events": True},
         )
 
-        response = self.client.get(f"/api/person/deletion_status/")
+        response = self.client.get("/api/person/deletion_status/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         self.assertEqual(data["count"], 1)
@@ -1097,21 +1091,21 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         )
 
         # Filter pending
-        response = self.client.get(f"/api/person/deletion_status/?status=pending")
+        response = self.client.get("/api/person/deletion_status/?status=pending")
         data = response.json()
         self.assertEqual(data["count"], 1)
         self.assertEqual(data["results"][0]["person_uuid"], str(person1.uuid))
         self.assertEqual(data["results"][0]["status"], "pending")
 
         # Filter completed
-        response = self.client.get(f"/api/person/deletion_status/?status=completed")
+        response = self.client.get("/api/person/deletion_status/?status=completed")
         data = response.json()
         self.assertEqual(data["count"], 1)
         self.assertEqual(data["results"][0]["person_uuid"], str(person2.uuid))
         self.assertEqual(data["results"][0]["status"], "completed")
 
         # All
-        response = self.client.get(f"/api/person/deletion_status/")
+        response = self.client.get("/api/person/deletion_status/")
         data = response.json()
         self.assertEqual(data["count"], 2)
 
@@ -1160,7 +1154,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         mock_publish.side_effect = [Exception("Kafka produce failed"), []]
 
         response = self.client.post(
-            f"/api/person/bulk_delete/",
+            "/api/person/bulk_delete/",
             {"ids": [person1.uuid, person2.uuid]},
         )
 
@@ -1198,12 +1192,12 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
 
     def test_deletion_status_rejects_invalid_status(self):
         """Test that deletion_status returns 400 for invalid status filter"""
-        response = self.client.get(f"/api/person/deletion_status/?status=invalid")
+        response = self.client.get("/api/person/deletion_status/?status=invalid")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_deletion_status_rejects_invalid_person_uuid(self):
         """Test that deletion_status returns 400 for non-UUID person_uuid"""
-        response = self.client.get(f"/api/person/deletion_status/?person_uuid=not-a-uuid")
+        response = self.client.get("/api/person/deletion_status/?person_uuid=not-a-uuid")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_deletion_status_excludes_other_teams(self):
@@ -1220,7 +1214,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
             key=str(uuid4()),
         )
 
-        response = self.client.get(f"/api/person/deletion_status/")
+        response = self.client.get("/api/person/deletion_status/")
         data = response.json()
         self.assertEqual(data["count"], 1)
 
@@ -2274,7 +2268,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         assert response["distinct_ids"] == ["123456789"]
 
     def test_retrieve_person_by_distinct_id_with_useful_error(self):
-        response = self.client.get(f"/api/person/NOT_A_UUID").json()
+        response = self.client.get("/api/person/NOT_A_UUID").json()
 
         assert (
             response["detail"]
@@ -2290,7 +2284,7 @@ class TestPerson(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
         if person_id:
             url = f"/api/person/{person_id}/activity"
         else:
-            url = f"/api/person/activity"
+            url = "/api/person/activity"
 
         activity = self.client.get(url)
         self.assertEqual(activity.status_code, expected_status)

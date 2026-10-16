@@ -31,7 +31,7 @@ from products.slack_app.backend.temporal.attachments import (
     prepare_slack_file_artifacts,
     prepare_slack_thread_file_artifacts,
 )
-from products.slack_app.backend.temporal.helpers import block_if_team_over_quota, safe_react
+from products.slack_app.backend.temporal.helpers import safe_react
 from products.slack_app.backend.temporal.types import PostHogCodeSlackMentionWorkflowInputs, SlackAppModelOverride
 
 logger = structlog.get_logger(__name__)
@@ -617,18 +617,6 @@ def create_posthog_code_task_for_repo_activity(
         )
         return
 
-    # Refuse before the :eyes: reaction or the permalink fetch: a denied
-    # mention should not first ack-react and then refuse a second later.
-    if block_if_team_over_quota(
-        integration=integration,
-        slack=slack,
-        channel=channel,
-        thread_ts=thread_ts,
-        slack_user_id=slack_user_id,
-        context="task_create",
-    ):
-        return
-
     user_message_ts = event.get("ts")
     if user_message_ts:
         safe_react(slack.client, channel, user_message_ts, "eyes")
@@ -950,16 +938,6 @@ def forward_posthog_code_followup_activity(
             actor=slack_user_id,
             actor_user_id=resolved.user.id,
         )
-
-    if block_if_team_over_quota(
-        integration=integration,
-        slack=slack,
-        channel=channel,
-        thread_ts=thread_ts,
-        slack_user_id=slack_user_id,
-        context="followup",
-    ):
-        return True
 
     # Reply-tag fallback for turns with no per-turn actor (boot prompt,
     # pre-rollout runs); the actor stamped at delivery normally wins.

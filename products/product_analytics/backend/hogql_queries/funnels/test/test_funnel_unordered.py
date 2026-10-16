@@ -1538,7 +1538,7 @@ class TestFunnelUnorderedSteps(ClickhouseTestMixin, APIBaseTest):
 
     def test_funnel_window_ignores_dst_transition(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
 

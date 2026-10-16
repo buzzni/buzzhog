@@ -5,7 +5,8 @@ from posthog.models.utils import UUIDTModel
 
 class AccessControl(UUIDTModel):
     class Meta:
-        app_label = "ee"
+        app_label = "access_control"
+        db_table = "ee_accesscontrol"
         constraints = [
             models.UniqueConstraint(
                 fields=["resource", "resource_id", "team", "organization_member", "role"],

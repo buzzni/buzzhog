@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("cohorts", "0014_alter_cohort_created_by_alter_cohort_people_and_more"),
-        ("ee", "0063_scim_provisioned_user_config_set_null"),
+        ("access_control", "0000_rbac_models"),
         ("error_tracking", "0033_squash_2026_09_07_schema_addons"),
         ("posthog", "1350_alter_userscenepersonalisation_dashboard"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="+",
-                to="ee.role",
+                to="access_control.role",
             ),
         ),
         migrations.AlterField(
@@ -99,7 +99,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="+",
-                to="ee.role",
+                to="access_control.role",
             ),
         ),
         migrations.AlterField(
@@ -137,7 +137,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="+",
-                to="ee.role",
+                to="access_control.role",
             ),
         ),
         migrations.AlterField(

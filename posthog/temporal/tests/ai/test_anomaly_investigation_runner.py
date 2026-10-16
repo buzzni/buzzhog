@@ -454,7 +454,7 @@ async def test_loop_failure_keeps_best_report_and_tool_count(
     )
 
     with (
-        patch("ee.hogai.llm.MaxChatAnthropic", return_value=llm),
+        patch("posthog.temporal.ai.anomaly_investigation.runner._build_llm", return_value=llm),
         patch("posthog.temporal.ai.anomaly_investigation.runner.posthoganalytics") as mock_module,
         patch(
             "posthog.temporal.ai.anomaly_investigation.runner.InvestigationToolkit.fetch_metric_series",
@@ -509,7 +509,7 @@ async def test_finalize_turn_retries_then_salvages_invalid_report(
     )
 
     with (
-        patch("ee.hogai.llm.MaxChatAnthropic", return_value=llm),
+        patch("posthog.temporal.ai.anomaly_investigation.runner._build_llm", return_value=llm),
         patch("posthog.temporal.ai.anomaly_investigation.runner.posthoganalytics") as mock_module,
     ):
         mock_module.default_client = None

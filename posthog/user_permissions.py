@@ -105,13 +105,8 @@ class UserPermissions:
 
     @cached_property
     def dashboard_privileges(self) -> dict[int, PrivilegeLevel]:
-        try:
-            from ee.models import DashboardPrivilege
-
-            rows = DashboardPrivilege.objects.filter(user=self.user).values_list("dashboard_id", "level")
-            return {dashboard_id: cast(PrivilegeLevel, level) for dashboard_id, level in rows}
-        except ImportError:
-            return {}
+        # Legacy per-dashboard privileges were stored only by the enterprise edition.
+        return {}
 
     @cached_property
     def _prefetched_access_controls(self) -> dict[int, list["AccessControl"]]:

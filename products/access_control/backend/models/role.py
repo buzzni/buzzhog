@@ -8,7 +8,8 @@ from products.access_control.backend.models.organization_resource_access import 
 
 class Role(UUIDTModel):
     class Meta:
-        app_label = "ee"
+        app_label = "access_control"
+        db_table = "ee_role"
         constraints = [models.UniqueConstraint(fields=["organization", "name"], name="unique_role_name")]
 
     name = models.CharField(max_length=200)
@@ -36,7 +37,7 @@ class Role(UUIDTModel):
 
     members = models.ManyToManyField(
         "posthog.User",
-        through="ee.RoleMembership",
+        through="access_control.RoleMembership",
     )
 
 
@@ -51,7 +52,8 @@ class RoleMembership(UUIDTModel):
     objects = RoleMembershipQuerySet.as_manager()
 
     class Meta:
-        app_label = "ee"
+        app_label = "access_control"
+        db_table = "ee_rolemembership"
         constraints = [models.UniqueConstraint(fields=["role", "user"], name="unique_user_and_role")]
 
     role = models.ForeignKey(

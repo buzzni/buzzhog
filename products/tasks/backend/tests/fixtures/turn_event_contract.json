@@ -1,0 +1,227 @@
+[
+    {
+        "name": "acp_prompt_result_end_turn",
+        "event": {
+            "type": "notification",
+            "notification": {
+                "result": {
+                    "stopReason": "end_turn"
+                }
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": true
+        }
+    },
+    {
+        "name": "acp_prompt_result_cancelled",
+        "event": {
+            "type": "notification",
+            "notification": {
+                "result": {
+                    "stopReason": "cancelled"
+                }
+            }
+        },
+        "expect": {
+            "turn_complete": false,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "synthetic_turn_complete_end_turn",
+        "event": {
+            "type": "notification",
+            "notification": {
+                "method": "_posthog/turn_complete",
+                "params": {
+                    "stopReason": "end_turn",
+                    "traceId": "trace-1"
+                }
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": true
+        }
+    },
+    {
+        "name": "synthetic_turn_complete_idle_resume",
+        "event": {
+            "type": "notification",
+            "notification": {
+                "method": "_posthog/turn_complete",
+                "params": {
+                    "stopReason": "idle_resume"
+                }
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": true,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "synthetic_turn_complete_without_params",
+        "event": {
+            "type": "notification",
+            "notification": {
+                "method": "_posthog/turn_complete"
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "pi_turn_completed_end_turn",
+        "event": {
+            "type": "pi_event",
+            "event": {
+                "type": "turn_completed",
+                "stopReason": "end_turn"
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": true
+        }
+    },
+    {
+        "name": "pi_turn_completed_error",
+        "event": {
+            "type": "pi_event",
+            "event": {
+                "type": "turn_completed",
+                "stopReason": "error"
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": false,
+            "pi_error": true,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "pi_turn_completed_cancelled",
+        "event": {
+            "type": "pi_event",
+            "event": {
+                "type": "turn_completed",
+                "stopReason": "cancelled"
+            }
+        },
+        "expect": {
+            "turn_complete": true,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "pi_generation_chunk",
+        "event": {
+            "type": "pi_event",
+            "event": {
+                "type": "assistant_message_chunk"
+            }
+        },
+        "expect": {
+            "turn_complete": false,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "session_update",
+        "event": {
+            "type": "notification",
+            "notification": {
+                "method": "session/update",
+                "params": {
+                    "update": {
+                        "sessionUpdate": "agent_message_chunk"
+                    }
+                }
+            }
+        },
+        "expect": {
+            "turn_complete": false,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": true,
+            "successful": false
+        }
+    },
+    {
+        "name": "non_notification_with_end_turn_result",
+        "event": {
+            "type": "event",
+            "notification": {
+                "result": {
+                    "stopReason": "end_turn"
+                }
+            }
+        },
+        "expect": {
+            "turn_complete": false,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "null_notification",
+        "event": {
+            "type": "notification",
+            "notification": null
+        },
+        "expect": {
+            "turn_complete": false,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    },
+    {
+        "name": "array_notification",
+        "event": {
+            "type": "notification",
+            "notification": []
+        },
+        "expect": {
+            "turn_complete": false,
+            "idle_resume": false,
+            "pi_error": false,
+            "session_update": false,
+            "successful": false
+        }
+    }
+]

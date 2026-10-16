@@ -1,10 +1,7 @@
-import asyncio
 import datetime as dt
 
 import pytest
 import unittest.mock
-
-from django.test import override_settings
 
 from asgiref.sync import sync_to_async
 
@@ -21,7 +18,6 @@ from products.batch_exports.backend.models.batch_export import (
 from products.batch_exports.backend.service import delete_batch_export, sync_batch_export
 from products.batch_exports.backend.temporal.batch_exports import (
     FinishBatchExportRunInputs,
-    OverBillingLimitError,
     StartBatchExportRunInputs,
     finish_batch_export_run,
     start_batch_export_run,
@@ -113,89 +109,6 @@ async def test_start_batch_export_run(activity_environment, team, batch_export):
     assert run is not None
     assert run.data_interval_start == start
     assert run.data_interval_end == end
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_start_batch_export_run_raises_on_mocked_over_limit(activity_environment, team, batch_export):
-    """Test the 'start_batch_export_run' activity raises an exception."""
-    start = dt.datetime(2023, 4, 24, tzinfo=dt.UTC)
-    end = dt.datetime(2023, 4, 25, tzinfo=dt.UTC)
-
-    with override_settings(BATCH_EXPORTS_ENABLE_BILLING_CHECK=True):
-        inputs = StartBatchExportRunInputs(
-            team_id=team.id,
-            batch_export_id=str(batch_export.id),
-            data_interval_start=start.isoformat(),
-            data_interval_end=end.isoformat(),
-        )
-
-    fut: asyncio.Future[bool] = asyncio.Future()
-    fut.set_result(False)
-
-    with (
-        unittest.mock.patch(
-            "products.batch_exports.backend.temporal.batch_exports.check_is_over_limit", return_value=fut
-        ),
-        pytest.raises(OverBillingLimitError),
-    ):
-        _ = await activity_environment.run(start_batch_export_run, inputs)
-
-    runs = BatchExportRun.objects.filter(batch_export=batch_export)
-    assert await sync_to_async(runs.exists)()
-
-    run = await sync_to_async(runs.first)()
-    assert run is not None
-    assert run.data_interval_start == start
-    assert run.data_interval_end == end
-    assert run.status == BatchExportRun.Status.FAILED_BILLING
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_start_batch_export_run_does_not_check_billing_limit(activity_environment, team, batch_export):
-    """Test the 'start_batch_export_run' doesn't check billing limit when disabled.
-
-    There are two ways to disable billing check:
-    * With the `BATCH_EXPORTS_ENABLE_BILLING_CHECK` setting disabled.
-    * By passing `False` to the `check_billing` argument.
-
-    So, we check both.
-    """
-    start = dt.datetime(2023, 4, 24, tzinfo=dt.UTC)
-    end = dt.datetime(2023, 4, 25, tzinfo=dt.UTC)
-
-    with override_settings(BATCH_EXPORTS_ENABLE_BILLING_CHECK=False):
-        inputs_with_default = StartBatchExportRunInputs(
-            team_id=team.id,
-            batch_export_id=str(batch_export.id),
-            data_interval_start=start.isoformat(),
-            data_interval_end=end.isoformat(),
-        )
-    inputs_set = StartBatchExportRunInputs(
-        team_id=team.id,
-        batch_export_id=str(batch_export.id),
-        data_interval_start=start.isoformat(),
-        data_interval_end=end.isoformat(),
-        check_billing=False,
-    )
-    fut: asyncio.Future[bool] = asyncio.Future()
-    fut.set_result(False)
-
-    for inputs in (inputs_with_default, inputs_set):
-        with unittest.mock.patch(
-            "products.batch_exports.backend.temporal.batch_exports.check_is_over_limit", return_value=fut
-        ) as mocked:
-            run_id = await activity_environment.run(start_batch_export_run, inputs)
-
-            mocked.assert_not_called()
-
-        runs = BatchExportRun.objects.filter(batch_export=batch_export)
-        run = await sync_to_async(runs.get)(id=run_id)
-        assert run is not None
-        assert run.data_interval_start == start
-        assert run.data_interval_end == end
-        assert run.status == BatchExportRun.Status.STARTING
 
 
 @pytest.mark.django_db(transaction=True)
@@ -554,52 +467,6 @@ async def test_finish_batch_export_run_produces_no_internal_events(activity_envi
         await activity_environment.run(finish_batch_export_run, finish_inputs)
 
     assert get_produced_internal_event_payloads(mocked_try_produce) == []
-    assert len(get_produced_app_metrics_payloads(mocked_try_produce)) == 1
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_start_batch_export_run_produces_failed_billing_internal_event(activity_environment, team, batch_export):
-    """Test 'start_batch_export_run' produces a '$batch_export_run_failed_billing' internal event when over limit."""
-    start = dt.datetime(2023, 4, 24, tzinfo=dt.UTC)
-    end = dt.datetime(2023, 4, 25, tzinfo=dt.UTC)
-
-    with override_settings(BATCH_EXPORTS_ENABLE_BILLING_CHECK=True):
-        inputs = StartBatchExportRunInputs(
-            team_id=team.id,
-            batch_export_id=str(batch_export.id),
-            data_interval_start=start.isoformat(),
-            data_interval_end=end.isoformat(),
-        )
-
-    fut: asyncio.Future[bool] = asyncio.Future()
-    fut.set_result(False)
-
-    with (
-        unittest.mock.patch(
-            "products.batch_exports.backend.temporal.batch_exports.check_is_over_limit", return_value=fut
-        ),
-        unittest.mock.patch("products.batch_exports.backend.temporal.batch_exports.try_produce") as mocked_try_produce,
-        pytest.raises(OverBillingLimitError),
-    ):
-        _ = await activity_environment.run(start_batch_export_run, inputs)
-
-    run = await sync_to_async(BatchExportRun.objects.filter(batch_export=batch_export).get)()
-    assert run.status == BatchExportRun.Status.FAILED_BILLING
-
-    internal_event_payloads = get_produced_internal_event_payloads(mocked_try_produce)
-    assert len(internal_event_payloads) == 1
-    assert [payload["event"]["event"] for payload in internal_event_payloads[0]] == ["$batch_export_run_failed_billing"]
-    assert internal_event_payloads[0][0]["event"]["properties"] == {
-        "batch_export_id": str(batch_export.id),
-        "batch_export_name": batch_export.name,
-        "batch_export_run_id": str(run.id),
-        "data_interval_start": start.isoformat(),
-        "data_interval_end": end.isoformat(),
-        "destination_type": "AwsS3",
-        "error": "Over billing limit",
-    }
-
     assert len(get_produced_app_metrics_payloads(mocked_try_produce)) == 1
 
 

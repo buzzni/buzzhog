@@ -10,7 +10,6 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("ee", "0037_add_conversation_approval_decisions"),
         ("posthog", "0993_approvalpolicy_bypass_options"),
     ]
 
@@ -57,7 +56,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        to="ee.conversation",
+                        to="posthog_ai.conversation",
                     ),
                 ),
                 (

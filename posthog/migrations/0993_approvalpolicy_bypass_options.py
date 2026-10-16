@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="approvalpolicy",
             name="bypass_roles",
-            field=models.ManyToManyField(blank=True, related_name="bypass_policies", to="ee.role"),
+            field=models.ManyToManyField(blank=True, related_name="bypass_policies", to="access_control.role"),
         ),
     ]

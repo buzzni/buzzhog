@@ -21,8 +21,6 @@ from products.feature_flags.backend.encrypted_flag_payloads import (
 )
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 
-from ee.api.test.base import APILicensedTest
-
 
 class TestApproveRejectRaceCondition(BaseTest):
     def setUp(self):
@@ -264,7 +262,7 @@ class TestApplyRechecksOwnership(APIBaseTest):
             assert change_request.state == ChangeRequestState.FAILED
 
 
-class TestApplyRechecksRequesterAccess(APILicensedTest):
+class TestApplyRechecksRequesterAccess(APIBaseTest):
     # Access is checked when a change request is created, because the viewset's access control
     # runs before the gate. An apply replays the write with no authenticated user, so without a
     # second check an approval lets someone outlive their own permissions.

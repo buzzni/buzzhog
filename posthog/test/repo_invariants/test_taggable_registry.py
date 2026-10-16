@@ -6,14 +6,7 @@ from django.apps import apps
 from django.db import models
 
 from posthog.models.tagged_item import TaggedItem
-from posthog.models.tagged_item_registry import (
-    OBJECT_ID,
-    OBJECT_UUID,
-    TAGGABLE_MODELS,
-    TaggableModel,
-    base_model_for,
-    taggable_for,
-)
+from posthog.models.tagged_item_registry import OBJECT_ID, OBJECT_UUID, TAGGABLE_MODELS, TaggableModel, taggable_for
 from posthog.models.tagged_items_relation import Taggable, TaggedItemsRelation
 
 INTEGER_FIELDS = (models.AutoField, models.IntegerField, models.BigAutoField, models.BigIntegerField)
@@ -62,21 +55,6 @@ def test_model_inherits_taggable(entry: TaggableModel) -> None:
     field = meta.get_field("tagged_items")
     assert isinstance(field, TaggedItemsRelation)
     assert field.object_id_field_name == entry.object_field
-
-
-def test_inherited_models_resolve_to_their_registered_base() -> None:
-    """Django reads a generic relation's content type off the instance's own class.
-
-    Without this resolution an enterprise definition would store its tags under a second
-    content type, and they would stop matching the tags written through the base model.
-    """
-    if not apps.is_installed("ee"):
-        pytest.skip("needs the ee app")
-    enterprise_event_definition = apps.get_model("ee.EnterpriseEventDefinition")
-    enterprise_property_definition = apps.get_model("ee.EnterprisePropertyDefinition")
-
-    assert base_model_for(enterprise_event_definition) is apps.get_model("event_definitions.EventDefinition")
-    assert base_model_for(enterprise_property_definition) is apps.get_model("event_definitions.PropertyDefinition")
 
 
 def test_unregistered_models_are_not_taggable() -> None:

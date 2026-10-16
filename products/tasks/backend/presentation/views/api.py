@@ -42,7 +42,7 @@ from posthog.schema import QuerySchemaRoot
 from posthog.api.mixins import validated_request
 from posthog.api.pagination import PrecountedLimitOffsetPagination
 from posthog.api.routing import TeamAndOrgViewSetMixin
-from posthog.api.streaming import sse_streaming_response
+from posthog.api.streaming import async_stream_to_sync, sse_streaming_response
 from posthog.api.utils import ServerTimingsGathered
 from posthog.auth import OAuthAccessTokenAuthentication, PersonalAPIKeyAuthentication, SessionAuthentication
 from posthog.clickhouse.query_tagging import tag_queries
@@ -230,8 +230,6 @@ from products.tasks.backend.presentation.serializers import (
 )
 from products.tasks.backend.presentation.task_review_serializers import TaskReviewQuerySerializer, TaskReviewSerializer
 from products.tasks.backend.presentation.views.artifact_preview import create_artifact_preview_url
-
-from ee.hogai.utils.aio import async_to_sync
 
 
 class OctetStreamParser(BaseParser):
@@ -4488,7 +4486,9 @@ class TaskRunViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet):
         # long-lived stream begins — see sse_streaming_response. The stream body is
         # Redis and object storage only, so it never re-acquires one.
         return sse_streaming_response(
-            async_stream() if settings.SERVER_GATEWAY_INTERFACE == "ASGI" else async_to_sync(lambda: async_stream()),
+            async_stream()
+            if settings.SERVER_GATEWAY_INTERFACE == "ASGI"
+            else async_stream_to_sync(lambda: async_stream()),
             endpoint="task_run_log",
         )
 
