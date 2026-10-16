@@ -41,7 +41,7 @@ ClickHouse 테이블은 `groups`(`posthog/models/group/sql.py`).
 
 PostHog의 SQL 방언.
 ClickHouse 쿼리로 변환되어 실행된다.
-구현: `posthog/hogql/`. 파서는 `common/hogql_parser/`(C++)이고, Rust 백엔드(`rust/hogql/`)도 `posthog/hogql/parser.py`가 고를 수 있게 연결되어 있다.
+구현: `posthog/hogql/`. 파서 백엔드는 둘이다. 기본은 Rust(`rust/hogql/parser/`, 패키지 `hogql_parser_rs`)이고, C++(`common/hogql_parser/`, 패키지 `hogql_parser`)은 표본 shadow 비교와 Rust 패키지를 불러오지 못할 때의 대체로 쓰인다. 선택은 `posthog/hogql/parser.py:_resolve_parser_mode`가 한다.
 
 ## session
 
@@ -69,7 +69,7 @@ HogQL `sessions`는 기본적으로 ClickHouse `raw_sessions`를 `session_id` �
 ## product
 
 `products/<name>/` 아래의 기능 단위 Django 앱과 프런트엔드.
-UI의 "제품"(Product analytics 등)과 겹치는 경우가 많지만 같지는 않다. `products/actions`, `products/cohorts`, `products/dashboards`는 `products/` 폴더이지만 UI의 제품이 아니다. `products/README.md`는 product를 backend와 frontend를 함께 가진 vertical slice로 정의한다.
+UI의 "제품"(Product analytics 등)과 겹치는 경우가 많지만 같지는 않다. `products/actions`, `products/cohorts`는 `products/` 폴더이지만 UI 제품 목록(`frontend/src/products.tsx:getTreeItemsProducts`, 각 `manifest.tsx`의 `treeItemsProducts`)에 없다. `products/README.md`는 product를 backend와 frontend를 함께 가진 vertical slice로 정의한다.
 규칙은 [products/README.md](../products/README.md).
 
 ## personhog
