@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate the generated regions of wiki/modules.md.
 
-Usage, from anywhere in the repository:
+Usage, from the repository root:
 
     python3 -I wiki/_tools/gen_modules.py            # rewrite wiki/modules.md in place
     python3 -I wiki/_tools/gen_modules.py --check    # exit 1 when modules.md is out of date
@@ -13,12 +13,12 @@ Hand-written columns (role, verdict) come from `wiki/_tools/modules-notes.tsv`.
 
 from __future__ import annotations
 
-import argparse
 import os
 import re
-import subprocess
 import sys
 import tomllib
+import argparse
+import subprocess
 from collections import defaultdict
 from pathlib import Path
 
@@ -35,12 +35,16 @@ OUTSIDE_IMPORT = re.compile(
 )
 
 NOTES_HEADER = "module\trole\tflags\tevidence\tverdict\treason"
+VERDICTS = ("핵심", "유지", "검토", "제거 후보")
+FLAGS = {"internal", "stub", "cloud", "external"}
 TABLE_HEADER = (
     "| 모듈 | 역할 (플래그) — 근거 | BE | FE | 파일 | LOC | 나가는 의존 (상위 4) "
     "| 들어옴: product · 코어 · 프론트 | `ee` import | 판단 · 근거 |\n"
     "|---|---|---|---|---:|---:|---|---|---:|---|"
 )
-GENERATED_NOTE = "Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand."
+GENERATED_NOTE = (
+    "Generated from `wiki/_tools/gen_modules.py` and `wiki/_tools/modules-notes.tsv` — Do not edit by hand."
+)
 
 
 def is_test(parts: set[str], fname: str) -> bool:
@@ -81,17 +85,17 @@ def scan_products(root: Path) -> dict[str, dict]:
                     other = m.group(1) or (m.group(2) or "").replace("-", "_")
                     if other and other != name:
                         dep_ts[other] += 1
-        out[name] = dict(
-            backend=(d / "backend").is_dir(),
-            frontend=(d / "frontend").is_dir(),
-            files=files,
-            loc=loc,
-            dep_py=dict(dep_py),
-            dep_ts=dict(dep_ts),
-            inbound_products=set(),
-            inbound_core=0,
-            inbound_frontend=0,
-        )
+        out[name] = {
+            "backend": (d / "backend").is_dir(),
+            "frontend": (d / "frontend").is_dir(),
+            "files": files,
+            "loc": loc,
+            "dep_py": dict(dep_py),
+            "dep_ts": dict(dep_ts),
+            "inbound_products": set(),
+            "inbound_core": 0,
+            "inbound_frontend": 0,
+        }
     for name, v in out.items():
         for other in list(v["dep_py"]) + list(v["dep_ts"]):
             if other in out:
@@ -151,14 +155,23 @@ def load_notes(path: Path) -> dict[str, dict[str, str]]:
     lines = path.read_text().splitlines()
     if not lines or lines[0] != NOTES_HEADER:
         sys.exit(f"{path}: first line must be {NOTES_HEADER!r}")
-    notes = {}
+    notes: dict[str, dict[str, str]] = {}
     for line in lines[1:]:
         if not line.strip():
             continue
         cols = line.split("\t")
         if len(cols) != 6:
             sys.exit(f"{path}: expected 6 tab-separated columns: {line!r}")
-        notes[cols[0]] = dict(zip(NOTES_HEADER.split("\t")[1:], cols[1:]))
+        name, row = cols[0], dict(zip(NOTES_HEADER.split("\t")[1:], cols[1:]))
+        if name in notes:
+            sys.exit(f"{path}: duplicate row for {name!r}")
+        # A misspelled verdict would silently drop the module from the core table and the distribution.
+        if row["verdict"] not in VERDICTS:
+            sys.exit(f"{path}: {name}: verdict {row['verdict']!r} is not one of {', '.join(VERDICTS)}")
+        bad_flags = set(row["flags"].split(",")) - FLAGS - {"", "none"}
+        if bad_flags:
+            sys.exit(f"{path}: {name}: unknown flags {sorted(bad_flags)}; use {', '.join(sorted(FLAGS))}")
+        notes[name] = row
     return notes
 
 
@@ -182,7 +195,7 @@ def table_rows(scan: dict, notes: dict, ee: dict[str, int]) -> list[str]:
     rows = []
     for name in sorted(scan):
         v = scan[name]
-        n = notes.get(name, dict(role="미확인", flags="", evidence="", verdict="미확인", reason=""))
+        n = notes.get(name, {"role": "미확인", "flags": "", "evidence": "", "verdict": "미확인", "reason": ""})
         flags = "" if n["flags"] in ("", "none") else f" ({n['flags']})"
         evidence = f" — `{n['evidence']}`" if n["evidence"] else ""
         rows.append(
@@ -196,8 +209,7 @@ def table_rows(scan: dict, notes: dict, ee: dict[str, int]) -> list[str]:
 
 def render_stats(scan: dict, notes: dict, ee: dict[str, int], root: Path) -> str:
     verdicts = [notes[n]["verdict"] for n in scan if n in notes]
-    order = ["핵심", "유지", "검토", "제거 후보"]
-    dist = ", ".join(f"{k} {verdicts.count(k)}" for k in order)
+    dist = ", ".join(f"{k} {verdicts.count(k)}" for k in VERDICTS)
     tach_lines, tach_modules, tach_other = tach_ee_stats(root)
     top_ee = sorted(ee.items(), key=lambda kv: (-kv[1], kv[0]))[:6]
     return "\n".join(
@@ -209,10 +221,10 @@ def render_stats(scan: dict, notes: dict, ee: dict[str, int], root: Path) -> str
             f"`frontend/` 디렉터리가 있는 모듈은 {sum(v['frontend'] for v in scan.values())}개다.",
             f"- 판단 분포: {dist}.",
             f"- 서로 import하는(양방향) product 쌍은 {len(mutual_pairs(scan))}개다.",
-            f"- 지워진 `ee/`를 import하는 비테스트 파일이 있는 product는 {len(ee)}개다. "
-            "많은 순서: " + ", ".join(f"`{k}` {c}" for k, c in top_ee) + ".",
-            f"- `tach.toml`에는 `\"ee\"`가 {tach_lines}번 나온다. "
-            f"`depends_on`에 `\"ee\"`를 둔 모듈은 {tach_modules}개이고, 그중 product가 아닌 모듈은 {tach_other}개다.",
+            f"- 지워진 `ee/`를 import하는 비테스트 파일이 있는 product는 {len(ee)}개다.",
+            "  많은 순서: " + ", ".join(f"`{k}` {c}" for k, c in top_ee) + ".",
+            f'- `tach.toml`에는 `"ee"`가 {tach_lines}번 나온다.',
+            f'  `depends_on`에 `"ee"`를 둔 모듈은 {tach_modules}개이고, 그중 product가 아닌 모듈은 {tach_other}개다.',
         ]
     )
 
@@ -261,9 +273,9 @@ def main() -> None:
     unknown = sorted(set(scan) - set(notes))
     stale = sorted(set(notes) - set(scan))
     if unknown:
-        print(f"warning: no notes row for: {', '.join(unknown)} (shown as 미확인)", file=sys.stderr)
+        print(f"warning: no notes row for: {', '.join(unknown)} (shown as 미확인)", file=sys.stderr)  # noqa: T201
     if stale:
-        print(f"warning: notes rows without a product directory: {', '.join(stale)}", file=sys.stderr)
+        print(f"warning: notes rows without a product directory: {', '.join(stale)}", file=sys.stderr)  # noqa: T201
 
     old = page.read_text()
     new = replace_region(old, "stats", render_stats(scan, notes, ee, root))
@@ -272,14 +284,14 @@ def main() -> None:
 
     if args.check:
         if new != old:
-            print("wiki/modules.md is out of date; run wiki/_tools/gen_modules.py", file=sys.stderr)
+            print("wiki/modules.md is out of date; run wiki/_tools/gen_modules.py", file=sys.stderr)  # noqa: T201
             sys.exit(1)
         return
     if new != old:
         page.write_text(new)
-        print(f"updated {page.relative_to(root)}")
+        print(f"updated {page.relative_to(root)}")  # noqa: T201
     else:
-        print("already up to date")
+        print("already up to date")  # noqa: T201
 
 
 if __name__ == "__main__":

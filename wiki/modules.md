@@ -1,6 +1,6 @@
 # products/ 모듈 목록과 의존 관계표
 
-확인 기준 커밋: 70371e9eb38
+확인 기준 커밋: 70371e9eb38 (손으로 쓴 문장에 적용된다. 생성 구역은 스크립트를 실행한 시점의 저장소를 따른다)
 
 `products/` 아래의 product 디렉터리 100개를 한 줄씩 정리한다.
 각 줄은 역할, 규모, 다른 product와 `posthog/` 코어 사이의 import 의존, 그리고 이 포크에서 유지할지 뺄지에 대한 판단을 담는다.
@@ -15,18 +15,22 @@ product 구조와 격리 규칙의 원문은 [`products/README.md`](../products/
 ### 숫자로 본 전체
 
 <!-- generated:stats:begin -->
-Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
+Generated from `wiki/_tools/gen_modules.py` and `wiki/_tools/modules-notes.tsv` — Do not edit by hand.
 
 - `products/` 아래 디렉터리는 100개다.
 - `backend/` 디렉터리가 있는 모듈은 87개, `frontend/` 디렉터리가 있는 모듈은 80개다.
 - 판단 분포: 핵심 16, 유지 44, 검토 30, 제거 후보 10.
 - 서로 import하는(양방향) product 쌍은 72개다.
-- 지워진 `ee/`를 import하는 비테스트 파일이 있는 product는 34개다. 많은 순서: `tasks` 15, `exports` 10, `replay_vision` 8, `posthog_ai` 6, `experiments` 4, `workflows` 4.
-- `tach.toml`에는 `"ee"`가 45번 나온다. `depends_on`에 `"ee"`를 둔 모듈은 44개이고, 그중 product가 아닌 모듈은 1개다.
+- 지워진 `ee/`를 import하는 비테스트 파일이 있는 product는 34개다.
+  많은 순서: `tasks` 15, `exports` 10, `replay_vision` 8, `posthog_ai` 6, `experiments` 4, `workflows` 4.
+- `tach.toml`에는 `"ee"`가 45번 나온다.
+  `depends_on`에 `"ee"`를 둔 모듈은 44개이고, 그중 product가 아닌 모듈은 1개다.
 <!-- generated:stats:end -->
 
-- 코드 규모는 `warehouse_sources`(약 133만 줄, `source.py`가 있는 커넥터 디렉터리 1,382개, 근거: `products/warehouse_sources/backend/temporal/data_imports/sources/`)와 `desktop`(약 72만 줄, 별도 pnpm 워크스페이스)이 압도적으로 크다. 그다음은 `signals`(31만), `tasks`(21만), `ai_observability`(20만), `product_analytics`(19만)다.
-- `products/` 아래 디렉터리가 아닌 항목은 파일이다(`README.md`, `__init__.py`, `architecture.md`, `conftest.py`, `db_routing.yaml`, `isolation_baseline.txt`, `model_crossing_uses_baseline.txt`, `ruff.toml`). 근거: `ls products/`
+- 코드 규모는 `warehouse_sources`(약 133만 줄, `source.py`가 있는 커넥터 디렉터리 1,382개, 근거: `products/warehouse_sources/backend/temporal/data_imports/sources/`)와 `desktop`(약 72만 줄, 별도 pnpm 워크스페이스)이 압도적으로 크다.
+  그다음은 `signals`(31만), `tasks`(21만), `ai_observability`(20만), `product_analytics`(19만)다.
+- `products/` 아래 디렉터리가 아닌 항목은 파일이다(`README.md`, `__init__.py`, `architecture.md`, `conftest.py`, `db_routing.yaml`, `isolation_baseline.txt`, `model_crossing_uses_baseline.txt`, `ruff.toml`).
+  근거: `ls products/`
 - `backend/`가 있어도 `demo`는 `posthog/settings/web.py`의 `PRODUCTS_APPS`에 없다.
 
 ### 핵심 (빼면 안 되는 모듈)
@@ -34,7 +38,7 @@ Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
 `posthog/` 코어나 다른 product 다수가 import하므로, 빼려면 코어 코드를 같이 고쳐야 하는 모듈이다.
 
 <!-- generated:core:begin -->
-Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
+Generated from `wiki/_tools/gen_modules.py` and `wiki/_tools/modules-notes.tsv` — Do not edit by hand.
 
 | 모듈 | 들어오는 import (product 수 · 코어 · 프론트) |
 |---|---|
@@ -70,7 +74,9 @@ Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
 
 ### 강결합 묶음
 
-서로 import하는(양방향) 쌍이 있다(개수는 위 [숫자로 본 전체](#숫자로-본-전체)). 이 쌍을 따라가면 아래 묶음이 나온다. 묶음 안의 모듈은 하나만 떼어 내기 어렵다.
+서로 import하는(양방향) 쌍이 있다(개수는 위 [숫자로 본 전체](#숫자로-본-전체)).
+이 쌍을 따라가면 아래 묶음이 나온다.
+묶음 안의 모듈은 하나만 떼어 내기 어렵다.
 
 1. **데이터 웨어하우스** — `data_warehouse` ↔ `warehouse_sources` ↔ `data_modeling` ↔ `managed_warehouse`, `revenue_analytics`, `data_quality` ↔ `data_catalog`. 한 방향으로 `data_tools`, `warehouse_sources_queue`, `warehouse_suggestions`, `endpoints`가 붙는다. `data_warehouse` → `warehouse_sources` import만 183줄이다(Python 131, TypeScript 52).
 2. **에이전트·AI** — `tasks` ↔ `signals` ↔ `posthog_ai` ↔ `slack_app`, `canvas`, `context_layer`, `skills`, `engineering_analytics`, `replay_vision`, `ai_observability`. 한 방향으로 `business_knowledge`, `review_hog`, `stamphog`, `commands`, `wizard`, `autoresearch`, `streamlit_apps`, `account_audits`, `today`가 `tasks`나 `signals`에 기댄다. 반대 방향으로는 `tasks`, `signals`, `canvas`가 `mcp_store`를 import한다(`mcp_store`가 import하는 product는 `cdp`뿐이다). `signals`는 product 31개를 import해 가장 강하게 결합돼 있다.
@@ -83,10 +89,13 @@ Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
 
 ### `ee/` 제거의 흔적
 
-이 포크는 `ee/` 디렉터리를 지웠다(커밋 `e289996cf97` "Sync and remove all non-FOSS parts"). 그런데 비테스트 파일에 아직 `from ee...` import가 남은 product가 있다. 표의 `ee` import 열이 그 파일 수이고, 개수와 많은 순서는 [숫자로 본 전체](#숫자로-본-전체)에 있다.
+이 포크는 `ee/` 디렉터리를 지웠다(커밋 `e289996cf97` "Sync and remove all non-FOSS parts").
+그런데 비테스트 파일에 아직 `from ee...` import가 남은 product가 있다.
+표의 `ee` import 열이 그 파일 수이고, 개수와 많은 순서는 [숫자로 본 전체](#숫자로-본-전체)에 있다.
 
 - 가장 많이 가리키는 대상: `ee.hogai.*`(AI 에이전트 런타임), `ee.tasks.subscriptions`, `ee.billing.quota_limiting`, `ee.clickhouse.*`
 - `tach.toml`에 남은 `"ee"`의 개수는 [숫자로 본 전체](#숫자로-본-전체)에 있다.
+  `depends_on`에 둔 줄 말고 남는 1줄은 `ee` 모듈 자체의 선언(`path = "ee"`)이다.
 - 이 import가 모듈 로드 시점에 실패하는지, 지연 import라 특정 경로에서만 실패하는지는 **미확인**이다. 서버를 띄워 확인하지 않았다.
 
 ## 표
@@ -97,12 +106,13 @@ Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
 - **BE / FE**: `backend/`, `frontend/` 디렉터리가 있는지. `frontend/`에 생성 타입(`generated/`)만 있어도 O다.
 - **파일 / LOC**: `.py .ts .tsx .js .jsx .rs .go` 파일 수와 줄 수. 테스트는 포함, `migrations/`·`generated/`·`node_modules/`·`__snapshots__/`는 제외.
 - **나가는 의존**: 이 모듈의 비테스트 코드가 import하는 다른 product. Python `from products.X`와 TypeScript `products/X`·`@posthog/products-X`를 합친 import 줄 수 순.
+  줄 수가 같으면 모듈 이름 순이다.
 - **들어옴**: 이 모듈을 import하는 다른 product 수 · `posthog/` 코어의 참조 수 · 코어 프론트(`frontend/src`)의 참조 수.
 - **`ee` import**: 지워진 `ee/`를 import하는 비테스트 파일 수.
 - **판단**: 핵심 / 유지 / 검토 / 제거 후보와 한 줄 근거.
 
 <!-- generated:table:begin -->
-Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
+Generated from `wiki/_tools/gen_modules.py` and `wiki/_tools/modules-notes.tsv` — Do not edit by hand.
 
 | 모듈 | 역할 (플래그) — 근거 | BE | FE | 파일 | LOC | 나가는 의존 (상위 4) | 들어옴: product · 코어 · 프론트 | `ee` import | 판단 · 근거 |
 |---|---|---|---|---:|---:|---|---|---:|---|
@@ -211,7 +221,8 @@ Generated from `wiki/_tools/gen_modules.py` — Do not edit by hand.
 ## 집계 방법
 
 표와 요약 숫자는 `wiki/_tools/gen_modules.py`가 만든다.
-`<!-- generated:... -->`로 표시한 구역만 스크립트가 다시 쓴다. 구역 밖의 글은 손으로 고친다.
+`<!-- generated:... -->`로 표시한 구역만 스크립트가 다시 쓴다.
+구역 밖의 글은 손으로 고친다.
 저장소 루트에서 실행한다.
 
 ```bash
@@ -219,13 +230,52 @@ python3 -I wiki/_tools/gen_modules.py          # wiki/modules.md의 생성 구�
 python3 -I wiki/_tools/gen_modules.py --check  # 생성 구역이 낡았으면 종료 코드 1
 ```
 
-스크립트는 `products/`, `posthog/`, `frontend/src/`, `tach.toml`을 읽고 `wiki/modules.md`만 쓴다. 중간 파일을 남기지 않는다.
+스크립트는 `products/`, `posthog/`, `frontend/src/`, `tach.toml`을 읽고 `wiki/modules.md`만 쓴다.
+중간 파일을 남기지 않는다.
 
 - 생성 구역: `stats`(숫자로 본 전체), `core`(핵심 모듈 표), `table`(모듈 표).
-- 계산하는 열: BE, FE, 파일, LOC, 나가는 의존, 들어옴, `ee` import. 요약의 개수와 판단 분포, 양방향 쌍의 수, `tach.toml`의 `"ee"` 개수도 계산한다.
-- 손으로 쓰는 열: 역할(플래그, 근거)과 판단(근거). `wiki/_tools/modules-notes.tsv`에 모듈마다 한 줄로 둔다. 열은 `module`, `role`, `flags`, `evidence`, `verdict`, `reason`이고 탭으로 나눈다.
-- 새 product가 생기면 스크립트가 경고하고 그 줄을 `미확인`으로 표시한다. TSV에 줄을 더한 뒤 다시 실행한다.
-- 핵심 모듈 표는 `verdict`가 `핵심`인 모듈만 모은다. 정렬은 들어오는 product 수와 코어 참조 수의 합이 큰 순서다.
+- 계산하는 열: BE, FE, 파일, LOC, 나가는 의존, 들어옴, `ee` import.
+  요약의 개수와 판단 분포, 양방향 쌍의 수, `tach.toml`의 `"ee"` 개수도 계산한다.
+- 손으로 쓰는 열: 역할(플래그, 근거)과 판단(근거).
+  `wiki/_tools/modules-notes.tsv`에 모듈마다 한 줄로 둔다.
+  열은 `module`, `role`, `flags`, `evidence`, `verdict`, `reason`이고 탭으로 나눈다.
+  `flags`는 쉼표로 나눈 `internal`, `stub`, `cloud`, `external`이거나 빈 칸이다.
+  `verdict`는 `핵심`, `유지`, `검토`, `제거 후보` 가운데 하나다.
+  이 규칙을 어기거나 같은 모듈이 두 줄이면 스크립트가 멈춘다.
+- 새 product가 생기면 스크립트가 경고하고 그 줄을 `미확인`으로 표시한다.
+  TSV에 줄을 더한 뒤 다시 실행한다.
+- 핵심 모듈 표는 `verdict`가 `핵심`인 모듈만 모은다.
+  정렬은 들어오는 product 수와 코어 참조 수의 합이 큰 순서다.
+
+### 생성 구역 밖의 숫자
+
+요약의 글에는 스크립트가 다시 쓰지 않는 숫자가 있다.
+생성 구역을 다시 만든 뒤 아래 출처와 맞춰 손으로 고친다.
+
+- 표에서 읽는 값: 코드 규모(LOC 열), `signals`가 import하는 product 수(나가는 의존 열의 상위 4개와 "외 N"), `security`의 코어 참조 수와 `posthog_ai`의 프론트 참조 수(들어옴 열).
+- 독립 후보 목록: 나가는 의존 수, 들어옴 열의 product 수·코어·프론트에 [독립적으로 떼어 낼 수 있는 후보](#독립적으로-떼어-낼-수-있는-후보)의 조건을 걸어 고른다.
+- 강결합 묶음과 `data_warehouse` → `warehouse_sources`의 줄 수: 스크립트의 `scan_products()` 결과(`dep_py`, `dep_ts`)에서 옮겼다.
+  스크립트는 양방향 쌍의 수만 쓴다.
+- 판단 근거 글 안의 숫자(예: "코어 104곳"): `modules-notes.tsv`의 `reason` 열에 손으로 쓴 값이다.
+  생성 구역 안에 있어도 다시 생성할 때 바뀌지 않는다.
+- 나머지는 아래 명령으로 확인한다.
+
+```bash
+# source.py가 있는 커넥터 디렉터리 수
+find products/warehouse_sources/backend/temporal/data_imports/sources -maxdepth 1 -mindepth 1 -type d -exec test -e '{}/source.py' ';' -print | wc -l
+# security를 참조하는 코어 파일 수
+grep -rlE "^\s*(from|import)\s+products\.security|['\"]products/security/" posthog --include=*.py --include=*.ts --include=*.tsx | grep -vE '/tests?/|/__tests__/|/test_[^/]*$|\.test\.|\.stories\.' | wc -l
+# backend/가 있는데 PRODUCTS_APPS에 없는 모듈
+python3 -I -c "
+import re
+from pathlib import Path
+t = Path('posthog/settings/web.py').read_text()
+apps = set(re.findall(r'\"products\.(\w+)', re.search(r'PRODUCTS_APPS\s*=\s*\[(.*?)\n\]', t, re.S).group(1)))
+print(sorted(p.parent.name for p in Path('products').glob('*/backend') if p.is_dir() and p.parent.name not in apps))
+"
+# ee/에서 가장 많이 가리키는 대상 (테스트 포함)
+grep -rhoE '^\s*(from|import) ee\.[a-z_]+(\.[a-z_]+)?' --include=*.py products | sed 's/^ *//' | awk '{print $2}' | sort | uniq -c | sort -rn | head -12
+```
 
 ### 숫자의 한계
 
@@ -235,8 +285,12 @@ python3 -I wiki/_tools/gen_modules.py --check  # 생성 구역이 낡았으면 �
 - 코어 참조 수는 `posthog/` 아래 Python·TS 파일에서 `from products.X` 줄과 `'products/X/'` 문자열을 모두 센다. 경로 문자열(설정, 템플릿 경로 등)도 섞여 있다.
 - 테스트 파일(`tests/`, `test/`, `__tests__/`, `evals/`, `test_*`, `*.test.*`, `*.stories.*`)은 의존 집계에서 뺐다. 파일 수와 LOC에는 들어 있다.
 - `ee/` 디렉터리가 없으므로 `ee` 모듈로 들어오는 의존은 세지 않았다.
-- 판단 열은 숫자와 역할 플래그를 보고 사람이 정한 값이다. 스크립트가 계산하지 않는다.
+- 판단 열은 숫자와 역할 플래그를 보고 사람이 정한 값이다.
+  스크립트가 계산하지 않는다.
 - 역할 열은 각 모듈의 `product.yaml`, `README.md`/`AGENTS.md`, `manifest.tsx`, `backend/apps.py`, 모델 클래스를 읽고 쓴 요약이다. 로직 코드까지 읽은 것은 아니다.
-- 스크립트는 `ee/`를 가리키는 import를 `grep`과 같은 규칙(테스트 경로 제외)으로 센다. 이 값은 `migrations/` 안의 파일도 포함한다.
+- `ee` import 열은 `^\s*(from|import) ee(\.| )`에 맞는 줄이 있는 `.py` 파일을 센다.
+  테스트를 가리는 규칙이 의존 집계와 다르다.
+  경로에 `tests/`·`test/` 디렉터리, `test_*` 파일, `*_test.py`, `conftest`가 있으면 뺀다.
+  `evals/`, `__tests__/`, `migrations/`, `generated/` 안의 파일은 센다.
 
 Decided in: buzzhog-y4g8

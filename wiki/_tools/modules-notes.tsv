@@ -45,7 +45,7 @@ feature_flags	`FeatureFlag` 모델로 기능 플래그와 예약 변경·정책�
 field_notes	툴바에서 남긴 UI 필드 노트를 `FieldNote`로 저장해 MCP 에이전트에 넘긴다		products/field_notes/backend/models.py	검토	작고 의존 없음(독립)
 games	내장 미니 게임 3종(368Hedgehogs, FlappyHog, ShipIt) 씬을 제공한다		products/games/manifest.tsx	제거 후보	미니 게임, 의존 없음
 groups	그룹 목록 씬과 백엔드 앱을 제공하며 모델은 없다		products/groups/manifest.tsx	유지	프론트 11곳·product 5개가 사용
-growth	`ProductPushCampaign`과 `OrganizationEnrichment`로 가입 조직 보강과 제품 푸시를 다룬다 (internal,external)		products/growth/backend/models.py	제거 후보	PostHog 가입 조직 보강(Clay 등)과 제품 푸시
+growth	`ProductPushCampaign`과 `OrganizationEnrichment`로 가입 조직 보강과 제품 푸시를 다룬다	internal,external	products/growth/backend/models.py	제거 후보	PostHog 가입 조직 보강(Clay 등)과 제품 푸시
 inbox	자율 인박스 메뉴와 탭만 등록돼 있고 씬과 백엔드가 없다	stub	products/inbox/manifest.tsx	검토	manifest만 있음
 ingestion	수집 경고 해결용 스킬 문서만 담고 있으며 코드가 없다	stub	products/ingestion/skills/resolving-ingestion-warnings/SKILL.md	유지	스킬 문서만 있음, 코드 없음
 integrations	환경 통합 API 작업을 MCP 도구로 노출하는 정의 파일이다		products/integrations/mcp/tools.yaml	유지	코어 프론트 17곳이 import(생성 API)
@@ -76,7 +76,7 @@ replay	`ExportedRecording`으로 세션 리플레이 내보내기 기록을 관�
 replay_vision	`Scanner` 설정으로 녹화 세션에 AI 스캔을 돌려 결과를 기록한다	external	products/replay_vision/README.md	검토	AI 스캔, 나감 18개·`ee` import 8곳
 revenue_analytics	Stripe 데이터 소스 기반 `Revenue Analytics` 씬과 뷰를 제공한다	external	products/revenue_analytics/backend/views/sources/stripe/subscription.py	유지	데이터 묶음(Stripe 소스)
 review_hog	`ReviewReport`로 GitHub PR 자동 리뷰 결과를 저장하고 게시한다	external	products/review_hog/backend/models.py	검토	공개 전 제한 출시(`review-hog` 플래그, 근거: `products/review_hog/ARCHITECTURE.md`), `tasks`·`signals`에 기댐
-security	`decide`로 접근 규칙을 허용·차단 판정하고 Temporal로 스냅샷을 동기화한다 (cloud,external)		products/security/README.md	제거 후보	PostHog 보안 허브 연동, 단 코어 29곳 결합 해소 필요
+security	`decide`로 접근 규칙을 허용·차단 판정하고 Temporal로 스냅샷을 동기화한다	cloud,external	products/security/README.md	제거 후보	PostHog 보안 허브 연동, 단 코어 29곳 결합 해소 필요
 session_replay	세션 리플레이 온보딩 단계 UI 한 파일만 있는 얇은 모듈이다	stub	products/session_replay/frontend/onboarding/steps.tsx	유지	온보딩 UI 한 파일
 signals	`SignalReport`로 신호를 묶어 LLM·GitHub 기반 리포트를 생성한다	external	products/signals/ARCHITECTURE.md	검토	에이전트 묶음 중심, 나감 31개로 가장 강결합
 skills	`CommunitySkill`로 커뮤니티 스킬의 등록·설치를 관리한다		products/skills/backend/models/community_skills.py	검토	에이전트 묶음
