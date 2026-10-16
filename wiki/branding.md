@@ -1,112 +1,282 @@
 # 브랜딩·상표 잔존 위치
 
 확인 기준 커밋: 70371e9eb38
+재확인은 2026-10-16에 했다. `milestone/buzzhog-vltl`의 코드는 이 커밋과 같다(`git diff --name-only 70371e9eb38 milestone/buzzhog-vltl`의 결과가 `wiki/` 아래 파일뿐이다).
 
-이 포크에 남아 있는 PostHog 상표와 브랜딩의 위치다. 법무 검토용 표 형식으로 적었다.
-`posthog`라는 단어는 Python 패키지명(`import posthog`), Docker 이미지명, GitHub 조직명으로도 쓰여서 단순 검색 횟수는 브랜딩 사용량이 아니다. 이 문서는 사용자 눈에 보이는 이름·로고·도메인과 그 파일 위치를 가른다.
-저작권 고지와 의존성 라이선스는 [licenses.md](licenses.md), 외부로 나가는 호출은 [external-calls.md](external-calls.md)를 본다.
+이 포크에 남아 있는 PostHog 상표·브랜딩·회사 명의의 위치다. 법무 검토에 그대로 넘길 수 있게 표로 적고, 표마다 근거 열을 두었다.
+범위는 사용자 눈에 보이는 이름·로고·도메인, 배포 산출물의 식별자(앱 ID, 패키지명, 이미지명, 서명 주체), 외부로 나가는 신원 문자열(User-Agent, 헤더)이다.
+패키지명과 이미지명도 배포되면 상표 사용이 되므로 범위에 넣었다. 다만 코드 안에서만 쓰이는 이름(예: Python `import posthog`)은 따로 갈랐다.
+저작권 고지와 의존성 라이선스 전체는 [licenses.md](licenses.md), 외부로 나가는 호출과 끄는 방법은 [external-calls.md](external-calls.md)를 본다.
 
-기준: 파일 개수는 `git ls-files`와 `git grep` 결과이며 대소문자를 구분한 `PostHog`(제품명 표기)를 센 곳은 그렇다고 적었다.
+## 기준
+
+- 파일 수와 횟수는 저장소 루트에서 `git ls-files`, `git grep`으로 셌다. 표마다 명령을 적었다.
+- 대소문자를 구분한 `PostHog`(제품명 표기)를 센 곳은 그렇다고 적었다.
+- 여러 표가 같은 제외 pathspec 묶음을 쓴다. 이 문서에서 `"${E[@]}"`는 아래 배열이다. 문서, 마이그레이션, 잠금 파일, 테스트, 목(mock), 스냅샷, 고정 데이터, 스토리, 참조되지 않는 Rust 데이터 파일을 뺀다.
+
+```bash
+E=(':!*.md' ':!*.mdx' ':!docs/**' ':!**/migrations/**' ':!*lock.yaml' ':!*.lock' ':!*-lock.json' ':!**/test/**' ':!**/tests/**' ':!**/__tests__/**' ':!**/test_*' ':!**/*_test.*' ':!**/*.test.*' ':!**/*.spec.*' ':!**/__mocks__/**' ':!**/__snapshots__/**' ':!**/fixtures/**' ':!*.jsonl' ':!*.snap' ':!**/*.stories.*' ':!rust/cymbal/src/bin/*.json')
+```
+
+- 이미지는 파일을 직접 열어 확인했다. SVG는 `rsvg-convert`로 그려서 확인했다. npm 패키지는 `npm pack <이름>@<버전>`으로 받아 따로 풀어서 읽었다.
+
+## 판매 전에 반드시 바꿀 항목
+
+아래는 PostHog Inc.를 계약 당사자·서명 주체·개인정보 담당자로 적거나, 산출물이 PostHog 이름으로 배포되는 곳이다. 브랜딩보다 무거운 문제라 먼저 적는다. 세부 근거는 각 절에 있다.
+
+| 항목 | 이유 | 절 |
+| --- | --- | --- |
+| DPA·BAA 문서와 서명란 | PostHog Inc.가 Processor, Business Associate, 서명 당사자로 고정되어 있다 | [법률 문서·증명서](#법률-문서증명서) |
+| 데이터 삭제 증명서 | Data Protection Officer가 PostHog, Inc.와 `privacy@posthog.com`이다 | [법률 문서·증명서](#법률-문서증명서) |
+| desktop 앱 코드 서명과 업데이트 피드 | Windows 서명 주체가 `CN=PostHog Inc.`이고, 업데이트를 `desktop-releases.posthog.com`에서 받는다 | [배포 산출물 식별자](#배포-산출물-식별자) |
+| desktop·모바일 앱 ID와 이름 | `com.posthog.*` 번들 ID, 앱 이름 `PostHog` | [배포 산출물 식별자](#배포-산출물-식별자) |
+| `@posthog/brand` 패키지 | PolyForm Strict 1.0.0이라 재배포·상업 사용이 허가되지 않는다 | [`@posthog/brand` 패키지](#posthogbrand-패키지) |
+| 외부 크롤러 신원 | 세션 리플레이 이미지 크롤러가 `PostHogImageFetcherBot`으로 자신을 밝힌다 | [배포 식별자·User-Agent](#배포-식별자user-agent) |
+
+## 법률 문서·증명서
+
+**판매 전에 반드시 바꿀 항목이다.**
+이 문서들은 고객과 맺는 계약서나 고객에게 주는 증명서다. 포크가 그대로 쓰면 PostHog Inc. 명의의 문서를 만들어 낸다.
+
+| 위치 | 내용 | 노출 조건 | 근거 |
+| --- | --- | --- | --- |
+| `products/legal_documents/frontend/components/documents/dpa/DPALegalPreview.tsx` | 제목 `Data Processing Agreement — PostHog Inc.`, PostHog Inc.를 "Processor"로 지정, Annex에 PostHog 주소(San Francisco)와 연락처 `privacy@posthog.com`, PostHog 로고 이미지 | 법률 문서 화면 | `:41`, `:45`, `:483`, `:5`(`import posthogLogo from 'public/posthog-logo.svg'`), `:40`(`alt="PostHog logo"`) |
+| `products/legal_documents/frontend/components/documents/baa/BAAPreview.tsx` | 제목 `Business Associate Agreement — PostHog Inc.`, 당사자 `PostHog Inc ("PostHog", "we", or "us")`, 서비스 설명에 `www.posthog.com`. 파일 안 `PostHog` 42줄 | 법률 문서 화면 | `:17`, `:21`, `:28`, `:89`. 줄 수는 `git grep -c 'PostHog' -- <파일>` |
+| `products/legal_documents/frontend/components/base/SignatureBlock.tsx` | 서명란의 상대방 `PostHog, Inc.`와 PostHog 측 서명 대표자 이름·직함이 고정 | DPA 세 종류와 BAA가 모두 이 블록을 쓴다 | `:54`, 그 아래 Representative 행. 사용처는 `BAAPreview.tsx:252`, `DPALegalPreview.tsx:468`, `DPAFairytalePreview.tsx:100`, `DPATswiftPreview.tsx:68` |
+| `products/legal_documents/frontend/components/documents/dpa/DPAFairytalePreview.tsx` | 동화체 DPA 변형. 본문에 `PostHog, Inc.` | 법률 문서 화면 | `:38` |
+| `products/legal_documents/frontend/components/documents/dpa/DPATswiftPreview.tsx` | 또 다른 DPA 변형. 이미지를 PostHog의 Cloudinary 경로에서 가져온다(파일명 `t-swift.png`). 이미지 내용은 미확인 | 법률 문서 화면 | `:3`(`TSWIFT_IMG`) |
+| `products/legal_documents/backend/logic/__init__.py` | PandaDoc 서명 봉투의 소유자·발신자·CC가 `privacy@posthog.com`, 문서 이름 `PostHog {종류} — {회사명}`, 메일 제목 `Please sign: PostHog {종류}`, 서명 `- The PostHog Team`, PDF 파일명 `PostHog-{종류}-{id}.pdf` | 서명 요청을 보낼 때 | `:47`(`POSTHOG_SIGNING_EMAIL`), `:560~564`, `:665`, `:670`, `:672`, `:472` |
+| `posthog/templates/admin/posthog/team/deletion_certificate.html` | 팀 데이터 삭제 증명서. Data Protection Officer로 PostHog 측 담당자 이름, `PostHog, Inc.`, `privacy@posthog.com`. 바닥글 `© {연도} PostHog, Inc.` | Django 관리자 화면에서 만들고 내려받는다 | `:293~303`. 뷰는 `posthog/admin/admins/team_admin.py:deletion_certificate_view`(`:1912`), `download_deletion_certificate_view`(`:1942`) |
+
+노출 조건:
+법률 문서 API는 `IsCloudOrDevDeployment`가 막는다(`products/legal_documents/backend/presentation/permissions.py:13~26`). `is_cloud()` 또는 `is_dev_mode()`일 때만 열린다.
+화면도 같은 조건을 본다(`products/legal_documents/frontend/scenes/LegalDocumentsScene.tsx:84`, `LegalDocumentNewScene.tsx:88`의 `isCloudOrDev`).
+`is_cloud()`는 `settings.CLOUD_DEPLOYMENT`로 정해지고, `is_dev_mode()`는 `settings.DEBUG`다(`posthog/cloud_utils.py:_run_mode`, `:32~37`).
+따라서 하비(셀프호스팅) 기본값에서는 화면이 막히지만, 포크가 클라우드 모드로 운영하면 이 문서들이 PostHog Inc. 명의로 나간다. 삭제 증명서는 이 조건 없이 관리자 화면에서 만들어진다.
+
+검색 범위: `git grep -n -E 'PostHog,? Inc' -- products/legal_documents posthog/templates`가 위 표의 줄만 낸다.
+저장소 전체에서 `git grep -l -E '2261 Market|PostHog,? Inc' -- ':!*.md' ':!*.mdx' ':!**/test*/**' ':!*test*'`는 22개 파일을 낸다. 나머지는 `LICENSE` 계열(저작권 고지 절), 패키지 메타데이터의 `author`(배포 식별자 절), desktop 서명 설정(배포 산출물 절), 스토리 하나(`LemonInputSelect.stories.tsx:76`, 예시 데이터)다.
+
+## 배포 산출물 식별자
+
+desktop 앱(Electron)과 모바일 앱(Expo)은 실제로 배포되는 산출물이다. 앱 ID, 서명 주체, 업데이트 주소가 PostHog 것이다.
+
+| 산출물 | 항목 | 값 | 근거 |
+| --- | --- | --- | --- |
+| desktop (`products/desktop/apps/code`) | 앱 ID | `com.posthog.array`. 주석은 이 값을 바꾸면 기존 설치본의 데이터 디렉터리와 Keychain 항목이 끊긴다고 적는다 | `electron-builder.ts:27~28` |
+| desktop | 제품명·실행 파일 이름 | `PostHog` | `electron-builder.ts:29~30` |
+| desktop | 딥링크 스킴 | `posthog-code`(테스트 빌드는 `posthog-code-test`), 프로토콜 이름 `PostHog` | `electron-builder.ts:22~24`, `:79~84` |
+| desktop | 배포 파일 이름 | `PostHog-Desktop-${version}-${arch}-{mac,win,linux}.${ext}` | `electron-builder.ts:89`, `:122`, `:150` |
+| desktop | macOS 권한 안내문 | `PostHog uses the microphone to record custom notification sounds.` | `electron-builder.ts:100~101` |
+| desktop | macOS 서명·공증 | 서명 신원과 팀 ID는 설정에 없고 환경 변수로 받는다. `APPLE_TEAM_ID`가 없으면 공증을 건너뛴다. 예시 파일은 서명 신원을 `Developer ID Application: PostHog Inc. (xxx)`로, Apple ID를 PostHog 직원 주소로 적는다(값은 자리표시자) | `electron-builder.ts:8~9`, `:103`, `products/desktop/.env.example:1~4`. `apps/code/codesign.env.example:4`는 중립 예시(`Your Name (TEAMID)`) |
+| desktop | Windows 코드 서명 | Azure Trusted Signing. `publisherName: "CN=PostHog Inc., O=PostHog Inc., L=San Francisco, S=California, C=US"`. 서명 계정·인증서 프로필 이름도 PostHog 것. 주석은 electron-updater가 업데이트 설치 전에 이 값을 인증서 주체와 비교한다고 적는다. Azure 자격 증명이 없으면 서명하지 않는다 | `electron-builder.ts:11~16`, `:126~139` |
+| desktop | Linux 패키지 | `deb`·`rpm` 패키지명 `posthog-code`, 관리자 `PostHog <eng@posthog.com>` | `electron-builder.ts:156~164` |
+| desktop | 업데이트 피드 | `https://desktop-releases.posthog.com/stable`. 설치본이 이 주소를 확인한다. 호출의 의미는 [external-calls.md](external-calls.md)의 desktop 절 | `electron-builder.ts:166~171` |
+| desktop | 아이콘·DMG 배경 | `build/` 아래 `app-icon.icns`·`.ico`·`.png`, `logo.png`, `icon@3x.png`, `Icon.icon/Assets/logo.png`·`logo-dark.png`는 PostHog 헤지호그 로고마크다. `dmg-background.png`·`@2x.png`는 헤지호그 일러스트와 P·O·S·T·H·O·G 글자 블록이다 | `git ls-files products/desktop/apps/code/build/`(12개). `app-icon.png`, `logo.png`, `icon@3x.png`, `dmg-background.png`를 열어 확인 |
+| 모바일 (`products/desktop/apps/mobile`) | 이름·slug·스킴 | `name: "PostHog"`, `slug: "posthog"`, `scheme: "posthog"` | `app.json:3`, `:4`, `:8` |
+| 모바일 | 번들 ID | iOS `bundleIdentifier`, Android `package` 모두 `com.posthog.code.mobile` | `app.json:13`, `:30` |
+| 모바일 | Expo 계정 | `owner: "posthog"`와 EAS 프로젝트 ID | `app.json:126`, `:129` |
+| 모바일 (`products/desktop/apps/mobilehog`) | 이름·slug·스킴 | `name: "PostHog"`, `slug: "mobilehog"`, `scheme: ["mobilehog", "posthog"]`, `owner: "posthog"` | `app.json:3`, `:4`, `:5`, `:9` |
+| 모바일 (`mobilehog`) | 번들 ID | `com.posthog.mobilehog` | `app.json:14`, `:28` |
+| 모바일 두 앱 | 아이콘 | `assets/app-icon.png` 등은 PostHog 로고마크다 | `mobile/assets/app-icon.png`, `mobilehog/assets/app-icon.png`를 열어 확인 |
+| 모바일 (`mobilehog`) | 브랜드 글꼴·일러스트 | RoundHog 글꼴 5개(`assets/fonts/RoundHog*.ttf`), 헤지호그 스프라이트 2개(`assets/hedgehog/`), 헤지호그 일러스트 3개(`assets/hoggies/`), `assets/logomark.png` | `git ls-files '*RoundHog*'`는 이 5개만 낸다. `mobile/assets/fonts/`에는 RoundHog가 없고 JetBrains Mono·Open Runde만 있다 |
 
 ## 로고와 아이콘 파일
 
 | 위치 | 파일 | 용도 | 근거 |
 | --- | --- | --- | --- |
-| `frontend/public/` | `posthog-logo.svg`, `posthog-logo.png`, `posthog-icon.svg` | 앱 로고. 이메일 템플릿이 `posthog-logo.png`를 쓴다 | `posthog/templates/email/base.html` (20행) |
-| `frontend/public/icons/` | `favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `favicon-dev.ico`, `apple-touch-icon.png`, `android-chrome-192x192.png`, `android-chrome-512x512.png`, `safari-pinned-tab.svg` (8개) | 파비콘, 홈 화면 아이콘 | `posthog/templates/head.html` (10~22행) |
-| `frontend/public/site.webmanifest` | `name`·`short_name`이 `PostHog` | PWA 이름 | `frontend/public/site.webmanifest` |
-| `.github/` | `posthog-logo-light.svg`, `posthog-logo-dark.svg` | README 머리 로고 | `README.md` (3~4행) |
-| `frontend/public/hedgehog/` | `hog-welder.png`, `self-driving-hog.png` | 헤지호그 마스코트 | `frontend/public/hedgehog/` |
-| `frontend/public/` | `not-found-astrohog.png`, `blank-dashboard-hog.png` | 404·빈 화면 일러스트 | |
-| `frontend/public/email/` | `invite-email-welcome.png` 외 화살표 아이콘 4개 | 이메일 본문 이미지 | |
-| `frontend/public/posthog-ai-onboarding/` | `connect`, `delegate`, `meet`, `skills`, `start`의 `.jpg`와 `.mp4` (10개) | PostHog AI 온보딩 영상·이미지 | |
-| `frontend/public/services/` | 제3자 서비스 로고(예: `Google_Sheets.svg`, `Mongodb.svg`) | 이 항목은 PostHog 상표가 아니라 제3자 상표 | |
-| `products/desktop/apps/mobile/assets/`, `products/desktop/apps/mobilehog/assets/` | `favicon.png`, `app-icon.png`, `adaptive-icon.png` 등 | 데스크톱·모바일 앱 아이콘 | `products/desktop/apps/mobile/assets/` |
+| `frontend/public/` | `posthog-logo.svg`, `posthog-logo.png`, `posthog-icon.svg` | 앱 로고. 이메일 템플릿이 `posthog-logo.png`를 쓴다 | `posthog/templates/email/base.html:20` |
+| `frontend/public/icons/` | `favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `favicon-dev.ico`, `apple-touch-icon.png`, `android-chrome-192x192.png`, `android-chrome-512x512.png`, `safari-pinned-tab.svg` | 파비콘, 홈 화면 아이콘 | `git ls-files 'frontend/public/icons/*'`(8개), `posthog/templates/head.html:8~26` |
+| `frontend/public/site.webmanifest` | `name`·`short_name`이 `PostHog` | PWA 이름 | `frontend/public/site.webmanifest:2~3` |
+| `.github/` | `posthog-logo-light.svg`, `posthog-logo-dark.svg` | README 머리 로고 | `README.md:3~4` |
+| `frontend/public/hedgehog/` | `hog-welder.png`, `self-driving-hog.png` | 헤지호그 마스코트 | `git ls-files frontend/public/hedgehog/` |
+| `frontend/public/` | `not-found-astrohog.png`, `blank-dashboard-hog.png` | 404·빈 화면 일러스트 | `git ls-files 'frontend/public/*hog*'` |
+| `frontend/public/email/` | `invite-email-welcome.png`와 화살표 아이콘 4개 | 이메일 본문 이미지 | `git ls-files frontend/public/email/`(5개) |
+| `frontend/public/posthog-ai-onboarding/` | `connect`, `delegate`, `meet`, `skills`, `start`의 `.jpg`와 `.mp4` | PostHog AI 온보딩 영상·이미지 | `git ls-files 'frontend/public/posthog-ai-onboarding/*'`(10개) |
+| `frontend/public/` | `plan_enterprise.png`, `plan_teams.png`, `plan_free.svg`, `plan_paid.svg`, `plan_startup.svg`, `plan_yc.svg` | 과금 요금제 배지. `plan_enterprise.png`에는 PostHog 로고와 글자가 들어 있다 | `git ls-files 'frontend/public/plan_*'`(6개), `plan_enterprise.png`를 열어 확인 |
+| `frontend/src/lib/components/Hogfetti/hogs/` | 헤지호그 일러스트 PNG. `@posthog/brand`에서 복사해 줄인 것이라고 주석이 적는다(`Hogfetti.tsx:21`). 라이선스 쟁점은 [licenses.md](licenses.md)의 "글꼴과 이미지" | 축하 효과(Hogfetti) | `git ls-files 'frontend/src/lib/components/Hogfetti/hogs/*.png'`(15개) |
+| `frontend/src/scenes/onboarding/shared/flappy-hog/` | `flappy-hog-splash.png`, `robot-hog.png` | 온보딩 미니게임의 헤지호그 일러스트 | `git ls-files`(2개), `flappy-hog-splash.png`를 열어 확인 |
+| `frontend/src/lib/brand/` | `index.tsx`, `hoggies.tsx`, `Logo.stories.tsx` | 앱 전체의 로고·헤지호그 진입점. `@posthog/brand/logo`를 감싼다 | `frontend/src/lib/brand/index.tsx:1~6` |
+| `frontend/src/toolbar/bar/AnimatedLogomark.tsx` | 툴바의 움직이는 로고마크 | 툴바 | `:3`(`@posthog/brand/logo` import) |
+| `frontend/src/index.html` | 브라우저 콘솔 인사말 안의 로고마크(SVG data URI) | 개발자 콘솔 | `:63`. data URI를 풀어 그려 보니 헤지호그 로고마크다 |
+| `frontend/src/styles/fonts.scss` | 브랜드 글꼴 RoundHog. `node_modules/@posthog/brand/dist/fonts/`에서 불러온다. 글꼴 메타데이터는 SIL OFL 1.1, 담긴 패키지는 PolyForm Strict라서 어느 쪽이 걸리는지 법무 확인 항목이다([licenses.md](licenses.md)의 "글꼴과 이미지") | 앱 전체 글꼴 | `grep -c RoundHog frontend/src/styles/fonts.scss`(24), `:47` |
+| CDP 대상 템플릿 | 기본 아이콘 `/static/posthog-icon.svg` | PostHog 내부 대상(capture, workflows 등)의 아이콘 | `git grep -l -F '/static/posthog-icon.svg' -- nodejs/src/cdp/templates`(20개). 테스트 밖 전체는 `git grep -l -F '/static/posthog-icon.svg' -- ':!*test*'`(28개) |
+| `services/stripe-app/assets/logomark.png` | Stripe 앱 아이콘 | Stripe 마켓플레이스 앱 | `services/stripe-app/stripe-app.json:6`, 파일을 열어 확인(로고마크) |
+| `services/mcp/src/ui-apps/components/PostHogLogo.tsx` | 인라인 SVG 로고마크 | MCP UI 앱 | 파일의 SVG를 그려 확인 |
+| `posthog/templates/authorize_and_link.html`, `authorize_and_redirect.html`, `toolbar_oauth_error.html` | 인라인 PostHog 워드마크 SVG(로고마크와 "PostHog" 글자) | 계정 연결·툴바 인증 화면 | `authorize_and_link.html:5`, `authorize_and_redirect.html:5`, `toolbar_oauth_error.html:253`. 세 SVG의 path 데이터가 같고, 그려 보니 워드마크다 |
+| `products/desktop/apps/code/public/hedgehog-mode/` | `sprites.png`, `sprites.json` | desktop 앱의 헤지호그 모드 스프라이트 | `git ls-files products/desktop/apps/code/public`(2개). `sprites.png`는 `@posthog/hedgehog-mode@0.0.53` tarball의 `assets/sprites.png`와 SHA-256이 같다 |
+| desktop·모바일 앱 | 앱 아이콘, DMG 배경, 글꼴 | 위 [배포 산출물 식별자](#배포-산출물-식별자) 표 | |
+
+## 제3자 상표 묶음
+
+PostHog 상표가 아니라 다른 회사의 로고다. 연동 대상을 보여 주는 용도이고, 사용 조건은 각 회사의 브랜드 지침을 따른다(법적 판단은 법무 몫).
+
+| 위치 | 내용 | 파일 수 | 근거 |
+| --- | --- | --- | --- |
+| `frontend/public/services/` | 연동 서비스 로고(예: `Google_Sheets.svg`, `Mongodb.svg`) | 1461 | `git ls-files 'frontend/public/services/*' \| wc -l` |
+| `frontend/public/coming-soon-destinations/` | 출시 예정 대상 로고 | 170 | `git ls-files 'frontend/public/coming-soon-destinations/*' \| wc -l` |
+| `frontend/public/browser_logos/` | 브라우저 로고 | 7 | `git ls-files 'frontend/public/browser_logos/*' \| wc -l` |
 
 ## `@posthog/brand` 패키지
 
-브랜드 자산을 npm 패키지로 가져온다. 이 패키지는 다른 의존성과 성격이 다르다.
+브랜드 자산(로고, 헤지호그 일러스트, 글꼴, 색)을 npm 패키지로 가져온다. 이 패키지는 다른 의존성과 성격이 다르다.
 
 | 항목 | 내용 | 근거 |
 | --- | --- | --- |
-| 의존 선언 | `frontend/package.json`에서 `"@posthog/brand": "catalog:"` | `frontend/package.json:77` |
-| 사용 범위 | `.ts`, `.tsx`, `.css`, `.scss`에서 이 패키지를 가져오는 파일이 `frontend/src` 68개, `products/dashboards` 10개, `products/customer_analytics` 10개, `products/workflows` 7개, `products/ai_observability` 7개 등 | `git grep -l '@posthog/brand'` |
-| 라이선스 | PolyForm Strict License 1.0.0. 패키지 `LICENSE`가 "소스 공개형이며 오픈소스가 아니다. 상업적 사용, 자기 프로젝트에서의 사용, 배포, 파생물은 허가되지 않는다"고 적고, 헤지호그 일러스트는 PostHog 상표·브랜드 자산이라고 명시한다 | `npm pack @posthog/brand@0.12.3`의 `LICENSE` |
-| 영향 | 이 포크가 재배포·상업 운영을 하면 이 패키지는 라이선스 밖에 놓인다. 패키지를 걷어내는 비용은 미확인(소스 파일 수는 위 참고) | [licenses.md](licenses.md) |
+| 버전 | 메인 워크스페이스 0.12.3, desktop 워크스페이스 0.11.0 | `pnpm-workspace.yaml:153`, `pnpm-lock.yaml:10854`, `products/desktop/pnpm-workspace.yaml:16`, `products/desktop/pnpm-lock.yaml:6218` |
+| 의존 선언 | `frontend/package.json:77`의 `"@posthog/brand": "catalog:"`. 제품·서비스 `package.json` 다수와 desktop의 `apps/mobilehog`, `packages/shared`, `tools/announcements-admin`도 선언한다 | `git grep -n '"@posthog/brand"' -- ':(glob)**/package.json'` |
+| 소스 사용 범위 | `.ts`·`.tsx`·`.css`·`.scss` 파일 171개. `frontend/src` 68, `products/dashboards` 10, `products/customer_analytics` 10, `products/workflows` 7, `products/ai_observability` 7, `products/desktop` 5 등 | `git grep -l '@posthog/brand' -- '*.ts' '*.tsx' '*.css' '*.scss'`. 확장자를 제한하지 않으면 233개(`products/desktop` 11, `products/dashboards` 11 등, `package.json`·잠금 파일 포함) |
+| 내용(0.12.3) | tarball 파일 2678개, 그중 `dist/` 2675개. `dist/generated/hoggies` 1509(헤지호그 일러스트), `dist/generated/crests` 1118, `dist/generated/colors` 4, `dist/fonts` 16(RoundHog `.woff2` 8개 포함), `dist/logo` 10 | `npm pack @posthog/brand@0.12.3`을 풀고 `find package/dist/<하위> -type f \| wc -l` |
+| 내용(0.11.0) | tarball 파일 2498개, `dist/` 2495개. `hoggies` 1329, 나머지 하위 디렉터리 수는 0.12.3과 같다 | `npm pack @posthog/brand@0.11.0`, 같은 방법 |
+| 라이선스 | 두 버전의 `LICENSE`가 같다. 첫 줄 `Copyright (c) PostHog, Inc. All rights reserved.`, PolyForm Strict License 1.0.0. "소스 공개형이며 오픈소스가 아니다. 상업적 사용, 자기 프로젝트에서의 사용, 배포, 파생물은 허가되지 않는다"고 적고, 헤지호그 일러스트는 PostHog 상표·브랜드 자산이라고 명시한다. `package.json`의 `license`는 `SEE LICENSE IN LICENSE` | 두 tarball의 `LICENSE`(`diff`로 같음을 확인), `package.json` |
+| 영향 | 이 포크가 재배포·상업 운영을 하면 이 패키지는 라이선스 밖에 놓인다. 걷어내려면 위 소스 파일과 글꼴·로고 진입점(`frontend/src/lib/brand/`, `fonts.scss`)을 바꿔야 한다. 비용 추정은 미확인 | [licenses.md](licenses.md) |
 
-헤지호그 UI는 `@posthog/hedgehog-mode`(MIT 선언)가 맡고 `gsap`(비-OSI)을 끌어온다. 이를 가져오는 소스 파일은 12개다(`git grep -l '@posthog/hedgehog-mode'`).
+## `@posthog/hedgehog-mode` 패키지
+
+헤지호그 모드 UI다. 패키지는 MIT를 선언하지만, 싣고 있는 헤지호그 스프라이트는 PostHog 상표 자산이다. MIT는 저작권만 다루고 상표 사용은 허가하지 않는다(법적 해석은 법무 몫).
+
+| 항목 | 내용 | 근거 |
+| --- | --- | --- |
+| 버전 | 메인 0.0.63(`frontend/package.json:80`), desktop 0.0.53(`products/desktop/apps/code/package.json:97`) | `pnpm-lock.yaml:10878`, `products/desktop/pnpm-lock.yaml:6244` |
+| 라이선스 표기 | 두 버전 모두 `package.json`에 `"license": "MIT"`만 있고 `LICENSE` 파일은 없다. `author`는 개인 이름이다 | `npm pack @posthog/hedgehog-mode@0.0.63`, `@0.0.53`을 풀어 확인 |
+| 상표 자산 | 두 버전 모두 `assets/sprites.png`, `assets/sprites.json`(헤지호그 스프라이트)을 싣는다. desktop 저장소의 `products/desktop/apps/code/public/hedgehog-mode/sprites.png`는 0.0.53의 것과 같은 파일이다 | tarball 풀기, `sha256sum` 비교, `sprites.png`를 열어 확인 |
+| 의존성 | `gsap`(`^3.12.7`)을 끌어온다. gsap 라이선스는 [licenses.md](licenses.md) | 두 tarball의 `package.json` |
+| 사용 범위 | 이 이름이 나오는 파일 17개, 그중 `.ts`·`.tsx` 12개(`frontend` 6, `common/storybook` 1, `products/desktop` 5) | `git grep -l '@posthog/hedgehog-mode'`, `git grep -l '@posthog/hedgehog-mode' -- '*.ts' '*.tsx'` |
 
 ## 제품명 문구
 
 | 위치 | 내용 | 규모 | 근거 |
 | --- | --- | --- | --- |
-| `frontend/src/` | 사용자에게 보이는 `PostHog` 문자열 | 882개 파일에 `PostHog`가 있음. 이 중 코드 식별자·주석 비율은 가르지 않았다 | `git grep -l 'PostHog' -- frontend/src` |
+| `frontend/src/` | 사용자에게 보이는 `PostHog` 문자열 | 882개 파일에 `PostHog`가 있다. 코드 식별자·주석 비율은 가르지 않았다 | `git grep -l 'PostHog' -- frontend/src` |
 | `frontend/src/` | `hedgehog` 언급 | 168개 파일(대소문자 무시) | `git grep -l -i hedgehog -- frontend/src` |
 | `frontend/src/layout.html` | `<title>PostHog</title>` | 1 | `frontend/src/layout.html:6` |
-| `frontend/src/index.html` | 콘솔 인사말(`PostHog — In data we trust`, 채용 링크 `https://posthog.com/careers`)과 구형 브라우저 안내문 | 2곳 | `frontend/src/index.html:59`, `:62`, `:78` |
-| `posthog/templates/head.html` | 기본 페이지 제목 `page_title|default:"PostHog"` | 1 | `posthog/templates/head.html:1` |
-| `posthog/templates/` | `PostHog`가 들어 있는 템플릿 | 47개 파일(전체 145개 중) | `git grep -l 'PostHog' -- posthog/templates` |
-| `posthog/templates/email/` | 이메일 템플릿 | 74개 중 38개가 `PostHog` 포함. 기본 틀 `base.html`이 로고(`alt="PostHog"`)를 넣는다 | `posthog/templates/email/base.html` |
-| `frontend/public/` | `PostHog`가 들어 있는 파일 | 2개(`site.webmanifest` 포함) | `git grep -l 'PostHog' -- frontend/public` |
+| `frontend/src/index.html` | 콘솔 인사말(`PostHog — In data we trust`, 채용 링크 `https://posthog.com/careers`)과 구형 브라우저 안내문(`Please upgrade to fully enjoy PostHog!`) | 3곳 | `frontend/src/index.html:59`, `:62`, `:78` |
+| `posthog/templates/head.html` | 기본 페이지 제목 `page_title\|default:"PostHog"` | 1 | `:1` |
+| `posthog/templates/head.html` | `apple-mobile-web-app-title`, `application-name`이 `PostHog`. 공개 페이지에서는 `og:site_name`이 `PostHog`, `twitter:site`가 `@PostHog` | 4 | `:28`, `:29`, `:34`, `:40` |
+| `posthog/frontend_views.py` | 공개 페이지 메타데이터. 공유 이미지 `https://posthog.com/images/og/default.png`, 제목 `Log in • PostHog`·`Sign up • PostHog`와 설명문, JSON-LD(이름 `PostHog`, URL `https://posthog.com`, 로고 URL, PostHog의 Twitter·GitHub·LinkedIn 주소) | 로그인·가입 페이지 | `:28`, `:33~43`, `_structured_data_json`(`:46~76`) |
+| `posthog/passkey.py` | WebAuthn RP 이름 `rp_name="PostHog"`. 운영체제의 패스키 창에 보인다 | 1 | `:82` |
+| `posthog/templates/authorize_and_link.html`, `authorize_and_redirect.html` | 인증 화면 문구 `PostHog Cloud`, `PostHog Toolbar access to your PostHog data`와 워드마크 SVG | 2개 파일 | `authorize_and_link.html:18`, `authorize_and_redirect.html:19`, 워드마크는 로고 절 |
+| `posthog/templates/` | `PostHog`가 들어 있는 템플릿 | 47개 파일(전체 145개 중) | `git grep -l 'PostHog' -- posthog/templates`, `git ls-files posthog/templates` |
+| `posthog/templates/email/` | 이메일 템플릿 | 74개 중 38개가 `PostHog` 포함. 기본 틀 `base.html`이 로고(`alt="PostHog"`)를 넣는다 | `git grep -l 'PostHog' -- posthog/templates/email`, `posthog/templates/email/base.html:20` |
+| `frontend/public/` | `PostHog`가 들어 있는 텍스트 파일 | 2개(`site.webmanifest`, `surveys/hosted-survey.css`의 CSS 클래스명) | `git grep -l 'PostHog' -- frontend/public` |
+
+## 이메일 제목과 발신·회신 주소
+
+| 위치 | 내용 | 근거 |
+| --- | --- | --- |
+| `posthog/tasks/email.py` | 제목에 `PostHog`가 든 이메일 14곳. 예: `{inviter_name} invited you to join {org_name} on PostHog`, `Welcome to PostHog - set your password`, `Reset your PostHog password`, `Your PostHog login code`, `This is a test email of your PostHog instance` | `git grep -c -E 'subject *=.*PostHog' -- posthog/tasks/email.py`(14). 예시는 `:468`, `:470`, `:596`, `:617`, `:694`, `:1574` |
+| `posthog/settings/dynamic_settings.py` | 기본 발신자 `EMAIL_DEFAULT_FROM`은 `root@localhost`, 회신 주소 `EMAIL_REPLY_TO`는 빈 값이다. PostHog 주소가 기본값은 아니다 | `:169~170`, `:174~175` |
+| `posthog/temporal/ai_observability/eval_reports/delivery.py` | 평가 리포트 메일의 회신 주소가 `reply_to="hey@posthog.com"`으로 하드코딩되어 있다 | `:329` |
+| `products/legal_documents/backend/logic/__init__.py` | 법률 문서 서명 요청의 발신자가 `privacy@posthog.com`(PandaDoc이 이 주소 명의로 보낸다) | `:44~47`, `:672` |
+| `products/context_layer/backend/store.py` | 조직 위키 git 저장소의 커밋 작성자가 `PostHog Context Layer <context-layer@posthog.com>` | `:55~56`, `:135`, `:208~210` |
+
+하드코딩 발신·회신 주소 검색:
+`git grep -n -E '(reply_to|from_email|sender_email|from_address|sender|"from"|from_)\s*[=:]\s*[^,]*@posthog\.com' -- '*.py' '*.ts' '*.tsx' '*.rs' '*.go' ':!*test*' ':!**/__mocks__/**' ':!**/fixtures/**'`는 `delivery.py:329` 하나를 낸다.
+상수로 둔 주소는 `git grep -n -E '[A-Z_]*(EMAIL|FROM|SENDER|REPLY)[A-Z_]*\s*[:=]\s*.{0,30}@posthog\.com' -- ':!*test*' ':!**/__mocks__/**' ':!**/fixtures/**' ':!*.md' ':!*.mdx'`로 찾았다. 결과 중 발신·작성자 용도는 위 표의 두 상수이고, 나머지는 개발용 계정(`test@posthog.com`)과 내부 사용자 판별 접미사(`posthog/constants.py:8`)다.
+
+코드 안의 `@posthog.com` 주소 전체는 `git grep -I -o -h -i -E '[a-z0-9._%+-]+@posthog\.com' -- "${E[@]}" | wc -l`로 146회, `-l`로 90개 파일이다. 역할 주소(`sales@`, `hey@`, `support@`, `privacy@`)와 직원 개인 주소가 섞여 있다.
+
+## 배포 식별자·User-Agent
+
+패키지명, 이미지명, 서비스 이름, 외부로 보내는 User-Agent와 헤더는 산출물이 배포되거나 외부에 요청을 보낼 때 상표 사용이 된다.
+"바꿀 것"과 "내부용으로 둘 것"의 구분은 이 문서의 **권고**다. 법적 판단은 법무 몫이다.
+이 포크에는 `.github/workflows`가 없어서(`git ls-files .github/workflows | wc -l`이 0) 실제로 무엇을 게시하는지는 워크플로로 확인할 수 없다.
+
+### 바꿀 것 (권고)
+
+외부 사람이나 제3자 서버가 보는 이름이다.
+
+| 항목 | 값 | 권고 이유 | 근거 |
+| --- | --- | --- | --- |
+| 게시 설정이 있는 npm 패키지 | `@posthog/agent`, `@posthog/quill`, `@posthog/quill-charts`, `@posthog/quill-tokens` | `publishConfig`가 있어 npm에 게시하는 패키지다. 포크가 게시하면 `@posthog` 스코프를 쓸 수 없다 | `packages/agent/packages/agent/package.json`, `packages/quill/packages/{quill,charts,tokens}/package.json`. `git ls-files ':(glob)**/package.json' \| xargs grep -l '"publishConfig"'`(4개) |
+| 패키지 메타데이터의 저작자 | `"author": "PostHog Inc."`(루트·`frontend`·`services/mcp`·`services/oauth-proxy`·`services/agent-proxy`·`services/credentials-service`·`common/hogql_parser`·`common/plugin_transpiler`의 `package.json`), `common/hogql_parser/setup.py`의 `author`·`maintainer` | 게시하면 PostHog Inc.가 저작자로 표시된다 | `git grep -n -E 'PostHog,? Inc' -- '*package.json' common/hogql_parser/setup.py` |
+| CLI | 크레이트 이름 `posthog-cli`, 설명 `The command line interface for PostHog 🦔`, `authors`에 PostHog 직원 주소 3개, 요청 헤더 `User-Agent: posthog-cli` | 사용자가 설치하는 산출물이고, 접속하는 서버가 이름을 본다 | `cli/Cargo.toml:6~17`, `cli/src/api/client.rs:259` |
+| MCP 서버 | 서버 이름 `MCP_SERVER_NAME = 'PostHog'`, npm 이름 `@posthog/mcp`, 설명 `PostHog MCP server` | MCP 클라이언트(AI 도구) 화면에 이 이름이 뜬다 | `services/mcp/src/lib/constants.ts:22`, `services/mcp/package.json:2~4` |
+| Stripe 앱 | `id: "com.posthog.stripe"`, `name: "PostHog"`, 아이콘 `logomark.png`, 연동 주소 `https://us.posthog.com/api/partners/stripe/` | Stripe 마켓플레이스에 게시하는 앱 정의다 | `services/stripe-app/stripe-app.json:3~9` |
+| 하비 설치의 이미지 | 기본 레지스트리 `REGISTRY_URL="posthog/posthog"`(Docker Hub). 앱과 `-node` 이미지를 여기서 받는다 | 포크가 아니라 업스트림 이미지를 받는다. 설치 스크립트의 다른 기본값은 [external-calls.md](external-calls.md)의 하비 설치 절 | `bin/deploy-hobby:127~130`, `docker-compose.hobby.yml:140`, `:164`, `:221` |
+| 외부 API로 보내는 User-Agent | OAuth 토큰 교환 `PostHog/1.0 by PostHogTeam`, CDP 대상 요청 `PostHog.com/1.0`, 데이터 웨어하우스 소스(예: `PostHog Data Warehouse (support@posthog.com)`, `posthog-data-warehouse (https://posthog.com; hey@posthog.com)`) | 제3자 서버가 PostHog의 요청으로 인식하고, 일부는 PostHog 연락처를 싣는다 | `posthog/models/integration/oauth.py:1001`, `:1497`, `nodejs/src/cdp/services/native-destination-executor.service.ts:106`, `products/warehouse_sources/backend/temporal/data_imports/sources/cliniko/cliniko.py:37`, `crates_io/crates_io.py:25`. 같은 줄에 `User-Agent`와 `PostHog`가 함께 있는 파일은 `git grep -I -l -i -E 'user[-_]agent.{0,40}posthog' -- '*.py' '*.ts' '*.rs' '*.go' "${E[@]}"`로 60개, 그중 `products/warehouse_sources` 26개다. 상수가 다른 줄에 있는 경우는 빠진다 |
+| 세션 리플레이 이미지 크롤러 | `user-agent: PostHogImageFetcherBot/1.0 (+https://posthog.com/docs/ai-research/image-fetcher-bot)`, `referer: https://us.posthog.com/`, 서명 에이전트 `https://us.posthog.com/.well-known/http-message-signatures-directory` | AI 학습을 켠 조직의 리플레이에 나온 외부 이미지를 내려받는 크롤러다(README `:16`, `:22`). 포크가 그대로 돌리면 외부 사이트에 PostHog 크롤러로 자신을 밝힌다. 동작과 끄는 방법은 [external-calls.md](external-calls.md) | `nodejs/src/ingestion/pipelines/sessionreplay/ml-mirror-image-fetch/request-identity.ts:1~7`, `web-bot-auth.ts:3`, `README.md:1~7` |
+| 고객 웹훅으로 보내는 헤더 | `X-PostHog-Webhook-Version` | 알림 웹훅이 고객 엔드포인트로 보낸다 | `products/alerts/backend/logic/destination_configs.py:27`, `products/alerts_platform/backend/delivery/webhook.py:94`, `:110` |
+| desktop·모바일 앱 식별자 | 위 [배포 산출물 식별자](#배포-산출물-식별자) 표 | | |
+
+### 내부용으로 둘 것 (권고)
+
+포크 안에서만 쓰이거나, 바꾸면 비용이 크고 외부에 잘 드러나지 않는 이름이다. 산출물을 게시하게 되면 다시 판단한다.
+
+| 항목 | 값 | 권고 이유 | 근거 |
+| --- | --- | --- | --- |
+| 워크스페이스 npm 패키지 이름 | `package.json` 162개 중 155개가 `@posthog/*`. `publishConfig`가 없는 것은 게시하지 않는 작업 공간 패키지다 | import 경로라서 바꾸면 수정 범위가 넓다. 게시하지 않으면 외부에 드러나지 않는다 | `git ls-files ':(glob)**/package.json'`(162개)을 JSON으로 읽어 최상위 `name`을 셌다. 나머지 7개는 `paths-filter` 2, `posthog-agent-workspace`, `posthog-code`, `hedgebox-demo-app`, `pi-clickhouse-autoresearch`, 이름 없음 1 |
+| Python 패키지·모듈 이름 | `posthog`(예: `import posthog`) | 코드 식별자다 | 저장소 구조 |
+| Go 모듈 경로 | `github.com/posthog/posthog/...`와 `github.com/PostHog/posthog/...` 6개 | 라이브러리로 게시하지 않는 내부 빌드용 경로다. 다만 저장소 주소를 가리키므로 포크 저장소로 옮길 때 함께 바꾼다 | `git ls-files ':(glob)**/go.mod'`의 `module` 줄(`bin/hobby-installer`, `clickhouse-udfs/util`, `livestream`, `packages/agent/agent-shadow`, `services/hogql-language-service`, `tools/phrocs`) |
+| 개발·CI용 컨테이너 이미지 | `ghcr.io/posthog/*` 이미지 27종(예: `docker-compose.base.yml:379`의 `ghcr.io/posthog/posthog/capture:master`) | 개발 환경이 업스트림 이미지를 받는 설정이다. 포크가 이미지를 게시하면 포크 레지스트리로 바꾼다 | `git grep -I -h -o -E 'ghcr\.io/posthog/[A-Za-z0-9._/-]+' -- "${E[@]}" \| sed -E 's/:.*//' \| sort -u \| wc -l`(27종), `-l`로 16개 파일 |
+| 서비스 사이 `x-posthog-*` 헤더 | 서로 다른 헤더 이름 73개(예: `x-posthog-session-id`, `x-posthog-mcp-consumer`) | 대부분 자체 서비스 사이의 헤더로 보인다. 외부로 나가는지 하나씩 가르지는 않았고, 확인한 것은 위의 웹훅 헤더뿐이다(미확인) | `git grep -I -h -o -i -E "['\"]x-posthog-[a-z0-9-]+['\"]" -- "${E[@]}" \| tr 'A-Z' 'a-z' \| tr -d "'\"" \| sort -u \| wc -l`(73). 접두사만 있는 항목도 한 개로 센다 |
 
 ## 도메인
 
-코드에서 센 `*.posthog.com` 계열 문자열이다. 테스트, 문서, 마이그레이션, 잠금 파일, `.md`를 뺐다. 값은 반올림 없는 그대로이며 같은 줄의 중복을 포함한다.
+코드에서 센 `posthog.com`·`posthog.net`·`posthog.dev`·`posthog.org` 계열 호스트 이름의 출현 횟수다(같은 줄의 중복 포함).
+명령은 아래와 같고, 이메일 주소의 `@posthog.com`은 앞 글자 조건으로 뺐다. 제외 묶음 `"${E[@]}"`는 [기준](#기준)에 있다.
+
+```bash
+git grep -I -o -h -i -P '(?<![@\w.-])([a-z0-9-]+\.)*posthog\.(com|net|dev|org)\b' -- "${E[@]}" | tr 'A-Z' 'a-z' | sort | uniq -c | sort -rn
+```
+
+결과는 서로 다른 호스트 66개다. 주요 항목:
 
 | 도메인 | 횟수 | 성격 |
 | --- | --- | --- |
-| `posthog.com` (하위 도메인 없음) | 3628 | 문서·가이드 링크가 대부분으로 추정(미확인) |
-| `app-static-prod.posthog.com` | 683 | 정적 자산 CDN(CSP `font-src`에 포함). 대부분 스냅샷·고정 데이터에서 나온다고 보이나 미확인 |
-| `app-static.eu.posthog.com` | 459 | EU 정적 자산 CDN |
-| `internal-j.posthog.com` | 457 | `frontend/src` 2개, `rust/cymbal` 1개, `posthog/test` 1개 파일에서 나온다. 많은 횟수는 파일 하나에 몰려 있다고 추정 |
-| `us.posthog.com` | 333 | 리전 앱 호스트 |
-| `us.i.posthog.com` | 105 | 수집(ingest) 호스트 |
-| `app.posthog.com` | 93 | 구 앱 호스트 |
-| `eu.posthog.com` | 81 | EU 앱 호스트 |
-| `mcp.posthog.com`, `oauth.posthog.com`, `code.posthog.com`, `gateway.us.posthog.com` | 15, 9, 9, 6 | 서비스별 호스트 |
-| `eu.i.posthog.com` | 15 | EU 수집 호스트 |
+| `posthog.com` (하위 도메인 없음) | 2284 | 문서·가이드 링크가 대부분으로 보인다(미확인). 줄 수로는 `products/warehouse_sources` 838, `frontend/src` 699, `posthog` 136이 많다(`git grep -I -c -i -P '(?<![@\w.-])posthog\.com\b' -- "${E[@]}"`를 디렉터리별로 합산) |
+| `us.posthog.com` | 151 | 리전 앱 호스트 |
+| `us.i.posthog.com` | 79 | 수집(ingest) 호스트 |
+| `app.posthog.com` | 73 | 구 앱 호스트 |
+| `eu.posthog.com` | 65 | EU 앱 호스트 |
+| `mcp.posthog.com` | 14 | MCP 서버 |
 | `mmdbcdn.posthog.net` | 12 | GeoIP 파일 CDN |
-| `*.dev.posthog.dev`, `posthog.dev` | 6 이상, 9 | 개발·내부 환경 호스트 |
+| `eu.i.posthog.com` | 10 | EU 수집 호스트 |
+| `oauth.posthog.com`, `code.posthog.com` | 9, 9 | 서비스별 호스트 |
 | `releases.posthog.com` | 8 | CLI 릴리스 |
-| `posthog.org` | 6 | |
+| `gateway.us.posthog.com` | 6 | 게이트웨이 |
+| `desktop-releases.posthog.com` | 4 | desktop 업데이트 피드 |
+| `app-static-prod.posthog.com`, `app-static.eu.posthog.com` | 3, 4 | 정적 자산 CDN(CSP `font-src`에 포함) |
+| `*.posthog.dev`, `posthog.dev` | 호스트 18개, 합계 54 | 개발·내부 환경 호스트 |
 
-호출 의미와 끄는 방법은 [external-calls.md](external-calls.md)에 둔다. 이메일 주소는 `@posthog.com`이 `posthog/`, `frontend/src`, `nodejs/src`, `products`(테스트·마이그레이션 제외)에서 212개 파일 634회 나온다.
-발신자 주소의 기본값은 `root@localhost`이다(`posthog/settings/dynamic_settings.py:169~170`의 `EMAIL_DEFAULT_FROM`). `PostHog` 이름으로 보내는 하드코딩 발신자는 찾지 않았다(미확인).
+이전 판과 달라진 점:
+`app-static-prod.posthog.com` 683회와 `app-static.eu.posthog.com` 459회는 거의 모두 `rust/cymbal/src/bin/no_resolved_name_raw_frames.json`(참조되지 않는 데이터 파일)에서 나왔다. 제외 후 3회와 4회다.
+`internal-j.posthog.com`은 테스트·목 파일 4개에서만 나와서 제외 후 0회다. 그래서 표에서 뺐다.
+`posthog.org`는 제외 후 0회다. 이전 값 6은 `posthog.organization` 같은 식별자를 잘못 센 값으로 보인다.
 
-## 디렉터리별 `posthog` 문자열 (참고)
-
-`git grep -I -i posthog` 결과다. 패키지명과 import 구문이 대부분이라 브랜딩 사용량은 아니다.
-
-| 디렉터리 | 파일 수 | 줄 수 |
-| --- | --- | --- |
-| `products/` | 17119 | 104211 |
-| `posthog/` | 5035 | 81479 |
-| `frontend/src/` | 3247 | 14134 |
-| `rust/` | 614 | 8659 |
-| `services/` | 783 | 7063 |
-| `packages/` | 482 | 5156 |
-| `docs/` | 320 | 3367 |
-| `nodejs/src/` | 552 | 2673 |
-| `tools/` | 206 | 2371 |
-| `bin/` | 112 | 783 |
-| `cli/` | 63 | 653 |
-| `common/` | 81 | 267 |
-| `docker/` | 18 | 159 |
+호출 의미와 끄는 방법은 [external-calls.md](external-calls.md)에 둔다.
 
 ## 저작권 고지
 
-| 위치 | 내용 |
-| --- | --- |
-| `LICENSE` | `Copyright (c) 2020-2026 PostHog Inc.` (MIT) |
-| `rust/LICENSE` | `Copyright (c) 2023 PostHog` |
-| `packages/quill/LICENSE`, `packages/owners-yaml/LICENSE`, `products/desktop/LICENSE`, `tools/hogli/LICENSE` | `Copyright (c) 2026 PostHog Inc.` |
+MIT 라이선스는 저작권 고지와 허가 문구를 보존하라고 요구한다. PostHog 고지뿐 아니라 저장소에 들어온 제3자 코드의 고지도 보존 대상이다. 상표 사용은 MIT가 허가하지 않는다(법적 해석은 법무 몫).
+아래는 저장소의 `LICENSE` 파일 전부(`git ls-files ':(glob)**/LICENSE*' ':(glob)**/COPYING*'`, 9개)와 확인한 vendored 코드의 머리 주석이다. 의존성까지 포함한 목록과 확인 결과는 [licenses.md](licenses.md)의 "보존해야 할 제3자 저작권 고지"와 "잠금 파일 밖 제3자 구성요소" 절을 본다.
 
-MIT는 저작권 고지와 허가 문구의 보존을 요구한다. 상표 사용은 MIT가 허가하지 않는다(법적 해석은 법무 몫).
+### PostHog 고지
+
+| 위치 | 내용 | 근거 |
+| --- | --- | --- |
+| `LICENSE` | `Copyright (c) 2020-2026 PostHog Inc.` (MIT) | `LICENSE:3` |
+| `rust/LICENSE` | `Copyright (c) 2023 PostHog` (MIT) | `rust/LICENSE:3` |
+| `packages/quill/LICENSE`, `packages/owners-yaml/LICENSE`, `products/desktop/LICENSE`, `tools/hogli/LICENSE` | `Copyright (c) 2026 PostHog Inc.` (MIT) | 각 파일 `:3` |
+| `@posthog/brand` tarball의 `LICENSE` | `Copyright (c) PostHog, Inc. All rights reserved.` (PolyForm Strict 1.0.0) | [`@posthog/brand` 패키지](#posthogbrand-패키지) |
+
+### 제3자 고지 (보존 대상)
+
+| 위치 | 저작권자 | 라이선스 | 근거 |
+| --- | --- | --- | --- |
+| `.github/actions/paths-filter/LICENSE`, `.depot/actions/paths-filter/LICENSE` | `Copyright (c) 2020 Michal Dorner and contributors` | MIT | 각 파일 `:4`. 두 파일은 같다(`cmp`) |
+| `products/desktop/packages/electron-trpc/src/vendor/unpromise/LICENSE` | `Copyright 2023 Cefn Hoile` | MIT | `:3` |
+| `products/logs/backend/vendor/drain3/drain.py`, `masking.py` | `Copyright (c) 2020-2022 International Business Machines` (drain3 0.9.11에서 가져옴) | MIT (`SPDX-License-Identifier: MIT`) | 각 파일 `:1~28` |
+| `products/logs/backend/vendor/drain3/simple_profiler.py` | 원저작 SimpleProfiler, David Ohana (drain3 0.9.11 경유) | Apache-2.0 (`SPDX-License-Identifier: Apache-2.0`) | `:1~6` |
+| `products/logs/backend/vendor/drain3/__init__.py` | 위 세 파일의 출처와 라이선스를 요약한다 | | `:1~4` |
 
 ## 미확인
 
-- `docs/`, `README.md` 등 마크다운 본문의 브랜딩은 이 조사에서 제외했다.
-- `products/` 아래 제품별 브랜딩 자산(로고 외)의 전수 목록은 만들지 않았다.
-- 각 도메인 횟수의 출처 파일 분포는 `internal-j.posthog.com`만 확인했다.
+- `docs/`, `README.md` 등 마크다운 본문의 브랜딩은 이 조사에서 뺐다.
+- `products/` 아래 제품별 일러스트와 문구의 전수 목록은 만들지 않았다. 이 문서는 로고, 헤지호그 자산, 제품명이 모이는 곳만 적었다.
+- `DPATswiftPreview.tsx`가 원격에서 불러오는 이미지의 내용은 보지 않았다.
+- `x-posthog-*` 헤더 73개 중 외부로 나가는 것은 웹훅 버전 헤더만 확인했다.
+- `posthog.com` 링크 2284회의 용도(문서 링크와 실제 호출의 비율)는 가르지 않았다.
+- `frontend/public/surveys/hosted-survey.css`의 `footer-branding` 클래스가 설문 화면에 PostHog 표시를 넣는지는 확인하지 않았다.
 
 Decided in: buzzhog-gimc
