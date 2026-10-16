@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from posthog.test.base import BaseTest
+from posthog.test.base import APIBaseTest, BaseTest
 from unittest.mock import patch
 
 from django.utils import timezone
@@ -13,8 +13,6 @@ from posthog.models import OrganizationMembership
 from products.approvals.backend.models import ChangeRequest, ChangeRequestState, ValidationStatus
 from products.approvals.backend.tasks import expire_old_change_requests, validate_pending_change_requests
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
-
-from ee.api.test.base import APILicensedTest
 
 
 class TestValidatePendingChangeRequests(BaseTest):
@@ -175,7 +173,7 @@ class TestExpireOldChangeRequests(BaseTest):
         self.assertEqual(notified_cr.pk, self.expired_request.pk)
 
 
-class TestValidationClearsAnInvalidRequestWhenAccessReturns(APILicensedTest):
+class TestValidationClearsAnInvalidRequestWhenAccessReturns(APIBaseTest):
     # Marking a request invalid is only safe if something clears it. The task derives the status
     # rather than branching per transition, so the invalid-to-valid direction is covered too.
 

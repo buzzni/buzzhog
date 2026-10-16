@@ -1,6 +1,8 @@
 import json
 from typing import Any
 
+from posthog.test.base import APIBaseTest
+
 from parameterized import parameterized
 from rest_framework import status
 
@@ -11,8 +13,6 @@ from products.ai_observability.backend.models.llm_prompt import LLMPrompt
 from products.experiments.backend.llm_metric_templates import TEMPLATE_NAMES
 from products.experiments.backend.models.experiment import Experiment
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
-
-from ee.api.test.base import APILicensedTest
 
 
 def _split_distribution(variants: list[dict[str, Any]]) -> list[int]:
@@ -26,7 +26,7 @@ def _expected_splits(n: int) -> list[int]:
     return splits
 
 
-class TestExperimentsCreateFromPrompt(APILicensedTest):
+class TestExperimentsCreateFromPrompt(APIBaseTest):
     def setUp(self) -> None:
         super().setUp()
         self.prompt_name = "my-prompt"

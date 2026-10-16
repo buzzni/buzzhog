@@ -3,10 +3,9 @@ from typing import cast
 from uuid import UUID
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from asgiref.sync import sync_to_async
-from posthoganalytics.ai.langchain.callbacks import CallbackHandler
 from temporalio.common import MetricMeter
 from temporalio.testing import ActivityEnvironment
 
@@ -303,43 +302,26 @@ class TestLearningAnalyzer:
         search.assert_not_called()
         publish.assert_not_called()
 
-    @pytest.mark.parametrize("analytics_client", ["ready", "uninitialized"])
     @pytest.mark.parametrize(
         "pii_result",
         [PiiVerdict(verdict="unsafe"), PiiVerdict(verdict="uncertain")],
     )
-    def test_model_pii_rejection_is_fail_closed(
-        self,
-        team: Team,
-        pii_result: PiiVerdict,
-        analytics_client: str,
-    ) -> None:
+    def test_model_pii_rejection_is_fail_closed(self, team: Team, pii_result: PiiVerdict) -> None:
         run, input = _setup_sync(team)
         provider = _Provider(EvidenceBundle(replies=("Use the standard contact process.",)))
-        model = MagicMock()
-        structured_model = model.with_structured_output.return_value
-        structured_model.invoke.side_effect = [
-            _extraction(
-                canonical_topic="Contact policy",
-                canonical_answer="Contact Taylor for help.",
-            ),
-            pii_result,
-        ]
-        client = MagicMock()
-        analytics = MagicMock()
-        analytics.disabled = False
-        analytics.default_client = client if analytics_client == "ready" else None
-
-        def _install_client() -> MagicMock:
-            analytics.default_client = client
-            return client
-
-        analytics.setup.side_effect = _install_client
 
         with (
             patch(f"{_MODULE}.get_learning_provider", return_value=provider),
-            patch(f"{_MODULE}._build_model", return_value=model),
-            patch("products.business_knowledge.backend.llm_telemetry.posthoganalytics", analytics),
+            patch(
+                f"{_MODULE}._invoke_structured_model",
+                side_effect=[
+                    _extraction(
+                        canonical_topic="Contact policy",
+                        canonical_answer="Contact Taylor for help.",
+                    ),
+                    pii_result,
+                ],
+            ),
             patch(f"{_MODULE}.generate_embedding") as embed,
             patch(f"{_MODULE}.logic.search_knowledge") as search,
             patch(f"{_MODULE}.logic.create_generated_knowledge_document") as publish,
@@ -349,30 +331,6 @@ class TestLearningAnalyzer:
         run.refresh_from_db()
         assert result.rejection_code == "pii"
         assert run.result == LearningRunResult.NO_KNOWLEDGE
-        assert [call.args[0] for call in model.with_structured_output.call_args_list] == [
-            ExtractedKnowledge,
-            PiiVerdict,
-        ]
-        assert model.with_structured_output.call_args_list[1].kwargs == {
-            "method": "json_schema",
-            "include_raw": False,
-        }
-        for call in structured_model.invoke.call_args_list:
-            callback = call.kwargs["config"]["callbacks"][0]
-            assert callback._trace_id == str(run.id)
-            assert callback._privacy_mode is True
-            assert callback._distinct_id == f"team-{team.id}"
-            assert callback._properties["ai_product"] == "business_knowledge"
-            assert callback._properties["learning_run_id"] == str(run.id)
-            assert callback._properties["team_id"] == team.id
-        assert [
-            call.kwargs["config"]["callbacks"][0]._properties["ai_feature"]
-            for call in structured_model.invoke.call_args_list
-        ] == ["support_learning_extraction", "support_learning_pii"]
-        if analytics_client == "ready":
-            analytics.setup.assert_not_called()
-        else:
-            analytics.setup.assert_called_once_with()
         embed.assert_not_called()
         search.assert_not_called()
         publish.assert_not_called()
@@ -480,27 +438,12 @@ class TestLearningAnalyzer:
         search.assert_not_called()
         publish.assert_not_called()
 
-    def test_model_error_marks_run_failed_without_capturing_sensitive_error(self, team: Team) -> None:
+    def test_missing_model_marks_run_failed(self, team: Team) -> None:
         run, input = _setup_sync(team)
         provider = _Provider(EvidenceBundle(replies=("Refunds are available within 30 days.",)))
-        model = MagicMock()
-        structured_model = model.with_structured_output.return_value
-        client = MagicMock()
-        analytics = MagicMock(default_client=client, disabled=False)
-
-        def _raise_sensitive_error(messages: object, config: dict[str, list[CallbackHandler]]) -> None:
-            callback = config["callbacks"][0]
-            error = ValueError("sensitive model output")
-            callback.on_llm_error(error, run_id=UUID(int=1))
-            callback.on_chain_error(error, run_id=UUID(int=2))
-            raise error
-
-        structured_model.invoke.side_effect = _raise_sensitive_error
 
         with (
             patch(f"{_MODULE}.get_learning_provider", return_value=provider),
-            patch(f"{_MODULE}._build_model", return_value=model),
-            patch("products.business_knowledge.backend.llm_telemetry.posthoganalytics", analytics),
             pytest.raises(LearningAnalysisError, match="extraction_model_failed"),
         ):
             analyze_learning_evidence(input)
@@ -508,13 +451,6 @@ class TestLearningAnalyzer:
         run.refresh_from_db()
         assert run.status == "failed"
         assert run.error == "extraction_model_failed"
-        model.with_structured_output.assert_called_once_with(
-            ExtractedKnowledge,
-            method="json_schema",
-            include_raw=False,
-        )
-        client.capture.assert_not_called()
-        client.capture_exception.assert_not_called()
 
     def test_missing_evidence_completes_as_ineligible(self, team: Team) -> None:
         run, input = _setup_sync(team)

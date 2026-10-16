@@ -59,7 +59,6 @@ class AccountsTableQueryViewSet(
     _raise_concurrency_throttled = QueryViewSet._raise_concurrency_throttled
     handle_column_ch_error = QueryViewSet.handle_column_ch_error
     _tag_client_query_id = QueryViewSet._tag_client_query_id
-    _try_format_for_llm = QueryViewSet._try_format_for_llm
     _validate_query_kind = QueryViewSet._validate_query_kind
 
     def dangerously_get_required_scopes(self, _request: Request, _view: Any) -> list[str] | None:

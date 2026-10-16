@@ -28,10 +28,6 @@ The agent then fetches the real skill with `skill-get`, which makes the skill MC
 `learn project:<skill>` carries less again.
 `formatLearnDocument` in `services/mcp/src/skills/skill-catalog.ts` strips the frontmatter and prints the description, the file manifest, and the body, so the list never reaches the client.
 
-The PostHog AI path is different again.
-`_format_skill_detail` in `products/skills/backend/tools/skills.py` prints `Allowed tools:` into the text the model reads.
-The tool description tells the model to treat the body as instructions, but nothing acts on the tool list.
-
 ## Why the MCP path ignores the list
 
 [SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension), the MCP Skills extension, binds skills to the MCP transport.
@@ -68,7 +64,6 @@ Keep these in step when the wording changes:
 
 - `products/skills/backend/api/skill_serializers.py`: the `allowed_tools` help text on `LLMSkillSerializer` and `LLMSkillPublishSerializer`.
 - `products/skills/backend/api/community_skill_serializers.py`: the `allowed_tools` help text on `CommunitySkillSerializer`.
-- `products/skills/backend/tools/skills.py`: the `allowed_tools` field descriptions on `CreateSkillArgs` and `UpdateSkillArgs`.
 - `products/skills/mcp/tools.yaml`: the `skill-create` and `skill-update` descriptions. Run `hogli build:openapi` after an edit.
 - `products/skills/skills/skills-store/SKILL.md`: the store skill that tells an agent how to create a skill.
 - `products/skills/skills/working-with-skills/SKILL.md`: the playbook skill that pairs with `skills-store`.

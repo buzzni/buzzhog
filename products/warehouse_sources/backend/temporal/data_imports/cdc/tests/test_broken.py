@@ -7,7 +7,6 @@ from unittest.mock import call, patch
 from products.warehouse_sources.backend.models.external_data_job import ExternalDataJob
 from products.warehouse_sources.backend.models.external_data_schema import ExternalDataSchema
 from products.warehouse_sources.backend.models.external_data_source import ExternalDataSource
-from products.warehouse_sources.backend.temporal.data_imports.cdc.billing_expiry import BILLING_LIMIT_EXPIRED_REASON
 from products.warehouse_sources.backend.temporal.data_imports.cdc.broken import clear_slot_loss_markers, mark_cdc_broken
 
 pytestmark = pytest.mark.django_db
@@ -170,7 +169,7 @@ def test_only_active_cdc_schemas_are_marked(team):
         ("slot_missing", True),
         ("publication_missing", True),
         ("critical_lag_self_managed", False),
-        (BILLING_LIMIT_EXPIRED_REASON, False),
+        ("billing_limit_expired", False),
     ],
 )
 def test_a_recreated_slot_lifts_only_the_markers_of_a_lost_slot(team, reason, cleared):

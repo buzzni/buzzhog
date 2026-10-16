@@ -47,8 +47,6 @@ from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
 from rest_framework.utils.serializer_helpers import ReturnDict
 
-from posthog.schema import InsightVizNode
-
 from posthog.api.forbid_destroy_model import ForbidDestroyModel
 from posthog.api.mixins import ValidatedRequest, validated_request
 from posthog.api.monitoring import Feature, monitor
@@ -61,7 +59,7 @@ from posthog.api.sharing_publish_gate import (
     dashboard_filter_leaves,
     is_publicly_shared,
 )
-from posthog.api.streaming import sse_streaming_response
+from posthog.api.streaming import async_stream_to_sync, sse_streaming_response
 from posthog.api.tagged_item import TaggedItemSerializerMixin, TaggedItemViewSetMixin
 from posthog.api.utils import action
 from posthog.clickhouse.client.async_task_chain import task_chain_context
@@ -198,8 +196,6 @@ from products.product_analytics.backend.presentation.insight import (
     InsightViewSet,
     get_insight_type,
 )
-
-from ee.hogai.utils.aio import async_to_sync
 
 AGENT_CONTEXT_HELP_TEXT = (
     "Optional context that helps AI agents make consistent dashboard updates, such as Data Catalog metric names, "
@@ -3399,7 +3395,7 @@ class DashboardsViewSet(
         return sse_streaming_response(
             async_tile_stream_generator()
             if settings.SERVER_GATEWAY_INTERFACE == "ASGI"
-            else async_to_sync(lambda: async_tile_stream_generator()),
+            else async_stream_to_sync(lambda: async_tile_stream_generator()),
             endpoint="dashboard_tile_stream",
         )
 
@@ -3799,7 +3795,7 @@ class DashboardsViewSet(
         context["dashboard"] = dashboard
         context["dashboard_access_method"] = access_method
         context["compute_surface"] = ComputeSurface.DASHBOARD_RUN_INSIGHTS
-        # _format_insight_for_llm consumes results as Python data, so raw cached
+        # The optimized output consumes results as Python data, so raw cached
         # result bytes (orjson.Fragment) must not be used here.
         context["require_parsed_results"] = True
 
@@ -3831,7 +3827,7 @@ class DashboardsViewSet(
 
         tile_results = []
         used_chars = 0
-        for index, (order, tile, insight) in enumerate(insight_tiles):
+        for index, (order, tile, _insight) in enumerate(insight_tiles):
             if output_format == "optimized" and not tile_fits_response_budget(used_chars):
                 tile_results.extend(unrun_tile_results(insight_tiles[index:]))
                 break
@@ -3843,10 +3839,8 @@ class DashboardsViewSet(
                 insight_data = tile_data.get("insight") or {}
                 raw_result = insight_data.get("result")
                 if insight_data and raw_result is not None:
-                    formatted = self._format_insight_for_llm(insight, insight_data)
-                    if formatted is None:
-                        # No formatter covers this query type, so the raw result still has to be bounded.
-                        formatted = render_unsupported_result(raw_result)
+                    # No formatter covers the query types, so the raw result still has to be bounded.
+                    formatted = render_unsupported_result(raw_result)
                     formatted = bound_formatted_result(
                         formatted,
                         tile_id=tile.id,
@@ -4163,24 +4157,6 @@ class DashboardsViewSet(
             )
 
         return tile
-
-    def _format_insight_for_llm(self, insight: Insight, insight_data: dict) -> str | None:
-        if not settings.EE_AVAILABLE:
-            return None
-        try:
-            from ee.hogai.context.insight.format import format_query_results_for_llm
-
-            query_dict = insight.query
-            if not query_dict:
-                return None
-            query = InsightVizNode.model_validate(query_dict)
-            if not query.source:
-                return None
-            result_dict = {"results": insight_data.get("result"), "columns": insight_data.get("columns")}
-            return format_query_results_for_llm(query.source, result_dict, self.team)
-        except Exception:
-            logger.warning("dashboard_run_insights_format_failed", exc_info=True, insight_id=insight.id)
-            return None
 
     @action(
         methods=["POST"],

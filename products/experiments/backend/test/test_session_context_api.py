@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 import time_machine
-from posthog.test.base import ClickhouseTestMixin, _create_event, flush_persons_and_events
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin, _create_event, flush_persons_and_events
 from unittest.mock import patch
 
 from django.core.cache import cache
@@ -38,8 +38,6 @@ from products.experiments.backend.session_context import (
 )
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 
-from ee.api.test.base import APILicensedTest
-
 RECORDING_START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
 RECORDING_END = datetime(2026, 1, 1, 10, 30, 0, tzinfo=UTC)
 SESSION_ID = str(uuid7(unix_ms_time=int(RECORDING_START.timestamp() * 1000)))
@@ -65,7 +63,7 @@ def _hogql_table_tree(node: TableNode) -> dict[str, Any]:
 
 
 @time_machine.travel("2026-01-02T12:00:00Z", tick=False)
-class TestSessionExperimentContext(ClickhouseTestMixin, APILicensedTest):
+class TestSessionExperimentContext(ClickhouseTestMixin, APIBaseTest):
     def setUp(self) -> None:
         super().setUp()
         # Every test shares SESSION_ID and the local-memory cache outlives a test; the context

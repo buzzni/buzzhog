@@ -25,6 +25,7 @@ from products.tasks.backend.logic.services.connection_token import (
     reset_sandbox_jwt_key_cache,
 )
 from products.tasks.backend.logic.services.sandbox_config import SANDBOX_TTL_SECONDS
+from products.tasks.backend.logic.stream.agent_events import PI_RUNTIME_ERROR_MESSAGE
 from products.tasks.backend.logic.stream.event_ingest import (
     MAX_EVENT_LINE_BYTES,
     MAX_EVENTS_PER_REQUEST,
@@ -43,8 +44,6 @@ from products.tasks.backend.logic.stream.redis_stream import (
 )
 from products.tasks.backend.models import Task, TaskRun
 from products.tasks.backend.tests.test_api import TEST_RSA_PRIVATE_KEY
-
-from ee.hogai.sandbox import PI_RUNTIME_ERROR_MESSAGE
 
 SKIP_COUNTER_SAMPLE = "posthog_tasks_task_run_stream_write_skipped_total"
 PROCESS_KILLED_COUNTER_SAMPLE = "posthog_tasks_sandbox_process_killed_notifications_total"

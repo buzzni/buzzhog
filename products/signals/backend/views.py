@@ -253,7 +253,7 @@ from products.signals.backend.slack_notification_targets import (
 from products.signals.backend.source_suggestions import current_source_suggestion
 from products.signals.backend.suggested_reviewer_index import report_ids_naming_reviewers
 from products.signals.backend.task_attribution import TASK_ID_HEADER, resolve_request_attribution
-from products.signals.backend.tasks import send_reviewer_added_slack_notifications, sync_signals_refund_credit
+from products.signals.backend.tasks import send_reviewer_added_slack_notifications
 from products.signals.backend.temporal.backfill_error_tracking import (
     BackfillErrorTrackingInput,
     BackfillErrorTrackingWorkflow,
@@ -3839,10 +3839,6 @@ class SignalReportViewSet(
                 ),
                 attribution=attribution,
             )
-
-            if billing_path == SignalReportRefund.BillingPath.CREDITED:
-                refund_id = str(refund.id)
-                transaction.on_commit(lambda: sync_signals_refund_credit.delay(refund_id))
 
         # A refund suppresses the report, which is a judgement the authoring scout should hear, so it
         # forwards on the same channel as any other dismissal. `refund.reason` rather than the

@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from typing import cast
 
-from posthog.test.base import BaseTest, materialized
+from posthog.test.base import BaseTest
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
@@ -200,34 +200,6 @@ class TestSerializeHogQLQueryToBatchExportSchema(BaseTest):
 
         assert schema["fields"][0]["expression"].startswith("accurateCastOrNull(")
         assert schema["values"]["hogql_val_1"] == "Float64"
-
-    @parameterized.expand([("unrestricted", False), ("restricted", True)])
-    @override_settings(CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA=False)
-    def test_materialized_columns_are_kept_out_of_a_query_that_cannot_be_recompiled(self, _name: str, restricted: bool):
-        restrictions = (
-            {RestrictedProperty(name="secret", property_type=PropertyDefinition.Type.EVENT)} if restricted else set()
-        )
-        with (
-            patch(
-                "products.batch_exports.backend.presentation.views.batch_export.exports."
-                "get_restricted_properties_with_group_type_index_for_team",
-                return_value=restrictions,
-            ),
-            materialized("events", "$browser"),
-        ):
-            query = prepare_query("SELECT properties.$browser AS browser FROM events", self.team.pk)
-            serializer = BatchExportSerializer(
-                context={"team_id": self.team.pk, "request": SimpleNamespace(user=self.user)}
-            )
-
-            schema = serializer.serialize_hogql_query_to_batch_export_schema(query)
-
-        expression = schema["fields"][0]["expression"]
-        if restricted:
-            assert "hogql_query" not in schema
-            assert "mat_" not in expression
-        else:
-            assert "mat_$browser" in expression
 
     @override_settings(CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA=True)
     @patch(

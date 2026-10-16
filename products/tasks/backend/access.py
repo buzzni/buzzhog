@@ -3,23 +3,14 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from django.conf import settings
-from django.core.cache import cache
 
 import structlog
 
-from posthog.cloud_utils import get_cached_instance_license
 from posthog.models.user import User
 from posthog.ph_client import feature_enabled_or_false, get_feature_flag_or_none
 
 from products.tasks.backend.facade.contracts import DesktopAccessReason
 from products.tasks.backend.metrics import DesktopAccessOutcome, observe_desktop_access_decision
-
-from ee.billing.billing_manager import (
-    BillingManager,
-    FundingStatusUnavailable,
-    OrganizationFundingStatus,
-    PrepaidCreditState,
-)
 
 if TYPE_CHECKING:
     from posthog.models.organization import Organization
@@ -29,7 +20,6 @@ logger = structlog.get_logger(__name__)
 
 DESKTOP_ACCESS_OVERRIDE_FLAG = "posthog-desktop-access-override"
 DESKTOP_SIGNUP_GATE_FLAG = "posthog-desktop-signup-gate"
-_FUNDING_DECISION_CACHE_KEY = "desktop_access_funding_decision:{organization_id}"
 
 
 class DesktopAccessResolutionError(Exception):
@@ -53,13 +43,6 @@ class DesktopAccessDecision(StrEnum):
         if self == self.PREPAID_CREDITS:
             return DesktopAccessReason.PREPAID_CREDITS
         return None
-
-
-def _get_funding_status(user: User, organization: "Organization") -> OrganizationFundingStatus:
-    try:
-        return BillingManager(get_cached_instance_license(), user).get_funding_status(organization)
-    except FundingStatusUnavailable as error:
-        raise DesktopAccessResolutionError("Could not resolve organization funding status") from error
 
 
 _DECISION_OUTCOMES: dict[DesktopAccessDecision, DesktopAccessOutcome] = {
@@ -104,38 +87,8 @@ def _flag_enabled(flag_key: str, user: User, organization: "Organization") -> bo
     return enabled
 
 
-def _funding_decision(user: User, organization: "Organization") -> DesktopAccessDecision:
-    funding_status = _get_funding_status(user, organization)
-    if funding_status.startup_program_label is not None:
-        return DesktopAccessDecision.STARTUP_PLAN
-    if funding_status.prepaid_credit_state in {PrepaidCreditState.PENDING, PrepaidCreditState.ACTIVE}:
-        return DesktopAccessDecision.PREPAID_CREDITS
-    return DesktopAccessDecision.ALLOWED
-
-
-def _cached_funding_decision(user: User, organization: "Organization", cache_seconds: int) -> DesktopAccessDecision:
-    """A cache error falls through to the live lookup; a resolution failure is never cached."""
-    cache_key = _FUNDING_DECISION_CACHE_KEY.format(organization_id=organization.id)
-    try:
-        cached = cache.get(cache_key)
-    except Exception:
-        logger.warning("desktop_access_decision_cache_read_failed", exc_info=True)
-        cached = None
-    if isinstance(cached, str) and cached in _DECISION_VALUES:
-        return DesktopAccessDecision(cached)
-    decision = _funding_decision(user, organization)
-    try:
-        cache.set(cache_key, decision.value, timeout=cache_seconds)
-    except Exception:
-        logger.warning("desktop_access_decision_cache_write_failed", exc_info=True)
-    return decision
-
-
-def get_desktop_access_decision(
-    user: User, organization: "Organization", *, funding_cache_seconds: int = 0
-) -> DesktopAccessDecision:
-    """`funding_cache_seconds` caches the billing funding lookup per org; the per-user override
-    flag is evaluated on every call."""
+def get_desktop_access_decision(user: User, organization: "Organization") -> DesktopAccessDecision:
+    """The per-user override flag is evaluated on every call."""
     if not user or not user.is_authenticated or not user.distinct_id:
         raise DesktopAccessResolutionError("Authentication is required to evaluate Desktop access")
 
@@ -150,10 +103,8 @@ def get_desktop_access_decision(
         # The gate flag is evaluated only for users past the cutoff, so existing users pay no extra flag call.
         if _signed_up_after_cutoff(user) and _flag_enabled(DESKTOP_SIGNUP_GATE_FLAG, user, organization):
             decision = DesktopAccessDecision.SIGNUPS_PAUSED
-        elif funding_cache_seconds > 0:
-            decision = _cached_funding_decision(user, organization, funding_cache_seconds)
         else:
-            decision = _funding_decision(user, organization)
+            decision = DesktopAccessDecision.ALLOWED
     except DesktopAccessResolutionError:
         observe_desktop_access_decision(outcome="resolution_failure")
         raise

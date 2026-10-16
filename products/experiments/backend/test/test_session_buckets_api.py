@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 import time_machine
-from posthog.test.base import ClickhouseTestMixin, _create_event, flush_persons_and_events
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin, _create_event, flush_persons_and_events
 from unittest.mock import patch
 
 from django.core.cache import cache
@@ -33,8 +33,6 @@ from products.experiments.backend.models.team_experiments_config import TeamExpe
 from products.experiments.backend.session_buckets import MAX_BUCKET_METRICS, MAX_BUCKET_SCAN_DAYS, MAX_BUCKET_SOURCES
 from products.experiments.backend.session_exposure import MAX_SESSION_DURATION_HOURS
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
-
-from ee.api.test.base import APILicensedTest
 
 NOW = datetime(2026, 1, 10, 12, 0, 0, tzinfo=UTC)
 EXPERIMENT_START = datetime(2025, 12, 20, tzinfo=UTC)
@@ -127,7 +125,7 @@ SERVER_CHARGE = {"kind": "EventsNode", "event": "server charge"}
 
 
 @time_machine.travel(NOW, tick=False)
-class TestExperimentSessionBuckets(ClickhouseTestMixin, APILicensedTest):
+class TestExperimentSessionBuckets(ClickhouseTestMixin, APIBaseTest):
     def setUp(self) -> None:
         super().setUp()
         cache.clear()

@@ -9,7 +9,6 @@ from posthog.test.base import (
     _create_action,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     create_person_id_override_by_distinct_id,
     snapshot_clickhouse_queries,
 )
@@ -515,7 +514,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(result[1]["count"], 0)
         self.assertEqual(result[2]["count"], 0)
 
-    @also_test_with_materialized_columns(["$browser"])
     def test_funnel_prop_filters(self):
         funnel = self._basic_funnel(properties={"$browser": "Safari"})
 
@@ -538,7 +536,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(result[0]["count"], 2)
         self.assertEqual(result[1]["count"], 1)
 
-    @also_test_with_materialized_columns(["$browser"])
     def test_funnel_prop_filters_per_entity(self):
         action_credit_card = Action.objects.create(
             team_id=self.team.pk,
@@ -628,7 +625,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(result[1]["count"], 1)
         self.assertEqual(result[2]["count"], 0)
 
-    @also_test_with_materialized_columns(person_properties=["email"])
     def test_funnel_person_prop(self):
         action_credit_card = Action.objects.create(
             team_id=self.team.pk,
@@ -691,7 +687,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(result[1]["count"], 1)
         self.assertEqual(result[2]["count"], 1)
 
-    @also_test_with_materialized_columns(["test_propX"])
     def test_funnel_multiple_actions(self):
         # we had an issue on clickhouse where multiple actions with different property filters would incorrectly grab only the last
         # properties.
@@ -746,7 +741,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(results[1]["count"], 1)
         self.assertEqual(results[2]["count"], 0)
 
-    @also_test_with_materialized_columns(person_properties=["email"])
     def test_funnel_filter_test_accounts(self):
         _create_person(
             distinct_ids=["person1"],
@@ -774,7 +768,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
         self.assertEqual(results[0]["count"], 1)
 
-    @also_test_with_materialized_columns(person_properties=["email"])
     def test_funnel_with_entity_person_property_filters(self):
         _create_person(
             distinct_ids=["person1"],
@@ -814,7 +807,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
         self.assertEqual(results[0]["count"], 2)
 
-    @also_test_with_materialized_columns(person_properties=["email"], verify_no_jsonextract=False)
     def test_funnel_filter_by_action_with_person_properties(self):
         _create_person(
             distinct_ids=["person1"],
@@ -1032,7 +1024,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
             [person1_stopped_after_two_signups.uuid],
         )
 
-    @also_test_with_materialized_columns(["key"])
     def test_basic_funnel_with_derivative_steps(self):
         query = FunnelsQuery(
             series=[
@@ -1465,7 +1456,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
             [person5_stopped_after_many_pageview.uuid],
         )
 
-    @also_test_with_materialized_columns(["key"])
     def test_funnel_with_actions(self):
         sign_up_action = _create_action(
             name="sign up",
@@ -1785,7 +1775,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
             [person1_stopped_after_two_signups.uuid],
         )
 
-    @also_test_with_materialized_columns(["$current_url"])
     def test_funnel_with_matching_properties(self):
         query = FunnelsQuery(
             series=[
@@ -2407,7 +2396,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(0, results[0]["count"])
             self.assertEqual(0, results[1]["count"])
 
-    @also_test_with_materialized_columns(["key"])
     def test_funnel_exclusions_with_actions(self):
         sign_up_action = _create_action(
             name="sign up",
@@ -3102,7 +3090,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
             self.assertEqual(results[4]["count"], 1)
             self.assertCountEqual(self._get_actor_ids_at_step(query, 1), [person4.uuid])
 
-    @also_test_with_materialized_columns(["test_prop"])
     def test_funnel_with_denormalised_properties(self):
         query = FunnelsQuery(
             dateRange=DateRange(
@@ -3461,7 +3448,6 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(results[1]["count"], 1)
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(["$current_url"], person_properties=["email", "age"])
     def test_funnel_with_property_groups(self):
         query = FunnelsQuery(
             dateRange=DateRange(
@@ -3998,17 +3984,17 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         )
 
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
             properties={"email": "fake@test.com"},
         )
         _create_person(
-            distinct_ids=[f"user_2"],
+            distinct_ids=["user_2"],
             team=self.team,
             properties={"email": "fake@test.com"},
         )
         _create_person(
-            distinct_ids=[f"user_3"],
+            distinct_ids=["user_3"],
             team=self.team,
             properties={"email": "fake_2@test.com"},
         )
@@ -4105,7 +4091,7 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
     def test_funnel_window_ignores_dst_transition(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
 
@@ -4226,7 +4212,7 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
     def test_parses_breakdowns_correctly(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
 
@@ -4357,11 +4343,11 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
     def test_funnel_query_with_event_metadata_breakdown(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
         _create_person(
-            distinct_ids=[f"user_2"],
+            distinct_ids=["user_2"],
             team=self.team,
         )
 
@@ -4410,7 +4396,7 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
     def test_funnel_parses_event_names_correctly(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
 
@@ -4440,9 +4426,9 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(results[0]["count"], 1)
 
     def test_time_to_convert_funnel_ignores_breakdown(self):
-        _create_person(distinct_ids=[f"user_1"], team=self.team, properties={"userRole": "admin"})
-        _create_person(distinct_ids=[f"user_2"], team=self.team, properties={"userRole": "user"})
-        _create_person(distinct_ids=[f"user_3"], team=self.team, properties={"userRole": "user"})
+        _create_person(distinct_ids=["user_1"], team=self.team, properties={"userRole": "admin"})
+        _create_person(distinct_ids=["user_2"], team=self.team, properties={"userRole": "user"})
+        _create_person(distinct_ids=["user_3"], team=self.team, properties={"userRole": "user"})
 
         events_by_person = {
             "user_1": [
@@ -4505,7 +4491,7 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
     def test_first_time_for_user_funnel_basic(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
 
@@ -4715,7 +4701,7 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
 
     def test_first_time_for_user_funnel_filters(self):
         _create_person(
-            distinct_ids=[f"user_1"],
+            distinct_ids=["user_1"],
             team=self.team,
         )
 
@@ -6110,8 +6096,8 @@ class TestFOSSFunnelUDF(ClickhouseTestMixin, APIBaseTest):
             # Assert current (buggy) behavior so this test breaks when the bug is fixed,
             # prompting update to the stricter list assertion below.
             assert isinstance(bv, str), (
-                f"GROUP breakdown boxing bug appears fixed! "
-                f"Got list instead of str — remove this branch and use the list assertion for all types."
+                "GROUP breakdown boxing bug appears fixed! "
+                "Got list instead of str — remove this branch and use the list assertion for all types."
             )
         else:
             assert isinstance(bv, list), f"Expected boxed breakdown_value for {breakdown_type}, got {type(bv)}"

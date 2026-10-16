@@ -38,7 +38,7 @@ from products.replay_vision.backend.temporal.state import (
     get_redis_state_client,
     store_data_in_redis,
 )
-from products.replay_vision.backend.temporal.team_context import fetch_event_descriptions, fetch_product_context
+from products.replay_vision.backend.temporal.team_context import fetch_product_context
 from products.replay_vision.backend.temporal.types import (
     EventTable,
     FetchSessionEventsInputs,
@@ -262,10 +262,8 @@ def fetch_session_payload(team_id: int, session_id: str) -> ScannerLlmInputs | N
 
     # Best-effort: product context is a nice-to-have prompt block, so a Postgres hiccup must not fail the scan.
     product_context = ""
-    event_descriptions: dict[str, str] = {}
     try:
         product_context = fetch_product_context(team)
-        event_descriptions = fetch_event_descriptions(team, processed.columns, processed.rows)
     except Exception:
         logger.warning("replay_vision.fetch.team_context_failed", team_id=team_id, session_id=session_id, exc_info=True)
 
@@ -277,7 +275,6 @@ def fetch_session_payload(team_id: int, session_id: str) -> ScannerLlmInputs | N
         session_id=session_id,
         team_id=team_id,
         product_context=product_context,
-        event_descriptions=event_descriptions,
         events=EventTable(columns=processed.columns, rows=processed.rows),
         url_mapping=processed.url_mapping,
         window_mapping=processed.window_mapping,

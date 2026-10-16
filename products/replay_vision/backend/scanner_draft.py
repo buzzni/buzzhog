@@ -41,6 +41,7 @@ from posthog.api.search import (
 from posthog.clickhouse.query_tagging import get_query_tags, query_tags
 from posthog.hogql_queries.utils.parallel import run_in_parallel_threads
 from posthog.llm.semantic_enrichment import get_team_business_context
+from posthog.llm.untrusted import as_untrusted_data
 from posthog.models import EventDefinition
 from posthog.models.team import Team
 from posthog.models.user import User
@@ -68,9 +69,6 @@ from products.replay_vision.backend.queries.visited_paths import VisitedPath, fe
 from products.replay_vision.backend.scanner_config import scanner_config_error
 from products.replay_vision.backend.tag_suggestions import _product_taxonomy
 from products.replay_vision.backend.tags import slugify_tag
-
-from ee.hogai.utils.feature_flags import is_core_memory_disabled
-from ee.hogai.utils.untrusted import as_untrusted_data
 
 logger = structlog.get_logger(__name__)
 
@@ -469,7 +467,7 @@ def _business_context(team: Team, user: User) -> str:
         description = (team.project.product_description or "").strip() if team.project else ""
         if description:
             parts.append(description)
-        memory_text = "" if is_core_memory_disabled(team, user) else get_team_business_context(team)
+        memory_text = get_team_business_context(team)
         if memory_text:
             parts.append(_head_and_tail(memory_text, _MAX_BUSINESS_CONTEXT_CHARS))
     except Exception:

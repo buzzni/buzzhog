@@ -13,9 +13,7 @@ from posthog.test.base import (
     ClickhouseTestMixin,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     flush_persons_and_events,
-    materialized,
 )
 from unittest.mock import MagicMock, patch
 
@@ -51,7 +49,6 @@ from posthog.schema import (
     MetricSummary,
     MultipleBreakdownType,
     PersonPropertyFilter,
-    PersonsOnEventsMode,
     PropertyMathType,
     PropertyOperator,
     Series as InsightActorsQuerySeries,
@@ -2127,8 +2124,8 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
         assert len(response.results) == 2
         assert breakdown_labels == ["true", "false"]
 
-        assert response.results[0]["label"] == f"true"
-        assert response.results[1]["label"] == f"false"
+        assert response.results[0]["label"] == "true"
+        assert response.results[1]["label"] == "false"
 
         assert response.results[0]["count"] == 7
         assert response.results[1]["count"] == 3
@@ -2220,7 +2217,7 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
 
         assert len(response.results) == 1
 
-        assert response.results[0]["label"] == f"cohort"
+        assert response.results[0]["label"] == "cohort"
         assert response.results[0]["count"] == 6
         assert response.results[0]["data"] == [
             0,
@@ -2278,14 +2275,14 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
 
         assert len(response.results) == 8
         assert breakdown_labels == ["Chrome", "Firefox", "Edge", "Safari", "Chrome", "Edge", "Firefox", "Safari"]
-        assert response.results[0]["label"] == f"$pageview - Chrome"
-        assert response.results[1]["label"] == f"$pageview - Firefox"
-        assert response.results[2]["label"] == f"$pageview - Edge"
-        assert response.results[3]["label"] == f"$pageview - Safari"
-        assert response.results[4]["label"] == f"$pageleave - Chrome"
-        assert response.results[5]["label"] == f"$pageleave - Edge"
-        assert response.results[6]["label"] == f"$pageleave - Firefox"
-        assert response.results[7]["label"] == f"$pageleave - Safari"
+        assert response.results[0]["label"] == "$pageview - Chrome"
+        assert response.results[1]["label"] == "$pageview - Firefox"
+        assert response.results[2]["label"] == "$pageview - Edge"
+        assert response.results[3]["label"] == "$pageview - Safari"
+        assert response.results[4]["label"] == "$pageleave - Chrome"
+        assert response.results[5]["label"] == "$pageleave - Edge"
+        assert response.results[6]["label"] == "$pageleave - Firefox"
+        assert response.results[7]["label"] == "$pageleave - Safari"
         assert response.results[0]["count"] == 6
         assert response.results[1]["count"] == 2
         assert response.results[2]["count"] == 1
@@ -2319,11 +2316,11 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
             "Edge",
         ]
 
-        assert response.results[0]["label"] == f"Chrome"
-        assert response.results[1]["label"] == f"Safari"
-        assert response.results[2]["label"] == f"Chrome"
-        assert response.results[3]["label"] == f"Firefox"
-        assert response.results[4]["label"] == f"Edge"
+        assert response.results[0]["label"] == "Chrome"
+        assert response.results[1]["label"] == "Safari"
+        assert response.results[2]["label"] == "Chrome"
+        assert response.results[3]["label"] == "Firefox"
+        assert response.results[4]["label"] == "Edge"
 
         assert response.results[0]["count"] == 3
         assert response.results[1]["count"] == 1
@@ -3209,7 +3206,6 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(1, len(response.results))
         self.assertEqual([1 / 3], response.results[0]["data"])
 
-    @also_test_with_materialized_columns(["$some_property"])
     def test_properties_filtering_with_materialized_columns_and_empty_string_as_property(self):
         _create_event(
             team=self.team,
@@ -3238,45 +3234,6 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
         )
 
         assert response.results[0]["data"] == [1]
-
-    def test_person_test_account_filters_return_the_same_series_without_the_persons_join(self):
-        self.enterContext(materialized("person", "email"))
-        for distinct_id, properties in [
-            ("internal", {"email": "alice@internal.example"}),
-            ("external", {"email": "bob@example.com"}),
-            ("no_email", {}),
-        ]:
-            _create_person(team_id=self.team.pk, distinct_ids=[distinct_id], properties=properties)
-            _create_event(team=self.team, event="$pageview", distinct_id=distinct_id, timestamp="2020-01-11T12:00:00Z")
-        _create_event(team=self.team, event="$pageview", distinct_id="personless", timestamp="2020-01-11T12:00:00Z")
-        flush_persons_and_events()
-        self.team.test_account_filters = [
-            {"key": "email", "type": "person", "operator": "not_icontains", "value": "@internal.example"}
-        ]
-        self.team.save()
-
-        def run(rewrite: bool) -> tuple[list[int], list[str]]:
-            with self.capture_select_queries() as queries:
-                response = self._run_trends_query(
-                    date_from="2020-01-11T00:00:00Z",
-                    date_to="2020-01-11T23:59:59Z",
-                    interval=IntervalType.DAY,
-                    series=[EventsNode(event="$pageview")],
-                    filter_test_accounts=True,
-                    hogql_modifiers=HogQLQueryModifiers(
-                        personsOnEventsMode=PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
-                        negatedPersonFiltersNotIn=rewrite,
-                    ),
-                )
-            return response.results[0]["data"], queries
-
-        joined, _ = run(rewrite=False)
-        rewritten, queries = run(rewrite=True)
-
-        assert joined == [3]
-        assert rewritten == joined
-        assert any("where_optimization" in query for query in queries)
-        assert not any(re.search(r"AS \w+__person ON", query) for query in queries)
 
     def test_smoothing(self):
         self._create_test_events()
@@ -5608,14 +5565,14 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
             ["Firefox"],
             ["Safari"],
         ]
-        assert response.results[0]["label"] == f"$pageview - Chrome"
-        assert response.results[1]["label"] == f"$pageview - Firefox"
-        assert response.results[2]["label"] == f"$pageview - Edge"
-        assert response.results[3]["label"] == f"$pageview - Safari"
-        assert response.results[4]["label"] == f"$pageleave - Chrome"
-        assert response.results[5]["label"] == f"$pageleave - Edge"
-        assert response.results[6]["label"] == f"$pageleave - Firefox"
-        assert response.results[7]["label"] == f"$pageleave - Safari"
+        assert response.results[0]["label"] == "$pageview - Chrome"
+        assert response.results[1]["label"] == "$pageview - Firefox"
+        assert response.results[2]["label"] == "$pageview - Edge"
+        assert response.results[3]["label"] == "$pageview - Safari"
+        assert response.results[4]["label"] == "$pageleave - Chrome"
+        assert response.results[5]["label"] == "$pageleave - Edge"
+        assert response.results[6]["label"] == "$pageleave - Firefox"
+        assert response.results[7]["label"] == "$pageleave - Safari"
         assert response.results[0]["count"] == 6
         assert response.results[1]["count"] == 2
         assert response.results[2]["count"] == 1
@@ -6812,7 +6769,7 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
         _create_event(
             team=self.team,
             event="$pageview",
-            distinct_id=f"p1",
+            distinct_id="p1",
             timestamp="2020-01-06T12:00:00Z",
             properties={"$browser": "Firefox"},
         )
@@ -6887,7 +6844,7 @@ class TestTrendsQueryRunner(ClickhouseTestMixin, APIBaseTest):
         _create_event(
             team=self.team,
             event="$pageview",
-            distinct_id=f"p1",
+            distinct_id="p1",
             timestamp="2020-01-06T12:00:00Z",
             properties={"$browser": "Firefox"},
         )

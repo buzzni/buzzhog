@@ -39,9 +39,29 @@ from products.tasks.backend.facade.onboarding_prompt import (
 from products.tasks.backend.logic.services.model_catalogue import filter_unsupported_effort, runtime_adapter_for
 from products.tasks.backend.models import Task, TaskClientProvenance
 
-from ee.billing.salesforce_enrichment.constants import PERSONAL_EMAIL_DOMAINS
-
 logger = structlog.get_logger(__name__)
+
+# Free mailbox providers: an address there says nothing about the user's company.
+PERSONAL_EMAIL_DOMAINS = frozenset(
+    {
+        "gmail.com",
+        "googlemail.com",
+        "yahoo.com",
+        "outlook.com",
+        "hotmail.com",
+        "live.com",
+        "icloud.com",
+        "me.com",
+        "aol.com",
+        "proton.me",
+        "protonmail.com",
+        "gmx.com",
+        "mail.com",
+        "yandex.com",
+        "qq.com",
+        "163.com",
+    }
+)
 
 ONBOARDING_SESSION_TITLE = "Getting set up"
 ONBOARDING_SESSION_PAID_MODEL = "claude-opus-4-8"

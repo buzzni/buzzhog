@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from posthog.test.base import APIBaseTest
+
 from django.db import IntegrityError, connection
 from django.test.utils import CaptureQueriesContext
 
@@ -10,10 +12,8 @@ from posthog.models.user import User
 
 from products.access_control.backend.models.role import Role, RoleMembership
 
-from ee.api.test.base import APILicensedTest
 
-
-class TestRoleCrossOrgAuthorization(APILicensedTest):
+class TestRoleCrossOrgAuthorization(APIBaseTest):
     """Tests for cross-organization authorization bypass on role endpoints."""
 
     CLASS_DATA_LEVEL_SETUP = False
@@ -83,7 +83,7 @@ class TestRoleCrossOrgAuthorization(APILicensedTest):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
 
-class TestRoleAPI(APILicensedTest):
+class TestRoleAPI(APIBaseTest):
     def test_only_organization_admins_and_higher_can_create(self):
         self.organization_membership.level = OrganizationMembership.Level.ADMIN
         self.organization_membership.save()
@@ -242,7 +242,7 @@ class TestRoleAPI(APILicensedTest):
         self.assertNotContains(res, str(other_org.id))
 
 
-class TestRoleMemberVisibilityRestriction(APILicensedTest):
+class TestRoleMemberVisibilityRestriction(APIBaseTest):
     """When members_can_see_org_members is off, role endpoints must not disclose members the
     requester can't see in the members list."""
 

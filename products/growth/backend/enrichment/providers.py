@@ -1,21 +1,15 @@
 """Enrichment provider interface and the Harmonic implementation.
 
 The interface keeps the enrichment core provider-agnostic; Harmonic is the first
-provider. AsyncHarmonicClient (ee/billing/salesforce_enrichment) is reused as-is —
-tach already allows products.growth to import ee.
+provider.
 """
 
 import abc
-import dataclasses
 from typing import Any, Optional
 
 from posthog.dataclasses import frozen
-from posthog.exceptions_capture import capture_exception
 
 from products.growth.backend.enrichment.fields import EnrichmentFields
-from products.growth.backend.enrichment.transform import transform_harmonic_company
-
-from ee.billing.salesforce_enrichment.harmonic_client import AsyncHarmonicClient
 
 
 @frozen
@@ -60,62 +54,10 @@ class EnrichmentProvider(abc.ABC):
         return {}
 
 
-def _parent_company_urn(company: dict[str, Any]) -> Optional[str]:
-    """Pick the parent-company URN from `relatedCompanies`: subsidiaryOf wins over acquiredBy.
-
-    Both links are beta and sparse (often present with a null companyUrn even when
-    ownershipStatus says the company was acquired), so absence here is normal.
-    """
-    related = company.get("relatedCompanies")
-    if not isinstance(related, dict):
-        return None
-    for key in ("subsidiaryOf", "acquiredBy"):
-        link = related.get(key)
-        if isinstance(link, dict) and isinstance(urn := link.get("companyUrn"), str) and urn:
-            return urn
-    return None
-
-
 class HarmonicEnrichmentProvider(EnrichmentProvider):
+    """Harmonic needs a client this install does not ship, so every lookup fails."""
+
     name = "harmonic"
 
     async def enrich_by_domain(self, domain: str) -> ProviderLookup:
-        async with AsyncHarmonicClient(source="growth_enrichment_provider") as client:
-            lookup = await client.enrich_company_by_domain_strict(domain)
-            company = lookup.company
-            fields = transform_harmonic_company(company)
-            if fields is not None and company is not None:
-                fields = await self._with_parent_company(client, company, fields)
-        return ProviderLookup(fields=fields, raw_payload=company, enrichment_urn=lookup.enrichment_urn)
-
-    async def enrichment_statuses_for(self, urns: list[str]) -> dict[str, str]:
-        if not urns:
-            return {}
-        async with AsyncHarmonicClient(source="growth_enrichment_provider") as client:
-            statuses = await client.get_enrichment_status(urns)
-        return {
-            urn: entry["status"]
-            for urn, entry in statuses.items()
-            if isinstance(entry, dict) and isinstance(entry.get("status"), str)
-        }
-
-    async def _with_parent_company(
-        self, client: AsyncHarmonicClient, company: dict[str, Any], fields: EnrichmentFields
-    ) -> EnrichmentFields:
-        """Best-effort parent-company resolution: never fails the lookup, just leaves the fields unset."""
-        urn = _parent_company_urn(company)
-        if urn is None:
-            return fields
-
-        try:
-            parent = await client.get_company_by_urn(urn)
-        except Exception as e:
-            capture_exception(e)
-            return fields
-
-        if not isinstance(parent, dict):
-            return fields
-
-        website = parent.get("website")
-        domain = website.get("domain") if isinstance(website, dict) else None
-        return dataclasses.replace(fields, parent_company=parent.get("name"), parent_company_domain=domain)
+        raise NotImplementedError("The Harmonic client is not available in this install")

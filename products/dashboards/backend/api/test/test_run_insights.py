@@ -16,7 +16,6 @@ from posthog.models.organization import Organization
 from posthog.models.team import Team
 
 from products.dashboards.backend.access import DashboardAccessMethod
-from products.dashboards.backend.api.dashboard import DashboardsViewSet
 from products.dashboards.backend.constants import RUN_INSIGHTS_MIN_TILE_CHARS
 from products.dashboards.backend.models.dashboard import Dashboard
 from products.dashboards.backend.models.dashboard_tile import DashboardTile, Text
@@ -241,8 +240,7 @@ class TestDashboardRunInsights(APIBaseTest):
         dashboard_id, _ = self.dashboard_api.create_dashboard({"name": "dash"})
         self.dashboard_api.create_insight({"name": "A", "query": _trends_query_dict(), "dashboards": [dashboard_id]})
 
-        with patch.object(DashboardsViewSet, "_format_insight_for_llm", return_value=None):
-            body = self._run(dashboard_id, refresh="blocking", max_result_chars=str(RUN_INSIGHTS_MIN_TILE_CHARS))
+        body = self._run(dashboard_id, refresh="blocking", max_result_chars=str(RUN_INSIGHTS_MIN_TILE_CHARS))
 
         result = body["results"][0]["insight"]["result"]
         self.assertIsInstance(result, str)

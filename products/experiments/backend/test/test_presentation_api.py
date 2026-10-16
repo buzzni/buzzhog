@@ -5,7 +5,14 @@ from uuid import uuid4
 
 import unittest
 import time_machine
-from posthog.test.base import ClickhouseTestMixin, FuzzyInt, _create_event, _create_person, flush_persons_and_events
+from posthog.test.base import (
+    APIBaseTest,
+    ClickhouseTestMixin,
+    FuzzyInt,
+    _create_event,
+    _create_person,
+    flush_persons_and_events,
+)
 from unittest.mock import ANY, MagicMock, patch
 
 from django.core.cache import cache
@@ -65,8 +72,6 @@ from products.feature_flags.backend.facade.enums import FlagEvaluationsMode
 from products.feature_flags.backend.models.evaluation_context import EvaluationContext, FeatureFlagEvaluationContext
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 from products.feature_flags.backend.models.organization_feature_flags_config import OrganizationFeatureFlagsConfig
-
-from ee.api.test.base import APILicensedTest
 
 
 def _make(cls, **attrs):
@@ -150,7 +155,7 @@ class _HoistFlagConfigClientMixin:
         self.client.patch = _wrap(real_patch)  # type: ignore[attr-defined]
 
 
-class TestExperimentCRUD(_HoistFlagConfigClientMixin, APILicensedTest):
+class TestExperimentCRUD(_HoistFlagConfigClientMixin, APIBaseTest):
     # List experiments
     def test_can_list_experiments(self):
         response = self.client.get(f"/api/projects/{self.team.id}/experiments/")
@@ -409,7 +414,7 @@ class TestExperimentCRUD(_HoistFlagConfigClientMixin, APILicensedTest):
             f"/api/projects/{self.team.id}/experiments/",
             data={
                 "name": "Test Experiment",
-                "feature_flag_key": f"flag_0",
+                "feature_flag_key": "flag_0",
                 "filters": {"events": [{"order": 0, "id": "$pageview"}]},
                 "start_date": "2021-12-01T10:23",
                 "parameters": None,
@@ -421,7 +426,7 @@ class TestExperimentCRUD(_HoistFlagConfigClientMixin, APILicensedTest):
             f"/api/projects/{self.team.id}/experiments/",
             data={
                 "name": "Test Experiment",
-                "feature_flag_key": f"exp_flag_000",
+                "feature_flag_key": "exp_flag_000",
                 "filters": {"events": [{"order": 0, "id": "$pageview"}]},
                 "start_date": "2021-12-01T10:23",
                 "end_date": "2021-12-01T10:23",
@@ -3532,8 +3537,8 @@ class TestExperimentCRUD(_HoistFlagConfigClientMixin, APILicensedTest):
         self.client.post(
             f"/api/projects/{self.team.id}/feature_flags/",
             data={
-                "name": f"flag",
-                "key": f"flag_0",
+                "name": "flag",
+                "key": "flag_0",
                 "filters": {"groups": [{"rollout_percentage": 5}]},
             },
             format="json",
@@ -4823,7 +4828,7 @@ class TestExperimentCRUD(_HoistFlagConfigClientMixin, APILicensedTest):
         holdout = ExperimentHoldout.objects.create(
             team=self.team,
             name="Test Holdout",
-            filters=[{"properties": [], "rollout_percentage": 10, "variant": f"holdout-test"}],
+            filters=[{"properties": [], "rollout_percentage": 10, "variant": "holdout-test"}],
         )
 
         saved_metric_response = self.client.post(
@@ -6610,7 +6615,7 @@ class TestExperimentCRUD(_HoistFlagConfigClientMixin, APILicensedTest):
         self.assertEqual(update_response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class TestExperimentParametersFlagConfigCompatibility(APILicensedTest):
+class TestExperimentParametersFlagConfigCompatibility(APIBaseTest):
     """Flag config belongs on the `feature_flag` object now, but many external clients still send it
     through the deprecated `parameters` keys. Rather than reject those requests, the API copies that
     config into the `feature_flag` object so legacy callers keep working. This class sends the
@@ -6855,7 +6860,7 @@ class TestExperimentParametersFlagConfigCompatibility(APILicensedTest):
         self.assertFalse(props["experiment_update_deprecated_config_changed"])
 
 
-class TestExperimentAuxiliaryEndpoints(_HoistFlagConfigClientMixin, ClickhouseTestMixin, APILicensedTest):
+class TestExperimentAuxiliaryEndpoints(_HoistFlagConfigClientMixin, ClickhouseTestMixin, APIBaseTest):
     def _generate_experiment(self, start_date="2024-01-01T10:23", extra_parameters=None):
         ff_key = "a-b-test"
         response = self.client.post(
@@ -8315,7 +8320,7 @@ class TestExperimentAuxiliaryEndpoints(_HoistFlagConfigClientMixin, ClickhouseTe
         self.assertIn("does not exist or does not belong to this project", str(update_response.json()))
 
 
-class TestExperimentParametersFieldMutation(APILicensedTest):
+class TestExperimentParametersFieldMutation(APIBaseTest):
     """
     ExperimentParametersField translates split_percent <-> rollout_percentage at the API
     boundary. Both methods must be pure transformations — mutating caller state would leak
@@ -8364,7 +8369,7 @@ class TestExperimentParametersFieldMutation(APILicensedTest):
         }
 
 
-class TestExperimentRunningTimeCalculation(_HoistFlagConfigClientMixin, APILicensedTest):
+class TestExperimentRunningTimeCalculation(_HoistFlagConfigClientMixin, APIBaseTest):
     EXPOSURE_ESTIMATE_CONFIG = {
         "conversionRateInputType": "manual",
         "manualMetricType": "funnel",
@@ -8520,7 +8525,7 @@ class TestExperimentRunningTimeCalculation(_HoistFlagConfigClientMixin, APILicen
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class TestExperimentExcludedVariants(_HoistFlagConfigClientMixin, APILicensedTest):
+class TestExperimentExcludedVariants(_HoistFlagConfigClientMixin, APIBaseTest):
     THREE_VARIANTS = [
         {"key": "control", "rollout_percentage": 34},
         {"key": "test-1", "rollout_percentage": 33},
@@ -8618,7 +8623,7 @@ class TestExperimentExcludedVariants(_HoistFlagConfigClientMixin, APILicensedTes
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class TestCalculateRunningTimeEndpoint(APILicensedTest):
+class TestCalculateRunningTimeEndpoint(APIBaseTest):
     def _calculate(self, payload: dict[str, Any]):
         return self.client.post(
             f"/api/projects/{self.team.id}/experiments/calculate_running_time/",
@@ -8716,7 +8721,7 @@ class TestCalculateRunningTimeEndpoint(APILicensedTest):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.json())
 
 
-class TestExperimentSetupContextEndpoint(ClickhouseTestMixin, APILicensedTest):
+class TestExperimentSetupContextEndpoint(ClickhouseTestMixin, APIBaseTest):
     def setUp(self) -> None:
         super().setUp()
         cache.clear()
@@ -9090,7 +9095,7 @@ class TestExperimentApiMetricParity(unittest.TestCase):
         )
 
 
-class TestExperimentTags(APILicensedTest):
+class TestExperimentTags(APIBaseTest):
     def _create_experiment(self, name: str, flag_key: str, tags: list[str] | None = None) -> dict:
         payload: dict[str, Any] = {"name": name, "feature_flag_key": flag_key}
         if tags is not None:
@@ -9220,7 +9225,7 @@ class TestExperimentTags(APILicensedTest):
         assert editable["id"] in response.json()["ids"]
 
 
-class TestExperimentConcurrency(_HoistFlagConfigClientMixin, APILicensedTest):
+class TestExperimentConcurrency(_HoistFlagConfigClientMixin, APIBaseTest):
     """Optimistic concurrency on experiment updates: stale writes carrying `version` +
     `original_experiment` merge concurrent metric changes per uuid and 409 on everything else.
     Guards the incident class where a stale tab's full-array PATCH silently deleted metrics

@@ -10,7 +10,6 @@ from posthog.test.base import (
     APIBaseTest,
     _create_action,
     _create_person,
-    also_test_with_materialized_columns,
     also_test_with_person_on_events_v2,
     snapshot_clickhouse_queries,
 )
@@ -124,7 +123,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
 
             return table.name
 
-        @also_test_with_materialized_columns(["$browser", "$browser_version"])
         def test_funnel_step_multi_property_breakdown_event(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -287,7 +285,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
                 [people["person1"].uuid],
             )
 
-        @also_test_with_materialized_columns(["$browser"])
         def test_funnel_step_breakdown_event_with_string_only_breakdown(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -411,7 +408,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
                 [people["person2"].uuid],
             )
 
-        @also_test_with_materialized_columns(["$browser"])
         def test_funnel_step_breakdown_event(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -536,7 +532,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
                 [people["person2"].uuid],
             )
 
-        @also_test_with_materialized_columns(["$browser"])
         @skip('Using "Other" as a breakdown is not yet implemented in HogQL Actors Queries')
         def test_funnel_step_breakdown_event_with_other(self):
             query = FunnelsQuery(
@@ -689,7 +684,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
             )
             self.assertEqual(2, cast(ast.Constant, query_runner.to_query().limit).value)
 
-        @also_test_with_materialized_columns(["$browser"])
         def test_funnel_step_breakdown_event_no_type(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -815,7 +809,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
                 [people["person2"].uuid],
             )
 
-        @also_test_with_materialized_columns(person_properties=["$browser"])
         def test_funnel_step_breakdown_person(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -913,7 +906,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
             self.assertCountEqual(self._get_actor_ids_at_step(query, 1, "Safari"), [person2.uuid])
             self.assertCountEqual(self._get_actor_ids_at_step(query, 3, "Safari"), [])
 
-        @also_test_with_materialized_columns(["some_breakdown_val"])
         def test_funnel_step_breakdown_limit(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -972,7 +964,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
             breakdown_vals = sorted([res[0]["breakdown"] for res in results])
             self.assertEqual([["5"], ["6"], ["7"], ["8"], ["9"], ["Other"]], breakdown_vals)
 
-        @also_test_with_materialized_columns(["some_breakdown_val"])
         @skip('Using "Other" as a breakdown is not yet implemented in HogQL Actors Queries')
         def test_funnel_step_custom_breakdown_limit_with_nulls(self):
             query = FunnelsQuery(
@@ -1040,7 +1031,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
             # skipped 1 and '' because the limit was 3.
             self.assertTrue(people["person_null"].uuid in self._get_actor_ids_at_step(query, 1, "Other"))
 
-        @also_test_with_materialized_columns(["some_breakdown_val"])
         def test_funnel_step_custom_breakdown_limit_with_nulls_included(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -1112,7 +1102,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
             self.assertEqual([people["person_null"].uuid], self._get_actor_ids_at_step(query, 1, ""))
             self.assertEqual([people["person_null"].uuid], self._get_actor_ids_at_step(query, 3, ""))
 
-        @also_test_with_materialized_columns(["$browser"])
         def test_funnel_step_breakdown_event_single_person_multiple_breakdowns(self):
             query = FunnelsQuery(
                 breakdownFilter=BreakdownFilter(
@@ -1310,11 +1299,10 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
             )
             self.assertCountEqual(self._get_actor_ids_at_step(query, 2, "Chrome"), [])
 
-        @also_test_with_materialized_columns(person_properties=["key"], verify_no_jsonextract=False)
         def test_funnel_cohort_breakdown(self):
             # This caused some issues with SQL parsing
             _create_person(
-                distinct_ids=[f"person1"],
+                distinct_ids=["person1"],
                 team_id=self.team.pk,
                 properties={"key": "value"},
             )
@@ -1878,7 +1866,6 @@ def funnel_breakdown_test_factory(funnel_order_type: FunnelOrderType):
                 ],
             )
 
-        @also_test_with_materialized_columns(["$current_url"])
         def test_basic_funnel_default_funnel_days_breakdown_action(self):
             # Same case as test_basic_funnel_default_funnel_days_breakdown_event but with an action
             user_signed_up_action = _create_action(name="user signed up", event="user signed up", team=self.team)

@@ -19,14 +19,17 @@ from posthog.temporal.common.utils import close_db_connections
 
 from products.tasks.backend.constants import STREAM_VIA_PROXY_FEATURE_FLAG
 from products.tasks.backend.logic.services.connection_token import create_stream_read_token
+from products.tasks.backend.logic.stream.agent_events import (
+    is_background_turn_complete,
+    is_turn_complete,
+    turn_complete_trace_id,
+)
 from products.tasks.backend.logic.stream.redis_stream import (
     TaskRunRedisStream,
     TaskRunStreamError,
     get_task_run_stream_key,
 )
 from products.tasks.backend.models import TaskRun as TaskRunModel
-
-from ee.hogai.sandbox import is_background_turn_complete, is_turn_complete, turn_complete_trace_id
 
 # Reuse the ACP event helpers, signal dispatcher, and SSE reconnect tuning from relay_sandbox_events
 # so the two relays derive/emit signals and drive their SSE transport from identical logic.

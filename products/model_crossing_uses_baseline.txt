@@ -578,7 +578,6 @@ product_analytics.Insight products.demo.backend.logic.products.hedgebox.matrix i
 product_analytics.Insight products.demo.backend.logic.products.hedgebox.matrix write(create) 13
 product_analytics.Insight products.exports.backend.api.exports instance-single 1
 product_analytics.Insight products.exports.backend.facade.api instance-single 1
-product_analytics.Insight products.exports.backend.temporal.subscriptions.snapshot_activities instance-many(only) 1
 product_analytics.Insight products.feature_flags.backend.management.commands.delete_feature_flag_usage_insights instance-many(filter) 2
 product_analytics.Insight products.feature_flags.backend.management.commands.delete_feature_flag_usage_insights write(update) 1
 product_analytics.Insight products.posthog_ai.eval_harness.data_setup write(create) 4

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import logging
-from datetime import timedelta
 
 from django.core.management import call_command
 
@@ -14,12 +13,6 @@ from products.posthog_ai.eval_harness.data_setup import (
     ensure_master_demo_team,
 )
 from products.tasks.backend.facade.agents import CustomPromptSandboxContext, create_skill_isolation_environment
-
-from ee.clickhouse.materialized_columns.columns import (
-    backfill_materialized_columns,
-    get_materialized_columns,
-    materialize,
-)
 
 from .django_env import NullDbBlocker
 
@@ -81,33 +74,6 @@ class SandboxedDemoData:
         )
 
 
-# Event-level properties the error-tracking ``searchQuery`` test cases match on
-# (see ``products/error_tracking/backend/hogql_queries/error_tracking_query_runner_utils.py``).
-# These are stored as JSON arrays (``["TypeError"]``); without materialized
-# columns the bare ``properties.$exception_types`` lookup goes through
-# ``JSONExtractString`` which returns ``""`` for non-string JSON values, so
-# ``searchQuery`` filtering on these properties silently never matches anything.
-# Materializing and backfilling once per session makes the sandbox behave like
-# prod for error-tracking searchQuery, including reused local ClickHouse state
-# where the columns already exist but older demo rows still need values.
-_EVAL_MATERIALIZED_EVENT_PROPERTIES: tuple[str, ...] = (
-    "$exception_types",
-    "$exception_values",
-)
-
-
-def _ensure_event_search_columns_materialized(django_db_blocker: NullDbBlocker) -> None:
-    with django_db_blocker.unblock():
-        existing_columns = get_materialized_columns("events")
-        columns = []
-        for property_name in _EVAL_MATERIALIZED_EVENT_PROPERTIES:
-            column = existing_columns.get((property_name, "properties"))
-            if column is None:
-                column = materialize("events", property_name)
-            columns.append(column)
-        backfill_materialized_columns("events", columns, timedelta(days=180))
-
-
 def ensure_demo_ready(
     *,
     blocker: NullDbBlocker,
@@ -122,7 +88,6 @@ def ensure_demo_ready(
         # Eval tasks use the posthog_ai origin, which mints sandbox tokens under the PostHog AI
         # OAuth app. Demo data creates only the Array app, so without this every case fails to start.
         call_command("setup_tasks_oauth", stdout=io.StringIO())
-    _ensure_event_search_columns_materialized(blocker)
     with blocker.unblock():
         rows = sync_execute(
             "SELECT event, count() FROM events WHERE team_id = %(team_id)s GROUP BY event ORDER BY 2 DESC LIMIT 20",
