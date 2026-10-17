@@ -21,7 +21,7 @@ from hogli.manifest import REPO_ROOT
 
 from hogli_commands.change_detection import changed_files
 
-_PYTHON_ROOTS = ("posthog/", "ee/", "products/", "common/", "dags/", "tools/", "services/")
+_PYTHON_ROOTS = ("posthog/", "products/", "common/", "dags/", "tools/", "services/")
 
 _DESKTOP_ROOT = "products/desktop"
 _AGENT_WORKSPACE_ROOT = "packages/agent"

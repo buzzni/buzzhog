@@ -29,7 +29,7 @@ Consumers import `products.alerts.backend.facade.*`. The tach interface also exp
 - Facade functions take and return contracts, ids, and plain values.
 - Consumers hold ids and come back to the facade for anything else.
 
-Core still runs the insight-alert pipeline itself, so its imports of the alert models, the insight evaluation, the insight lifecycle adapter, the investigation episode reader and the Max tool stay open. Those five are named in the legacy-leaks block for `products.alerts` in `tach.toml`, and the product stays non-isolated until the block is empty.
+Core still runs the insight-alert pipeline itself, so its imports of the alert models, the insight evaluation, the insight lifecycle adapter, and the investigation episode reader stay open. Those four are named in the legacy-leaks block for `products.alerts` in `tach.toml`, and the product stays non-isolated until the block is empty.
 
 ## Frontend contract
 

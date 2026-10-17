@@ -131,7 +131,6 @@ SEMGREP_SCOPE = [
         "bin",
         "common",
         "docs/onboarding",
-        "ee",
         "frontend",
         "packages",
         "posthog",
