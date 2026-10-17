@@ -331,10 +331,11 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
         self._merge_oidc_client_secret(validated_data)
         organization_domains = validated_data.pop("organization_domains", None)
         validated_data.pop("scim_bearer_token", None)
-        if validated_data.get("scim_enabled") is False:
+        scim_enabled = validated_data.pop("scim_enabled", None)
+        # A form-encoded PUT without the field validates as False, so only an explicit false clears the token.
+        if scim_enabled is False and "scim_enabled" in self.initial_data:
+            validated_data["scim_enabled"] = False
             validated_data["scim_bearer_token"] = None
-        else:
-            validated_data.pop("scim_enabled", None)
 
         instance = super().update(instance, validated_data)
         if organization_domains is not None:
