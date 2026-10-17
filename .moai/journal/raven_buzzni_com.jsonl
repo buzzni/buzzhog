@@ -709,3 +709,6 @@
 {"ts":"2026-10-17T09:25:30Z","id":"buzzhog-pk6n.l8z","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"review","to":"done"}
 {"ts":"2026-10-17T09:25:37Z","id":"buzzhog-pk6n","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Next: 에픽 멤버 모두 완료. l8z 위키가 269b935b8f6으로 milestone/buzzhog-tfjd에 머지됐다. 남은 일: 릴리스는 사람 몫. 남은 PostHog 사 텔레메트리는 backlog buzzhog-zebn. 리뷰가 안 적은 것: head.html JS_POSTHOG_IDENTITY_*, 예전 disable_surveys 언급."}
 {"ts":"2026-10-17T09:25:37Z","id":"buzzhog-pk6n","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"report: buzzhog-pk6n.l8z merged 269b935b8f6 (wiki external-calls.md, configuration.md); review zzb done"}
+{"ts":"2026-10-17T09:26:29Z","id":"buzzhog-pk6n","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: 269b935b8f6 (review fix 500924b38f5) on milestone/buzzhog-tfjd; l8z and zzb done; epic done; worktree removed."}
+{"ts":"2026-10-17T09:26:30Z","id":"buzzhog-pk6n.l8z","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (medium — wiki only; review opus-5.5 xhigh)"}
+{"ts":"2026-10-17T09:26:30Z","id":"buzzhog-iuzh","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a95827f28eaf5a4f9 (sonnet high)"}
