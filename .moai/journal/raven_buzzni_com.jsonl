@@ -438,3 +438,4 @@
 {"ts":"2026-10-17T03:08:48Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"report: buzzhog-dsv8.xzh\nMerge: 4224e8b7e2e on milestone/buzzhog-tfjd (wiki only, 5 files). Worktree and branch removed."}
 {"ts":"2026-10-17T03:09:17Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: 4224e8b7e2e"}
 {"ts":"2026-10-17T03:09:17Z","id":"buzzhog-dsv8.xzh","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (low — wiki only, upstream.md·ADR 0002·external-calls.md·runbook.md)"}
+{"ts":"2026-10-17T03:09:39Z","id":"buzzhog-7sto","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent aadcff1df859fa9aa"}
