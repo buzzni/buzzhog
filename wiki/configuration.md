@@ -1,6 +1,7 @@
 # 설정·환경변수 레퍼런스
 
 확인 기준 커밋: 8390c1ea200
+텔레메트리 행(`OPT_OUT_CAPTURE`, `POSTHOG_TELEMETRY_*`)은 에픽 `buzzhog-pk6n`(병합 `8930b42b029`) 기준이다.
 
 셀프호스트(hobby) 스택의 환경변수를 서비스별로 정리한다.
 배포 절차는 [빌드·배포 런북](runbook.md), 서비스 구성은 [시스템 구성도](architecture.md)를 본다.
@@ -156,7 +157,7 @@ compose 파일이 읽는 변수다. 설치 스크립트가 만드는 값은 [런
 | `POSTHOG_TELEMETRY_API_KEY`                      | 아니오    | 빈 값                                                 | 수집 서버의 프로젝트 키. 브라우저에도 같은 값을 넣는다                                       | 같음                                                            |
 | `POSTHOG_TELEMETRY_USAGE_REPORTS`                | 아니오    | `false`                                               | 사용량 보고(조직, AI observability)와 LLM 평가 실행 이벤트를 보낼지. 수집 서버도 있어야 한다 | 같음                                                            |
 | `POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII`    | 아니오    | `false`                                               | 사용량 보고의 사용자 목록에 이메일과 이름을 더할지. 서버·브라우저 이벤트에는 영향이 없다     | 같음                                                            |
-| `CSP_REPORT_ENDPOINT`                            | 아니오    | 빈 값                                                 | CSP 위반 보고 주소. 비면 보고하지 않는다                                                     | 같음                                                            |
+| `CSP_REPORT_ENDPOINT`                            | 아니오    | 빈 값                                                 | CSP 위반 보고 주소. 비면 보고하지 않는다                                                     | `docker-compose.hobby.yml`(`web`)                               |
 | `CLICKHOUSE_SERVER_IMAGE`                        | 아니오    | `clickhouse/clickhouse-server:26.9.13.15`             | ClickHouse 이미지                                                                            | `docker-compose.base.yml`                                       |
 | `DOCKER_REGISTRY_PREFIX`                         | 아니오    | 빈 값                                                 | `db` 이미지 앞에 붙는 레지스트리 접두사                                                      | `docker-compose.hobby.yml`                                      |
 | `SEAWEEDFS_DOCKER_NAME`                          | 아니오    | `seaweedfs-main`                                      | `seaweedfs` 컨테이너 이름                                                                    | 같음                                                            |
@@ -206,7 +207,7 @@ compose 파일이 읽는 변수다. 설치 스크립트가 만드는 값은 [런
 | `CORS_ALLOWED_ORIGINS`                                                           | 아니오    | 없음(모든 출처 허용)           | 값을 주면 그 목록만 허용                                                                                                                                                                          | 같음                                                                            |
 | `ALLOWED_IP_BLOCKS`                                                              | 아니오    | 빈 값                          | 접근 허용 IP 대역                                                                                                                                                                                 | 같음                                                                            |
 | `JWT_SIGNING_KEY`                                                                | 아니오    | `SECRET_KEY`                   | 위 참조                                                                                                                                                                                           | 같음                                                                            |
-| `OPT_OUT_CAPTURE`                                                                | 아니오    | `false`                        | 텔레메트리를 끈다. `str_to_bool`로 한 번 읽어 서버 SDK, 브라우저 로더, 프리플라이트가 모두 이 값을 쓴다. 수집 서버 설정과 보내는 개인정보는 [외부 호출](external-calls.md#텔레메트리-설정)에 있다 | `posthog/settings/base_variables.py`, `posthog/apps.py`, `posthog/ph_client.py` |
+| `OPT_OUT_CAPTURE`                                                                | 아니오    | `false`                        | 텔레메트리를 끈다. `str_to_bool`로 한 번 읽어 서버 SDK, 브라우저 로더, 프리플라이트가 모두 이 값을 쓴다. 수집 서버 설정과 보내는 개인정보는 [외부 호출](external-calls.md#텔레메트리-설정)에 있다 | `posthog/settings/base_variables.py`, `posthog/apps.py`, `posthog/telemetry.py` |
 | `POSTHOG_TELEMETRY_HOST`, `POSTHOG_TELEMETRY_API_KEY`                            | 아니오    | 빈 값                          | 수집 서버. 둘 다 있고 `OPT_OUT_CAPTURE`가 거짓일 때만 보낸다                                                                                                                                      | `posthog/settings/base_variables.py`, `posthog/telemetry.py`                    |
 | `POSTHOG_TELEMETRY_USAGE_REPORTS`, `POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII` | 아니오    | `false`, `false`               | 사용량 보고 켜기, 보고에 사용자 이메일·이름 더하기                                                                                                                                                | 같음                                                                            |
 | `DEBUG`                                                                          | 아니오    | `false`                        | 개발 모드. 인증을 느슨하게 한다. 운영에서 켜지 않는다                                                                                                                                             | 같음                                                                            |
@@ -378,4 +379,4 @@ ClickHouse 이미지 기본값과 서비스 버전 범위가 어긋나 보이는
 - Redpanda가 `KAFKA_LOG_RETENTION_*`를 읽는지
 - `posthog/settings/integrations.py`, `temporal.py`, `web.py`의 개별 변수 의미. 위에서는 hobby에 의미가 있는 것만 다뤘다
 
-Decided in: buzzhog-uxbl
+Decided in: buzzhog-uxbl, buzzhog-pk6n
