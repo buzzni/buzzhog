@@ -436,3 +436,5 @@
 {"ts":"2026-10-17T03:08:39Z","id":"buzzhog-dsv8.xzh","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"done"}
 {"ts":"2026-10-17T03:08:48Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Next: 에픽 닫힘. 위키 갱신(xzh)이 milestone/buzzhog-tfjd에 4224e8b7e2e로 들어갔다. 남은 일은 결정 대기 backlog x76a, bmih, 3dz9와 handed-on backlog(jx60, rbya, j6tf, 7sto, i81u). 남은 로컬 컨테이너 dsv8-pg, dsv8-redis와 이미지 buzzhog-dsv8:check는 정리해도 된다."}
 {"ts":"2026-10-17T03:08:48Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"report: buzzhog-dsv8.xzh\nMerge: 4224e8b7e2e on milestone/buzzhog-tfjd (wiki only, 5 files). Worktree and branch removed."}
+{"ts":"2026-10-17T03:09:17Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: 4224e8b7e2e"}
+{"ts":"2026-10-17T03:09:17Z","id":"buzzhog-dsv8.xzh","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (low — wiki only, upstream.md·ADR 0002·external-calls.md·runbook.md)"}
