@@ -21,10 +21,8 @@ import type {
     DataDeletionRequestInputApi,
     DataDeletionRequestsListParams,
     DomainsListParams,
-    DomainsScimLogsRetrieveParams,
     EmojiSearchResponseApi,
     EmojiSearchSuggestRetrieveParams,
-    EnterprisePropertyDefinitionApi,
     EventIngestionRestrictionApi,
     EventMatchRequestApi,
     EventMatchResponseApi,
@@ -47,7 +45,6 @@ import type {
     GitHubReposResponseApi,
     IdentityProviderConfigApi,
     IdentityProviderConfigsListParams,
-    IdentityProviderConfigsScimLogsRetrieveParams,
     InvitesListParams,
     LeakedKeyReportApi,
     LeakedKeyReportResponseApi,
@@ -62,7 +59,6 @@ import type {
     OrganizationsProjectsListParams,
     PaginatedCIMDVerificationTokenListApi,
     PaginatedDataDeletionRequestListApi,
-    PaginatedEnterprisePropertyDefinitionListApi,
     PaginatedExportedAssetListApi,
     PaginatedFileSystemListApi,
     PaginatedFileSystemShortcutListApi,
@@ -72,12 +68,11 @@ import type {
     PaginatedOrganizationOAuthApplicationListApi,
     PaginatedProjectBackwardCompatBasicListApi,
     PaginatedProjectSecretAPIKeyListApi,
-    PaginatedSCIMRequestLogApi,
+    PaginatedPropertyDefinitionListApi,
     PaginatedUploadedMediaListApi,
     PaginatedUserGitHubIntegrationListResponseListApi,
     PaginatedUserListApi,
     PatchedCIMDVerificationTokenUpdateApi,
-    PatchedEnterprisePropertyDefinitionApi,
     PatchedFileSystemApi,
     PatchedFileSystemShortcutApi,
     PatchedIdentityProviderConfigApi,
@@ -85,6 +80,7 @@ import type {
     PatchedProductIntroSeenApi,
     PatchedProjectBackwardCompatApi,
     PatchedProjectSecretAPIKeyApi,
+    PatchedPropertyDefinitionApi,
     PatchedUserApi,
     ProductEnablementApi,
     ProductEnablementResultApi,
@@ -93,9 +89,9 @@ import type {
     ProjectCreateRequestApi,
     ProjectSecretAPIKeyApi,
     ProjectSecretApiKeysListParams,
+    PropertyDefinitionApi,
     PropertyDefinitionsListParams,
     RevokeOtherSessionsResponseApi,
-    SCIMTokenResponseApi,
     SearchIntentRequestApi,
     SearchIntentResponseApi,
     SharingConfigurationApi,
@@ -428,38 +424,6 @@ export const domainsDestroy = async (organizationId: string, id: string, options
     })
 }
 
-export const getDomainsScimLogsRetrieveUrl = (
-    organizationId: string,
-    id: string,
-    params?: DomainsScimLogsRetrieveParams
-) => {
-    const normalizedParams = new URLSearchParams()
-
-    Object.entries(params || {}).forEach(([key, value]) => {
-        if (value !== undefined) {
-            normalizedParams.append(key, value === null ? 'null' : String(value))
-        }
-    })
-
-    const stringifiedParams = normalizedParams.toString()
-
-    return stringifiedParams.length > 0
-        ? `/api/organizations/${organizationId}/domains/${id}/scim/logs/?${stringifiedParams}`
-        : `/api/organizations/${organizationId}/domains/${id}/scim/logs/`
-}
-
-export const domainsScimLogsRetrieve = async (
-    organizationId: string,
-    id: string,
-    params?: DomainsScimLogsRetrieveParams,
-    options?: RequestInit
-): Promise<PaginatedSCIMRequestLogApi> => {
-    return apiMutator<PaginatedSCIMRequestLogApi>(getDomainsScimLogsRetrieveUrl(organizationId, id, params), {
-        ...options,
-        method: 'GET',
-    })
-}
-
 export const getDomainsVerifyCreateUrl = (organizationId: string, id: string) => {
     return `/api/organizations/${organizationId}/domains/${id}/verify/`
 }
@@ -591,59 +555,6 @@ export const identityProviderConfigsDestroy = async (
     return apiMutator<void>(getIdentityProviderConfigsDestroyUrl(organizationId, id), {
         ...options,
         method: 'DELETE',
-    })
-}
-
-export const getIdentityProviderConfigsScimLogsRetrieveUrl = (
-    organizationId: string,
-    id: string,
-    params?: IdentityProviderConfigsScimLogsRetrieveParams
-) => {
-    const normalizedParams = new URLSearchParams()
-
-    Object.entries(params || {}).forEach(([key, value]) => {
-        if (value !== undefined) {
-            normalizedParams.append(key, value === null ? 'null' : String(value))
-        }
-    })
-
-    const stringifiedParams = normalizedParams.toString()
-
-    return stringifiedParams.length > 0
-        ? `/api/organizations/${organizationId}/identity_provider_configs/${id}/scim/logs/?${stringifiedParams}`
-        : `/api/organizations/${organizationId}/identity_provider_configs/${id}/scim/logs/`
-}
-
-export const identityProviderConfigsScimLogsRetrieve = async (
-    organizationId: string,
-    id: string,
-    params?: IdentityProviderConfigsScimLogsRetrieveParams,
-    options?: RequestInit
-): Promise<PaginatedSCIMRequestLogApi> => {
-    return apiMutator<PaginatedSCIMRequestLogApi>(
-        getIdentityProviderConfigsScimLogsRetrieveUrl(organizationId, id, params),
-        {
-            ...options,
-            method: 'GET',
-        }
-    )
-}
-
-export const getIdentityProviderConfigsScimTokenCreateUrl = (organizationId: string, id: string) => {
-    return `/api/organizations/${organizationId}/identity_provider_configs/${id}/scim/token/`
-}
-
-/**
- * Regenerate the SCIM bearer token for this IdP config.
- */
-export const identityProviderConfigsScimTokenCreate = async (
-    organizationId: string,
-    id: string,
-    options?: RequestInit
-): Promise<SCIMTokenResponseApi> => {
-    return apiMutator<SCIMTokenResponseApi>(getIdentityProviderConfigsScimTokenCreateUrl(organizationId, id), {
-        ...options,
-        method: 'POST',
     })
 }
 
@@ -2444,8 +2355,8 @@ export const propertyDefinitionsList = async (
     projectId: string,
     params?: PropertyDefinitionsListParams,
     options?: RequestInit
-): Promise<PaginatedEnterprisePropertyDefinitionListApi> => {
-    return apiMutator<PaginatedEnterprisePropertyDefinitionListApi>(getPropertyDefinitionsListUrl(projectId, params), {
+): Promise<PaginatedPropertyDefinitionListApi> => {
+    return apiMutator<PaginatedPropertyDefinitionListApi>(getPropertyDefinitionsListUrl(projectId, params), {
         ...options,
         method: 'GET',
     })
@@ -2459,8 +2370,8 @@ export const propertyDefinitionsRetrieve = async (
     projectId: string,
     id: string,
     options?: RequestInit
-): Promise<EnterprisePropertyDefinitionApi> => {
-    return apiMutator<EnterprisePropertyDefinitionApi>(getPropertyDefinitionsRetrieveUrl(projectId, id), {
+): Promise<PropertyDefinitionApi> => {
+    return apiMutator<PropertyDefinitionApi>(getPropertyDefinitionsRetrieveUrl(projectId, id), {
         ...options,
         method: 'GET',
     })
@@ -2473,14 +2384,14 @@ export const getPropertyDefinitionsUpdateUrl = (projectId: string, id: string) =
 export const propertyDefinitionsUpdate = async (
     projectId: string,
     id: string,
-    enterprisePropertyDefinitionApi?: NonReadonly<EnterprisePropertyDefinitionApi>,
+    propertyDefinitionApi: NonReadonly<PropertyDefinitionApi>,
     options?: RequestInit
-): Promise<EnterprisePropertyDefinitionApi> => {
-    return apiMutator<EnterprisePropertyDefinitionApi>(getPropertyDefinitionsUpdateUrl(projectId, id), {
+): Promise<PropertyDefinitionApi> => {
+    return apiMutator<PropertyDefinitionApi>(getPropertyDefinitionsUpdateUrl(projectId, id), {
         ...options,
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...options?.headers },
-        body: JSON.stringify(enterprisePropertyDefinitionApi),
+        body: JSON.stringify(propertyDefinitionApi),
     })
 }
 
@@ -2491,14 +2402,14 @@ export const getPropertyDefinitionsPartialUpdateUrl = (projectId: string, id: st
 export const propertyDefinitionsPartialUpdate = async (
     projectId: string,
     id: string,
-    patchedEnterprisePropertyDefinitionApi?: NonReadonly<PatchedEnterprisePropertyDefinitionApi>,
+    patchedPropertyDefinitionApi?: NonReadonly<PatchedPropertyDefinitionApi>,
     options?: RequestInit
-): Promise<EnterprisePropertyDefinitionApi> => {
-    return apiMutator<EnterprisePropertyDefinitionApi>(getPropertyDefinitionsPartialUpdateUrl(projectId, id), {
+): Promise<PropertyDefinitionApi> => {
+    return apiMutator<PropertyDefinitionApi>(getPropertyDefinitionsPartialUpdateUrl(projectId, id), {
         ...options,
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...options?.headers },
-        body: JSON.stringify(patchedEnterprisePropertyDefinitionApi),
+        body: JSON.stringify(patchedPropertyDefinitionApi),
     })
 }
 

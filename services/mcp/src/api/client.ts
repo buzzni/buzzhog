@@ -863,9 +863,7 @@ export class ApiClient {
 
                     const data = (await response.json()) as { results: ApiPropertyDefinition[] }
 
-                    const propertyDefinitionsWithoutHidden = data.results.filter((def) => !def.hidden)
-
-                    return { success: true, data: propertyDefinitionsWithoutHidden }
+                    return { success: true, data: data.results }
                 } catch (error) {
                     return { success: false, error: error as Error }
                 }

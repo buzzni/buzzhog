@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { ExperimentResultsGetSchema } from '@/schema/tool-inputs'
-import { GENERATED_TOOLS as EXPERIMENT_TOOLS } from '@/tools/generated/experiments'
 import { GENERATED_TOOLS as FEATURE_FLAG_TOOLS } from '@/tools/generated/feature_flags'
-
-import { EXPERIMENT_ID_TOOLS } from '../fixtures/experiment-id-tools'
 
 // Production traces show the dominant validation failure on the experiment tools is the
 // experiment id arriving as `experimentId` / `experiment_id` where the schema requires
@@ -26,80 +23,6 @@ function toolsWithIdParam(tools: Record<string, () => { schema: z.ZodTypeAny }>)
 
 describe('experiment id aliases', () => {
     const ALIAS_KEYS = ['experimentId', 'experiment_id'] as const
-
-    // `id` on these is a holdout or saved-metric id, not an experiment id.
-    const NON_EXPERIMENT_ID_TOOLS = new Set([
-        'experiment-holdouts-retrieve',
-        'experiment-holdouts-partial-update',
-        'experiment-holdouts-destroy',
-        'experiment-saved-metrics-retrieve',
-        'experiment-saved-metrics-partial-update',
-        'experiment-saved-metrics-destroy',
-    ])
-
-    // The alias list is hand-maintained; this keeps it in step with the generated tools so
-    // a new id-taking experiment tool cannot ship without the aliases.
-    it('covers every generated experiment tool that takes an experiment id', () => {
-        const idTools = toolsWithIdParam(EXPERIMENT_TOOLS).filter((name) => !NON_EXPERIMENT_ID_TOOLS.has(name))
-        expect(idTools).toEqual(EXPERIMENT_ID_TOOLS.map(([name]) => name).sort())
-    })
-
-    describe.each(EXPERIMENT_ID_TOOLS)('%s normalizes aliases to `id`', (toolName, extras) => {
-        const factory = EXPERIMENT_TOOLS[toolName]
-
-        it('is a generated tool', () => {
-            expect(factory).not.toBeUndefined()
-        })
-
-        it.each([
-            ['id (numeric)', { id: 123 }, 123],
-            ['id (numeric string)', { id: '123' }, 123],
-            ['experimentId', { experimentId: 123 }, 123],
-            ['experiment_id', { experiment_id: 123 }, 123],
-            ['experiment_id (numeric string)', { experiment_id: '123' }, 123],
-            ['id over aliases on conflict', { id: 1, experimentId: 2, experiment_id: 3 }, 1],
-            ['first-listed alias on alias conflict', { experimentId: 2, experiment_id: 3 }, 2],
-        ])('accepts %s', (_label, input, expected) => {
-            const schema = factory!().schema
-            const result = schema.safeParse({ ...extras, ...input })
-            expect(result.success, JSON.stringify(result.error?.issues)).toBe(true)
-            const data = result.data as Record<string, unknown>
-            expect(data.id).toEqual(expected)
-            for (const alias of ALIAS_KEYS) {
-                expect(data).not.toHaveProperty(alias)
-            }
-        })
-
-        it('still rejects a call with no identifier', () => {
-            expect(factory!().schema.safeParse({ ...extras }).success).toBe(false)
-        })
-    })
-
-    describe('experiment-metrics-recalculation-retrieve normalizes run id aliases to `recalculation_id`', () => {
-        const schema = EXPERIMENT_TOOLS['experiment-metrics-recalculation-retrieve']!().schema
-        const runId = '0199a1c0-0000-7000-8000-000000000000'
-
-        it.each([
-            ['recalculation_id', { id: 1, recalculation_id: runId }],
-            ['run_id', { id: 1, run_id: runId }],
-            ['runId', { id: 1, runId: runId }],
-            ['recalculationId', { experimentId: 1, recalculationId: runId }],
-            ['recalculation_id over aliases on conflict', { id: 1, recalculation_id: runId, run_id: 'stale' }],
-        ])('accepts %s', (_label, input) => {
-            const result = schema.safeParse(input)
-            expect(result.success, JSON.stringify(result.error?.issues)).toBe(true)
-            const data = result.data as Record<string, unknown>
-            expect(data.id).toBe(1)
-            expect(data.recalculation_id).toBe(runId)
-            for (const alias of ['run_id', 'runId', 'recalculationId']) {
-                expect(data).not.toHaveProperty(alias)
-            }
-        })
-
-        it('still rejects a call with no run id', () => {
-            expect(schema.safeParse({ id: 1 }).success).toBe(false)
-        })
-    })
 
     describe('experiment-results-get (hand-written) normalizes aliases to `id`', () => {
         it.each([

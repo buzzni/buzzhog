@@ -9,6 +9,7 @@ import { FEATURE_FLAGS, OrganizationMembershipLevel } from 'lib/constants'
 import { IconExclamation } from 'lib/lemon-ui/icons'
 import { LemonButton } from 'lib/lemon-ui/LemonButton'
 import { More } from 'lib/lemon-ui/LemonButton/More'
+import { LemonDialog } from 'lib/lemon-ui/LemonDialog'
 import { LemonSwitch } from 'lib/lemon-ui/LemonSwitch/LemonSwitch'
 import { LemonTable, LemonTableColumns } from 'lib/lemon-ui/LemonTable'
 import { LemonTag, LemonTagType } from 'lib/lemon-ui/LemonTag/LemonTag'
@@ -26,12 +27,14 @@ import { AvailableFeature, OrganizationDomainType } from '~/types'
 import { AddDomainModal } from './AddDomainModal'
 import { ConfigureIdJagModal } from './ConfigureIdJagModal'
 import { ConfigureSAMLModal } from './ConfigureSAMLModal'
-import { ConfigureSCIMModal } from './ConfigureSCIMModal'
-import { ScimLogsModal } from './ScimLogsModal'
 import { SSOSelect } from './SSOSelect'
 import { verifiedDomainImpactLogic } from './verifiedDomainImpactLogic'
 import { RemoveDomainModal } from './VerifiedDomainImpactModals'
-import { getIdentityProviderConfigForDomain, verifiedDomainsLogic } from './verifiedDomainsLogic'
+import {
+    getEnabledScimConfigForDomain,
+    getIdentityProviderConfigForDomain,
+    verifiedDomainsLogic,
+} from './verifiedDomainsLogic'
 import { VerifyDomainModal } from './VerifyDomainModal'
 
 // One distinctive icon per integration type, reused across each integration's status badges.
@@ -110,20 +113,14 @@ function VerifiedDomainsTable(): JSX.Element {
         isSSOEnforcementAvailable,
         isSAMLAvailable,
         isOIDCAvailable,
-        isSCIMAvailable,
         isXAAAuthenticationAvailable,
         ownVerifiedDomain,
         identityProviderConfigs,
+        disablingScimLoading,
     } = useValues(verifiedDomainsLogic)
     const { currentOrganization } = useValues(organizationLogic)
-    const {
-        updateDomain,
-        setVerifyModal,
-        setConfigureSAMLModalId,
-        setConfigureSCIMModalId,
-        setConfigureIdJagModalId,
-        setScimLogsModalId,
-    } = useActions(verifiedDomainsLogic)
+    const { updateDomain, setVerifyModal, setConfigureSAMLModalId, setConfigureIdJagModalId, disableScim } =
+        useActions(verifiedDomainsLogic)
     const { promptRemoveDomain } = useActions(verifiedDomainImpactLogic)
     const { preflight } = useValues(preflightLogic)
     const { featureFlags } = useValues(featureFlagLogic)
@@ -135,6 +132,20 @@ function VerifiedDomainsTable(): JSX.Element {
         minimumAccessLevel: OrganizationMembershipLevel.Admin,
         scope: RestrictionScope.Organization,
     })
+
+    const confirmDisableScim = (configId: string): void => {
+        LemonDialog.open({
+            title: 'Disable SCIM?',
+            description:
+                "This deletes the SCIM token stored for this configuration. You can't turn SCIM back on after this.",
+            primaryButton: {
+                status: 'danger',
+                children: 'Disable SCIM',
+                onClick: () => disableScim(configId),
+            },
+            secondaryButton: { children: 'Cancel' },
+        })
+    }
 
     const verifiedDomainsList = verifiedDomains.filter((d) => d.is_verified)
     const unverifiedDomainsList = verifiedDomains.filter((d) => !d.is_verified)
@@ -237,11 +248,7 @@ function VerifiedDomainsTable(): JSX.Element {
                     id,
                     ConfigScopeEnumApi.Saml
                 )
-                const scimConfig = getIdentityProviderConfigForDomain(
-                    identityProviderConfigs,
-                    id,
-                    ConfigScopeEnumApi.Scim
-                )
+                const scimConfig = getEnabledScimConfigForDomain(identityProviderConfigs, id)
                 const oidcConfig = getIdentityProviderConfigForDomain(
                     identityProviderConfigs,
                     id,
@@ -305,18 +312,7 @@ function VerifiedDomainsTable(): JSX.Element {
                     />
                 )
 
-                if (!isSCIMAvailable) {
-                    badges.push(
-                        <IntegrationBadge
-                            key="scim"
-                            label="SCIM"
-                            type="muted"
-                            icon={SCIM_ICON}
-                            tooltip="Upgrade your plan to enable SCIM"
-                            to={billingLink}
-                        />
-                    )
-                } else if (scimConfig?.has_scim) {
+                if (scimConfig) {
                     badges.push(
                         <IntegrationBadge
                             key="scim"
@@ -324,16 +320,6 @@ function VerifiedDomainsTable(): JSX.Element {
                             type="success"
                             icon={SCIM_ICON}
                             tooltip="SCIM is enabled"
-                        />
-                    )
-                } else {
-                    badges.push(
-                        <IntegrationBadge
-                            key="scim"
-                            label="SCIM"
-                            type="muted"
-                            icon={SCIM_ICON}
-                            tooltip="SCIM is not enabled"
                         />
                     )
                 }
@@ -363,6 +349,7 @@ function VerifiedDomainsTable(): JSX.Element {
             align: 'center',
             render: function RenderActions(_, domainRecord) {
                 const { id } = domainRecord
+                const scimConfig = getEnabledScimConfigForDomain(identityProviderConfigs, id)
                 return (
                     <More
                         overlay={
@@ -379,16 +366,6 @@ function VerifiedDomainsTable(): JSX.Element {
                                         >
                                             Configure SAML
                                         </LemonButton>
-                                        <LemonButton
-                                            onClick={() => setConfigureSCIMModalId(id)}
-                                            fullWidth
-                                            disabledReason={
-                                                restrictionReason ||
-                                                (!isSCIMAvailable ? 'Upgrade to enable SCIM' : undefined)
-                                            }
-                                        >
-                                            Configure SCIM
-                                        </LemonButton>
                                         {showXAAControls && (
                                             <LemonButton
                                                 onClick={() => setConfigureIdJagModalId(id)}
@@ -398,16 +375,19 @@ function VerifiedDomainsTable(): JSX.Element {
                                                 Configure XAA
                                             </LemonButton>
                                         )}
-                                        {isSCIMAvailable && (
-                                            <LemonButton
-                                                onClick={() => setScimLogsModalId(id)}
-                                                fullWidth
-                                                disabledReason={restrictionReason}
-                                            >
-                                                View SCIM logs
-                                            </LemonButton>
-                                        )}
                                     </>
+                                )}
+                                {scimConfig && (
+                                    <LemonButton
+                                        status="danger"
+                                        onClick={() => confirmDisableScim(scimConfig.id)}
+                                        fullWidth
+                                        loading={disablingScimLoading}
+                                        disabledReason={restrictionReason}
+                                        data-attr="disable-scim"
+                                    >
+                                        Disable SCIM
+                                    </LemonButton>
                                 )}
                                 <LemonButton
                                     status="danger"
@@ -518,9 +498,7 @@ function VerifiedDomainsTable(): JSX.Element {
             {!isSSOSettingsRedesignEnabled && (
                 <>
                     <ConfigureSAMLModal />
-                    <ConfigureSCIMModal />
                     {showXAAControls && <ConfigureIdJagModal />}
-                    <ScimLogsModal />
                 </>
             )}
             <VerifyDomainModal />

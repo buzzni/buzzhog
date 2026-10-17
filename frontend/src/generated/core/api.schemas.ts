@@ -192,37 +192,6 @@ export interface PatchedOrganizationDomainApi {
     readonly scim_base_url?: string | null
 }
 
-export interface SCIMRequestLogApi {
-    readonly id: string
-    readonly request_method: string
-    readonly request_path: string
-    readonly request_headers: unknown
-    readonly request_body: unknown
-    readonly response_status: number
-    readonly response_body: unknown
-    readonly identity_provider: string
-    /** @nullable */
-    readonly duration_ms: number | null
-    readonly created_at: string
-}
-
-export interface PaginatedSCIMRequestLogApi {
-    /** Total number of matching SCIM requests. */
-    count: number
-    /**
-     * URL for the next page, or null on the last page.
-     * @nullable
-     */
-    next: string | null
-    /**
-     * URL for the previous page, or null on the first page.
-     * @nullable
-     */
-    previous: string | null
-    /** SCIM requests on this page. */
-    results: SCIMRequestLogApi[]
-}
-
 /**
  * * `all` - All
  * * `selected` - Selected
@@ -311,12 +280,15 @@ export interface IdentityProviderConfigApi {
     saml_x509_cert?: string | null
     /** Whether SCIM is enabled and a bearer token is set on this config. */
     readonly has_scim: boolean
-    /** Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token. */
+    /** Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token. */
     scim_enabled?: boolean
-    /** SCIM base URL for this identity provider configuration. */
-    readonly scim_base_url: string
     /**
-     * Plaintext SCIM bearer token. Only returned once, immediately after SCIM is enabled or the token is regenerated; null otherwise.
+     * SCIM base URL for this identity provider configuration. This build has no SCIM provisioning, so it is always null.
+     * @nullable
+     */
+    readonly scim_base_url: string | null
+    /**
+     * Plaintext SCIM bearer token. This build has no SCIM provisioning, so it is always null.
      * @nullable
      */
     readonly scim_bearer_token: string | null
@@ -412,12 +384,15 @@ export interface PatchedIdentityProviderConfigApi {
     saml_x509_cert?: string | null
     /** Whether SCIM is enabled and a bearer token is set on this config. */
     readonly has_scim?: boolean
-    /** Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token. */
+    /** Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token. */
     scim_enabled?: boolean
-    /** SCIM base URL for this identity provider configuration. */
-    readonly scim_base_url?: string
     /**
-     * Plaintext SCIM bearer token. Only returned once, immediately after SCIM is enabled or the token is regenerated; null otherwise.
+     * SCIM base URL for this identity provider configuration. This build has no SCIM provisioning, so it is always null.
+     * @nullable
+     */
+    readonly scim_base_url?: string | null
+    /**
+     * Plaintext SCIM bearer token. This build has no SCIM provisioning, so it is always null.
      * @nullable
      */
     readonly scim_bearer_token?: string | null
@@ -440,13 +415,6 @@ export interface PatchedIdentityProviderConfigApi {
      * @items.maxLength 256
      */
     id_jag_allowed_clients?: string[]
-}
-
-export interface SCIMTokenResponseApi {
-    /** Whether SCIM is enabled for this config. */
-    scim_enabled: boolean
-    /** Newly generated plaintext SCIM bearer token. Only returned once. */
-    scim_bearer_token: string
 }
 
 /**
@@ -5229,58 +5197,46 @@ export const PropertyTypeEnumApi = {
 /**
  * Serializer mixin that handles tags for objects.
  */
-export interface EnterprisePropertyDefinitionApi {
+export interface PropertyDefinitionApi {
     readonly id: string
-    readonly name: string
-    /** @nullable */
-    description?: string | null
-    tags?: unknown[]
-    readonly is_numerical: boolean
-    readonly updated_at: string
-    readonly updated_by: UserBasicApi
-    /** @nullable */
-    readonly is_seen_on_filtered_events: boolean | null
+    /** @maxLength 400 */
+    name: string
+    is_numerical?: boolean
     property_type?: PropertyTypeEnumApi | BlankEnumApi | null
-    verified?: boolean
-    /** @nullable */
-    readonly verified_at: string | null
-    readonly verified_by: UserBasicApi
-    /** @nullable */
-    hidden?: boolean | null
+    tags?: unknown[]
+    /**
+     * Whether the property was seen on the events named in `event_names`. Null when `event_names` is not sent.
+     * @nullable
+     */
+    readonly is_seen_on_filtered_events: boolean | null
     /** Provenance for a person property populated from a data warehouse source (source/table/column/last synced), or null. Read-only. */
     readonly warehouse_origin: unknown
 }
 
-export interface PaginatedEnterprisePropertyDefinitionListApi {
+export interface PaginatedPropertyDefinitionListApi {
     count: number
     /** @nullable */
     next?: string | null
     /** @nullable */
     previous?: string | null
-    results: EnterprisePropertyDefinitionApi[]
+    results: PropertyDefinitionApi[]
 }
 
 /**
  * Serializer mixin that handles tags for objects.
  */
-export interface PatchedEnterprisePropertyDefinitionApi {
+export interface PatchedPropertyDefinitionApi {
     readonly id?: string
-    readonly name?: string
-    /** @nullable */
-    description?: string | null
-    tags?: unknown[]
-    readonly is_numerical?: boolean
-    readonly updated_at?: string
-    readonly updated_by?: UserBasicApi
-    /** @nullable */
-    readonly is_seen_on_filtered_events?: boolean | null
+    /** @maxLength 400 */
+    name?: string
+    is_numerical?: boolean
     property_type?: PropertyTypeEnumApi | BlankEnumApi | null
-    verified?: boolean
-    /** @nullable */
-    readonly verified_at?: string | null
-    readonly verified_by?: UserBasicApi
-    /** @nullable */
-    hidden?: boolean | null
+    tags?: unknown[]
+    /**
+     * Whether the property was seen on the events named in `event_names`. Null when `event_names` is not sent.
+     * @nullable
+     */
+    readonly is_seen_on_filtered_events?: boolean | null
     /** Provenance for a person property populated from a data warehouse source (source/table/column/last synced), or null. Read-only. */
     readonly warehouse_origin?: unknown
 }
@@ -6655,41 +6611,6 @@ export type DomainsListParams = {
     offset?: number
 }
 
-export type DomainsScimLogsRetrieveParams = {
-    /**
-     * Include requests at or after this time.
-     */
-    after?: string
-    /**
-     * Include requests at or before this time.
-     */
-    before?: string
-    /**
-     * Page number to return.
-     * @minimum 1
-     */
-    page?: number
-    /**
-     * Number of requests to return per page.
-     * @minimum 1
-     * @maximum 100
-     */
-    page_size?: number
-    /**
-     * Search request paths and masked request bodies.
-     * @minLength 1
-     */
-    search?: string
-    /**
-     * Maximum HTTP response status to include, such as 499.
-     */
-    status_max?: number
-    /**
-     * Minimum HTTP response status to include, such as 400.
-     */
-    status_min?: number
-}
-
 export type IdentityProviderConfigsListParams = {
     /**
      * Number of results to return per page.
@@ -6699,41 +6620,6 @@ export type IdentityProviderConfigsListParams = {
      * The initial index from which to return the results.
      */
     offset?: number
-}
-
-export type IdentityProviderConfigsScimLogsRetrieveParams = {
-    /**
-     * Include requests at or after this time.
-     */
-    after?: string
-    /**
-     * Include requests at or before this time.
-     */
-    before?: string
-    /**
-     * Page number to return.
-     * @minimum 1
-     */
-    page?: number
-    /**
-     * Number of requests to return per page.
-     * @minimum 1
-     * @maximum 100
-     */
-    page_size?: number
-    /**
-     * Search request paths and masked request bodies.
-     * @minLength 1
-     */
-    search?: string
-    /**
-     * Maximum HTTP response status to include, such as 499.
-     */
-    status_max?: number
-    /**
-     * Minimum HTTP response status to include, such as 400.
-     */
-    status_min?: number
 }
 
 export type InvitesListParams = {

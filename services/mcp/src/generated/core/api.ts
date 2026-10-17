@@ -3,7 +3,7 @@
  * MCP service uses these Zod schemas for generated tool handlers.
  * To regenerate: hogli build:openapi
  *
- * PostHog API - MCP 16 enabled ops
+ * PostHog API - MCP 15 enabled ops
  * OpenAPI spec version: 1.0.0
  */
 import * as zod from 'zod'
@@ -128,7 +128,7 @@ export const IdentityProviderConfigsCreateBody = () => zod.object({
         .boolean()
         .optional()
         .describe(
-            'Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.'
+            'Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.'
         ),
     id_jag_issuer_url: zod
         .string()
@@ -250,7 +250,7 @@ export const IdentityProviderConfigsPartialUpdateBody = () => zod.object({
         .boolean()
         .optional()
         .describe(
-            'Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.'
+            'Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.'
         ),
     id_jag_issuer_url: zod
         .string()
@@ -269,18 +269,6 @@ export const IdentityProviderConfigsPartialUpdateBody = () => zod.object({
 })
 
 export const IdentityProviderConfigsDestroyParams = () => zod.object({
-    id: zod.string().describe('A UUID string identifying this identity provider config.'),
-    organization_id: zod
-        .string()
-        .describe(
-            "ID of the organization you're trying to access. To find the ID of the organization, make a call to \/api\/organizations\/."
-        ),
-})
-
-/**
- * Regenerate the SCIM bearer token for this IdP config.
- */
-export const IdentityProviderConfigsScimTokenCreateParams = () => zod.object({
     id: zod.string().describe('A UUID string identifying this identity provider config.'),
     organization_id: zod
         .string()

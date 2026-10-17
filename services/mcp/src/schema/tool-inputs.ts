@@ -5,7 +5,6 @@ import {
     aiObservabilityOfflineExperimentsUploadCreateBodyItemsMax,
     aiObservabilityOfflineExperimentsUploadCreateBodyResultsMax,
 } from '../generated/ai_observability/api'
-import { BillingUsageRetrieveQueryParams } from '../generated/billing/api'
 // Relative (not `@/`) imports: this module is loaded by the tsx schema-generation
 // script, and both modules are pure constants/functions — no `.md` imports to choke on.
 import { castStringToInt, normalizeParamAliases } from '../tools/cast-helpers'
@@ -115,32 +114,6 @@ export const ExternalDataJobsSchemasSchema = z
     .array(z.string())
     .describe('Filter jobs by table schema names (e.g. ["users", "orders"]). Only returns jobs for these tables.')
 
-export const BillingTeamIdsSchema = z
-    .array(z.number().int().positive())
-    .nullish()
-    .describe(
-        'Project IDs to filter by, e.g. `[1,2]`. Omit for every project this request can see: all organization projects for full billing access, or the member-visible and token-scoped projects for member read-only access.'
-    )
-
-export const BillingUsageTypesSchema = z
-    .array(z.string().min(1))
-    .nullish()
-    .describe(BillingUsageRetrieveQueryParams().shape.usage_types.description!.replace('JSON-encoded array', 'Array'))
-
-export const BillingSpendBreakdownsSchema = z
-    .array(z.enum(['type', 'team']))
-    .nullish()
-    .describe(
-        'Dimensions to break spend down by. Pass `["type"]` for per-product series, `["team"]` for one series per project summed across products, or `["type","team"]` for per-project series within each product. Omit for one aggregate series.'
-    )
-
-export const BillingUsageBreakdownsSchema = z
-    .array(z.enum(['type', 'team']))
-    .nullish()
-    .describe(
-        'Dimensions to break usage down by. Pass `["type"]` for per-usage-type series or `["type","team"]` for per-project series within each usage type. Team breakdowns require `"type"`; do not pass `["team"]` by itself. Omit for one aggregate series.'
-    )
-
 export const ExternalDataSourcePayloadSchema = z
     .record(z.string(), z.unknown())
     .describe(
@@ -151,50 +124,6 @@ export const ExternalDataSourceTypeSchema = z
     .string()
     .describe(
         'The source type name (e.g. "Postgres", "MySQL", "Stripe"). Use external-data-sources-wizard to see available types and their required fields.'
-    )
-
-const UsageMetricEventsFilterEntrySchema = z.object({
-    id: z.string().describe('Event name (e.g. "$pageview").'),
-    name: z.string().optional(),
-    type: z.literal('events').optional(),
-    order: z.number().int().optional(),
-    properties: z.array(z.unknown()).optional(),
-})
-
-const UsageMetricEventsFiltersSchema = z
-    .object({
-        events: z.array(UsageMetricEventsFilterEntrySchema).describe('Events to count or sum over.'),
-        actions: z.array(z.unknown()).optional(),
-        properties: z.array(z.unknown()).optional(),
-        filter_test_accounts: z.boolean().optional(),
-    })
-    .describe('Events-source filter shape (default).')
-
-const UsageMetricDataWarehouseFiltersSchema = z
-    .object({
-        source: z.literal('data_warehouse'),
-        table_name: z
-            .string()
-            .describe(
-                'Name of a synced data warehouse table. Use `external-data-schemas-list` to discover available tables.'
-            ),
-        timestamp_field: z
-            .string()
-            .describe(
-                'Timestamp column or HogQL expression on the row (e.g. "created" or "toDateTime(created_at)"). Use `execute-sql` (`SELECT * FROM <table> LIMIT 1`) to inspect available columns.'
-            ),
-        key_field: z
-            .string()
-            .describe(
-                'Column on the row whose value matches the entity key. v1 supports group profiles only — the column value is compared to the group_key.'
-            ),
-    })
-    .describe('Data-warehouse-source filter shape.')
-
-export const UsageMetricFiltersSchema = z
-    .union([UsageMetricDataWarehouseFiltersSchema, UsageMetricEventsFiltersSchema])
-    .describe(
-        'Filter definition. Pick exactly one branch: `data_warehouse` (set `source: "data_warehouse"` plus `table_name`/`timestamp_field`/`key_field`) or `events` (HogFunction filter shape with an `events` array).'
     )
 
 const CategoricalScoreOptionSchema = z.object({
