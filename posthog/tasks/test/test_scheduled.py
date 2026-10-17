@@ -1,5 +1,3 @@
-from typing import Any
-
 from unittest.mock import MagicMock
 
 from django.test import SimpleTestCase
@@ -62,19 +60,19 @@ class TestLLMGatewayQuotaReconcileScheduling(SimpleTestCase):
 class TestFossTaskScheduling(SimpleTestCase):
     @parameterized.expand(
         [
-            ("find feature flags with enriched analytics", find_flags_with_enriched_analytics),
-            ("delete expired exported assets", delete_expired_exported_assets),
-            ("fail stuck video exports", fail_stuck_video_exports),
-            ("delete expired delegation invites", delete_expired_delegation_invites),
+            ("find feature flags with enriched analytics", find_flags_with_enriched_analytics.name),
+            ("delete expired exported assets", delete_expired_exported_assets.name),
+            ("fail stuck video exports", fail_stuck_video_exports.name),
+            ("delete expired delegation invites", delete_expired_delegation_invites.name),
         ]
     )
-    def test_task_is_scheduled_without_ee(self, name: str, task: Any) -> None:
+    def test_task_is_scheduled_without_ee(self, name: str, task_name: str) -> None:
         sender = MagicMock()
         with self.settings(EE_AVAILABLE=False):
             setup_periodic_tasks(sender)
         calls = [call for call in sender.add_periodic_task.call_args_list if call.kwargs.get("name") == name]
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0].args[1].task, task.name)
+        self.assertEqual(calls[0].args[1].task, task_name)
 
 
 class TestInstanceSpreadMinute(SimpleTestCase):
