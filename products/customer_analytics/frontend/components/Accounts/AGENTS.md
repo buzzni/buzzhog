@@ -10,7 +10,7 @@ This file should carry the full context needed to work here — architecture, da
 
 An **Account** is a customer organization. The list is a Postgres-backed table over Customer analytics account models, with per-row expansion into Notes / Users / Relationships / Usage / Spend / Opportunities, inline role assignment (CSM, AE, owner), configurable columns, overview metric tiles, shareable views, and a Max (AI) contextual tool for opening accounts.
 
-`Account.external_id` is the PostHog **group key** — it's how an account joins to its group-analytics data (usage, events, feature flags). Treat it as the account's analytics identity, not a CRM id (CRM/billing ids live in account properties). The account→group bridge lives in the backend query runner and the agent mode, not here — see [Backend touchpoints](#backend-touchpoints). Keep this mechanism out of any user-facing copy (it's a façade — see the agent mode preset).
+`Account.external_id` is the PostHog **group key** — it's how an account joins to its group-analytics data (usage, events, feature flags). Treat it as the account's analytics identity, not a CRM id (CRM/billing ids live in account properties). The account→group bridge lives in the backend query runner, not here — see [Backend touchpoints](#backend-touchpoints). Keep this mechanism out of any user-facing copy (it's a façade).
 
 ## Architecture
 
@@ -343,14 +343,14 @@ The available-columns picker defaults to an "All columns" category that searches
 
 The Accounts list exposes one contextual tool, `open_account`, so Max can show an account on screen.
 
-1. Backend `OpenAccountTool` (`products/customer_analytics/backend/max_tools.py`) resolves the account by `external_id` or name and returns `{ account_id, account_name, external_id, tab }`.
+1. The tool result is `{ account_id, account_name, external_id, tab }`, or `{ error }`. No backend tool for `open_account` exists in this repository, so the callback only runs when the host provides one.
 2. `AccountsMaxTools.tsx` registers it with `useMaxTool({ identifier: 'open_account', callback })`; the callback calls `accountsLogic.openAccount(accountId, externalId, name, tab)`.
 3. `accountsLogic.openAccount`:
    - **Reveal** — if the account isn't in the current results (checks the bound data node's rows by name-cell `id`), it clears the excluding filters and searches by `external_id`/name so the row will render. This avoids a silent no-op when Max references an account that's filtered out.
    - **Expand** — dispatches `openAccountTab(accountId, tab)` (programmatic; deliberately does **not** fire the tab-viewed event).
    - **Scroll** — polls for the row's `[data-account-id]` node (revealing triggers an async refetch, so it may not exist yet) and smooth-scrolls it into view (`block: 'center'`). Runs through `cache.disposables` keyed `scrollToAccount` (a second open cancels a pending scroll), one-shot via `pauseOnPageHidden: false`. The scroll anchor is `data-account-id={id}` on the name cell in `AccountsTable.tsx` — keep it there.
 
-The tool is registered for the page regardless of agent mode. The Customer analytics agent mode and the account→group bridge live in the backend (see below); keep their mechanics out of user-facing copy.
+The tool is registered for the page regardless of agent mode.
 
 ### Backend touchpoints
 
@@ -358,8 +358,6 @@ The tool is registered for the page regardless of agent mode. The Customer analy
 - `products/customer_analytics/backend/hogql_queries/accounts_query_runner.py` — the legacy generic Accounts query runner used by consumers outside the Accounts list.
 - `products/customer_analytics/backend/presentation/views/accounts_table_query.py` — the API endpoint for `AccountsTableQuery`. It prevents other query kinds from using the Customer Analytics route.
 - `products/customer_analytics/backend/hogql_queries/accounts_table_query_runner.py` — the Postgres-only `AccountsTableQuery` runner. It returns keyed rows and applies typed list filters, sorting, and overview metrics.
-- `products/customer_analytics/backend/max_tools/` — `OpenAccountTool` and other account Max tools.
-- `ee/hogai/core/agent_modes/presets/customer_analytics.py` — the Customer analytics agent mode (gated by the `customer-analytics-csp` flag).
 
 ## Devbox setup for account tabs
 
