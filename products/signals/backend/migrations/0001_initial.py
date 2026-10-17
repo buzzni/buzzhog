@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("posthog", "0993_approvalpolicy_bypass_options"),
+        ("posthog_ai", "0002_migrate_posthog_ai_models"),
     ]
 
     operations = [

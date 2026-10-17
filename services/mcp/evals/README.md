@@ -19,7 +19,7 @@ A benchmark of agent tasks for the PostHog MCP server, a script that runs each t
   category: feature-flags # one of TASK_CATEGORIES in schema.ts
   intent: 'List all our active feature flags.' # the request, phrased like a real user's
   expected_tools: [feature-flag-get-all] # tools a competent agent should call
-  acceptable_tools: [execute-sql] # other tools that are also a reasonable path
+  acceptable_tools: [feature-flag-get-definition] # other tools that are also a reasonable path
   success_criteria: "Returns the project's active flags by key." # what a correct answer does
   probe: # optional: one read-only call the probe runner makes
     tool: feature-flag-get-all

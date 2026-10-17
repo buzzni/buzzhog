@@ -128,11 +128,6 @@ def content_type_id_for_legacy_field(legacy_field: str) -> int:
     return content_type_for_entry(entry).id
 
 
-def base_model_for(model: type[models.Model]) -> type[models.Model]:
-    """The registered base model a taggable model resolves to."""
-    return apps.get_model(require_taggable(model).model_label)
-
-
 def content_type_for(model: type[models.Model]) -> ContentType:
     """The content type a tag on this model is stored under, always the registered base."""
     return content_type_for_entry(require_taggable(model))

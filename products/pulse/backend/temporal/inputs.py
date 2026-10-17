@@ -2,8 +2,8 @@ import dataclasses
 
 from posthog.slo.types import SloConfig
 
-# Shared by the API (workflow start) and the worker (workflow defn) — this module stays
-# light so the web router path never drags in the LLM stack.
+# The API (workflow start) and the worker (workflow defn) both import this module. Keep its
+# imports light, so that the web router path does not load the activity and source modules.
 GENERATE_BRIEF_WORKFLOW_NAME = "pulse-generate-brief"
 
 

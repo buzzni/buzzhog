@@ -30,9 +30,9 @@ const mswServer = setupServer(
                   organization: params.projectId === OTHER_PROJECT ? OTHER_ORG : PINNED_ORG,
               })
     ),
-    http.post('*/api/environments/:projectId/mcp_tools/execute_sql/', ({ request }) => {
+    http.get('*/api/projects/:projectId/cohorts/', ({ request }) => {
         apiPaths.push(new URL(request.url).pathname)
-        return HttpResponse.json({ success: true, content: 'ok' })
+        return HttpResponse.json({ count: 0, results: [] })
     }),
     http.get('*/api/organizations/:orgId/billing/subscription/', ({ request }) => {
         apiPaths.push(new URL(request.url).pathname)
@@ -150,11 +150,11 @@ async function callTool(
     return { isError: result.isError, text: result.content?.[0]?.text ?? '' }
 }
 
-// The project the query tool and the org the billing tool really call, or null when the tool calls nothing.
+// The project the cohorts tool and the org the billing tool really call, or null when the tool calls nothing.
 async function targets(options: CallOptions): Promise<{ project: string | null; org: string | null }> {
     apiPaths.length = 0
-    await postToolCall('execute-sql', { query: 'SELECT 1' }, options)
-    const project = apiPaths.map((path) => /^\/api\/environments\/([^/]+)\//.exec(path)?.[1]).find(Boolean) ?? null
+    await postToolCall('cohorts-list', {}, options)
+    const project = apiPaths.map((path) => /^\/api\/projects\/([^/]+)\/cohorts\//.exec(path)?.[1]).find(Boolean) ?? null
     apiPaths.length = 0
     await postToolCall('billing-subscription-get', {}, options)
     const org = apiPaths.map((path) => /^\/api\/organizations\/([^/]+)\//.exec(path)?.[1]).find(Boolean) ?? null
@@ -172,7 +172,7 @@ async function seedLegacySession(sessionId: string, state: Partial<SessionScoped
 
 async function runQueryAndBilling(options: CallOptions = {}): Promise<string[]> {
     apiPaths.length = 0
-    expect((await callTool('execute-sql', { query: 'SELECT 1' }, options)).isError).toBeFalsy()
+    expect((await callTool('cohorts-list', {}, options)).isError).toBeFalsy()
     expect((await callTool('billing-subscription-get', {}, options)).isError).toBeFalsy()
     return [...apiPaths]
 }
@@ -184,7 +184,7 @@ async function runBilling(options: CallOptions): Promise<{ isError?: boolean; pa
 }
 
 const pathsFor = (projectId: string, orgId: string): string[] => [
-    `/api/environments/${projectId}/mcp_tools/execute_sql/`,
+    `/api/projects/${projectId}/cohorts/`,
     `/api/organizations/${orgId}/billing/subscription/`,
 ]
 const billingPathFor = (orgId: string): string[] => [`/api/organizations/${orgId}/billing/subscription/`]
@@ -413,7 +413,7 @@ describe('pinned project with switch-project (Hono)', () => {
 
         for (const credential of [token, `${token}_other`]) {
             for (const [name, args] of [
-                ['execute-sql', { query: 'SELECT 1' }],
+                ['cohorts-list', {}],
                 ['billing-subscription-get', {}],
             ] as const) {
                 const response = await postToolCall(name, args, { token: credential, sessionId, query })

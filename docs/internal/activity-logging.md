@@ -291,10 +291,10 @@ Explicit logging at a bulk-write site should read its before-values from the wri
 - `activity_visibility_restrictions` hides selected rows from non-staff users (login events of impersonated sessions).
 
 Scheduled scouts already carry `activity_log:read`. MCP hides `advanced-activity-logs-list` when the Cloud organization lacks the Audit Logs entitlement.
-MCP supplies bounded reader instructions only when its filtered catalog advertises `advanced-activity-logs-list`, and adds SQL instructions only when `execute-sql` is also advertised.
+MCP supplies bounded reader instructions only when its filtered catalog advertises `advanced-activity-logs-list`.
 Tools-mode clients receive these instructions inline. Exec clients receive them in the command reference; Claude web/desktop loads them from the analytics guide, with an inline fallback when guide loading is disabled.
 The universal scout skills carry only availability and stop guidance, so they do not send clients searching for readers they cannot access.
-The SQL table enforces the same entitlement, retention, and access controls; it is not a bypass.
+The `system.activity_logs` SQL table enforces the same entitlement, retention, and access controls; it is not a bypass.
 When a reader is unavailable, stop using that reader for the run and record the limitation. Other advertised, authorized readers remain usable: per-object endpoints such as feature-flag activity do not share the project-wide Audit Logs entitlement gate. Skip only checks that have no available reader.
 To audit scheduled scout writes, use the server-derived `scout:<skill_name>` client tag and the run window. The tag identifies a scout, not a run; inspect actors, items, and timestamps when runs overlap.
 Do not infer that no configuration change occurred from missing access.

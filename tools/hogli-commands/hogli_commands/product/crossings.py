@@ -77,12 +77,12 @@ from .isolation import (
     facade_model_crossings,
     facade_shape_findings,
 )
-from .paths import PRODUCTS_DIR, REPO_ROOT, TACH_TOML, backend_product_dirs
+from .paths import FIRST_PARTY_ROOTS, PRODUCTS_DIR, REPO_ROOT, TACH_TOML, backend_product_dirs
 from .reverse_accessors import reverse_accessor_edge_lines
 
 # Where Python that can consume a product model lives. Everything else at the repo root is
 # frontend, infra, or standalone tooling that never imports Django product models.
-SCANNED_ROOTS: tuple[str, ...] = ("posthog", "ee", "products", "common")
+SCANNED_ROOTS: tuple[str, ...] = FIRST_PARTY_ROOTS
 SKIPPED_DIRS: frozenset[str] = frozenset({"node_modules", ".venv", "venv", "__pycache__", ".git", ".mypy_cache"})
 
 # Model manager attributes a crossing class exposes. A chain rooted at one of these is a queryset.

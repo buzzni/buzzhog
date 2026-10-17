@@ -102,8 +102,8 @@ def build_evidence_index(items: list[SourceItem]) -> dict[str, EvidenceRef]:
     """Assign stable citation ids (c1..cN) to the distinct evidence refs across all items.
 
     Deduped by ref key in item then evidence order, so the same physical resource cited by two
-    items shares one id. Both synthesize (rendering ids for the LLM) and persist (resolving the
-    ids the LLM cited back to structured refs) call this on the same items, so the ids match
+    items shares one id. persist calls this to resolve the ids the LLM cited back to structured
+    refs. Code that renders ids for the LLM must call it on the same items, so the ids match
     deterministically without passing the index across the Temporal boundary.
     """
     index: dict[str, EvidenceRef] = {}

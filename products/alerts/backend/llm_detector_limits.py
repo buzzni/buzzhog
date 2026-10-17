@@ -6,7 +6,7 @@ in code so the launch posture is tunable without a deploy, the same way the Sign
 scout budgets work (`products/signals/backend/scout_harness/team_limits.py`).
 
 ``admit_llm_alert_write`` is the one operation every writer of alerts calls: the rules,
-their order, and the lock they need live there, so the API and the Max tool cannot drift.
+their order, and the lock they need live there, so a new writer cannot drift from the API.
 """
 
 import json

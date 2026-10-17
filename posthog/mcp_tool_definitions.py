@@ -24,8 +24,8 @@ _SCHEMA_DIR = Path(BASE_DIR) / "services" / "mcp" / "schema"
 # files hold. This is the precedence `getToolDefinitions()` in
 # services/mcp/src/tools/toolDefinitions.ts merges with, and a catalogue built the other way
 # round would describe a tool the server does not serve. Both files are needed: some tools
-# exist only as hand-written ones (for example read-data-schema), and they are the only users
-# of some scopes.
+# exist only as hand-written ones (for example event-definition-update), and they are the
+# only users of some scopes.
 _TOOL_DEFINITION_PATHS = (
     _SCHEMA_DIR / "tool-definitions.json",
     _SCHEMA_DIR / "generated-tool-definitions.json",

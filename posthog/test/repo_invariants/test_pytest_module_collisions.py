@@ -9,7 +9,7 @@ stops and exits 2, and nothing in it runs.
 https://docs.pytest.org/en/stable/explanation/pythonpath.html
 
 Two files only collide if one session collects both. CI never runs the whole repo at
-once - Core takes posthog/ee, Temporal takes posthog/temporal plus three product
+once - Core takes posthog, Temporal takes posthog/temporal plus three product
 subtrees, and every other product runs alone under turbo. So this checks each session
 separately. A shared basename across two sessions is fine and always has been; the
 repo has many.
@@ -51,7 +51,7 @@ NORECURSEDIRS = ("*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules"
 # each because turbo runs them from products/<name>/. Widen a session here when the
 # workflow widens one, or this stops matching what CI collects.
 CI_SESSIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "core": (("posthog", "ee"), ("posthog/temporal", "posthog/dags", "posthog/test/repo_invariants")),
+    "core": (("posthog",), ("posthog/temporal", "posthog/dags", "posthog/test/repo_invariants")),
     "temporal": (
         (
             "posthog/temporal",
@@ -65,7 +65,6 @@ CI_SESSIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         (
             "posthog/clickhouse",
             "posthog/api/test/dashboards",
-            "ee/clickhouse",
         ),
         ("posthog/hogql_queries", "posthog/hogql"),
     ),
