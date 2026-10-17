@@ -505,3 +505,10 @@
 {"ts":"2026-10-17T05:18:31Z","id":"buzzhog-lmgu.tfx","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — CI workflow ee path cleanup; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T05:18:31Z","id":"buzzhog-lmgu.xqp","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — CI workflow ee path cleanup; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T05:19:39Z","id":"buzzhog-fsj7","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a06a6fa5e5da2f858 (sonnet high)"}
+{"ts":"2026-10-17T05:21:34Z","id":"buzzhog-75s4","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"ee 툴링 잔재 정리"}
+{"ts":"2026-10-17T05:21:34Z","id":"buzzhog-75s4.6yo","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"MaxTool/max_tools.py wiring 문서와 도구에서 제거"}
+{"ts":"2026-10-17T05:21:34Z","id":"buzzhog-75s4.akt","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"hogli 글롭에서 ee/ 제거"}
+{"ts":"2026-10-17T05:21:34Z","id":"buzzhog-75s4","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-fsj7 에서 펼쳤다 — ee 툴링·문서 잔재: MaxTool/max_tools.py wiring 문서와 도구(.claude/rules/product-isolation.md, products/architecture.md 101/272/344/584, isolation.py, checks.py, tach.toml, turbo.json), hogli _PYTHON_ROOTS \"ee/\", build/size_lint/complexity_lint/preflight 글롭"}
+{"ts":"2026-10-17T05:21:34Z","id":"buzzhog-fsj7","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-75s4 로 펼쳤다 (이슈 2건)"}
+{"ts":"2026-10-17T05:21:43Z","id":"buzzhog-75s4.6yo","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T05:21:43Z","id":"buzzhog-75s4.akt","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
