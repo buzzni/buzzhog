@@ -3,19 +3,22 @@ import { useEffect, useState } from 'react'
 
 import { FeatureFlagKey } from 'lib/constants'
 
-const DEFAULT_API_KEY = 'sTMFPsFhdP1Ssg'
-
 const runningOnPosthog = !!window.POSTHOG_APP_CONTEXT
-const apiKey = runningOnPosthog ? window.JS_POSTHOG_API_KEY : DEFAULT_API_KEY
-const apiHost = runningOnPosthog ? window.JS_POSTHOG_HOST : 'https://internal-cf.posthog.com'
+// Only the PostHog app knows the operator's collector. On a customer's site there is no key, so the toolbar sends nothing.
+const apiKey = runningOnPosthog ? window.JS_POSTHOG_API_KEY : undefined
+
+export const toolbarTelemetryEnabled = !!apiKey
 
 const initResult = posthog.init(
-    apiKey || DEFAULT_API_KEY,
+    apiKey || 'fake_token',
     {
-        api_host: apiHost,
+        // Without a key nothing is sent, so the host is never contacted. The page origin avoids naming any PostHog Cloud host.
+        api_host: (toolbarTelemetryEnabled ? window.JS_POSTHOG_HOST : undefined) || window.location.origin,
         opt_out_capturing_by_default: true, // must call .opt_in_capturing() before any events are sent
+        // Without a key the placeholder token would otherwise trigger remote config and flag requests.
+        advanced_disable_flags: !toolbarTelemetryEnabled,
         persistence: 'memory', // We don't want to persist anything, all events are in-memory
-        persistence_name: apiKey + '_toolbar', // We don't need this but it ensures we don't accidentally mess with the standard persistence
+        persistence_name: (apiKey || 'no_key') + '_toolbar', // We don't need this but it ensures we don't accidentally mess with the standard persistence
         bootstrap: {
             featureFlags: {},
         },

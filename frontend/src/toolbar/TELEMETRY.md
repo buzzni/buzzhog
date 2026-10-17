@@ -1,7 +1,9 @@
 # Toolbar telemetry events
 
 All events are sent via `toolbarPosthogJS`, the toolbar's internal PostHog instance,
-unless noted otherwise. Events go to PostHog's internal project (prod) or `localhost:8000` (dev).
+unless noted otherwise. Events go to the collector set by `POSTHOG_TELEMETRY_HOST` and `POSTHOG_TELEMETRY_API_KEY`.
+They are sent only when the toolbar runs inside the PostHog app and that collector is configured.
+On a customer's site the toolbar sends nothing.
 
 ## Lifecycle
 

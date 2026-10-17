@@ -77,7 +77,6 @@ const meta: Meta<StoryArgs> = {
             userIntent: undefined,
             dataAttributes: ['data-attr'],
             apiURL: '/',
-            userEmail: 'foobar@posthog.com',
         }
         useToolbarStyles()
 

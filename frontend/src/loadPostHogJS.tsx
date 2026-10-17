@@ -1,7 +1,6 @@
 import posthog, { BeforeSendFn, PostHogConfig } from 'posthog-js'
 
 import { FEATURE_FLAGS } from 'lib/constants'
-import { isOAuthMode } from 'lib/oauth/oauthClient'
 import { inStorybook, inStorybookTestRunner } from 'lib/utils/dom'
 import { isEmbeddedPageFrame } from 'lib/utils/embeddedPageFrame'
 import { getAppContext, isHobbyDeployment } from 'lib/utils/getAppContext'
@@ -200,10 +199,6 @@ export function loadPostHogJS(): void {
                 streamNetworkBody: true,
             },
             person_profiles: 'always',
-            // posthog-js patches fetch to add X-POSTHOG-* tracing headers to these hosts. In OAuth
-            // mode the app's own /api calls go cross-origin to one of them, where the cloud CORS
-            // allowlist rejects those headers — so disable the feature then.
-            tracing_headers: isOAuthMode() ? [] : ['eu.posthog.com', 'us.posthog.com'],
             __preview_disable_xhr_credentials: true,
             __preview_replay_sync_fetch: true,
             capture_performance: {
