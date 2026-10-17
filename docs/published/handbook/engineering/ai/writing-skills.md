@@ -319,7 +319,7 @@ Three global functions are available in all `.j2` templates:
 Imports a Pydantic model by its fully-qualified path and returns its JSON Schema:
 
 ```jinja2
-{{ pydantic_schema("products.feature_flags.backend.max_tools.FeatureFlagCreationSchema") }}
+{{ pydantic_schema("posthog.schema.ExperimentMetric") }}
 ```
 
 Changes to the Pydantic model automatically update the skill output on the next build.

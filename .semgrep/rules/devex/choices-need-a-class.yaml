@@ -34,7 +34,6 @@ rules:
       paths:
           include:
               - 'common/**/*.py'
-              - 'ee/**/*.py'
               - 'posthog/**/*.py'
               - 'products/**/*.py'
           exclude:

@@ -17,7 +17,6 @@ rules:
           include:
               - /posthog/**/templates/**/*.html
               - /products/*/backend/templates/**/*.html
-              - /ee/**/templates/**/*.html
               - /frontend/src/**/*.html
       patterns:
           # The match has to start inside a tag, so page text that shows `href="javascript:..."`
@@ -52,7 +51,6 @@ rules:
           include:
               - /posthog/**/templates/**/*.html
               - /products/*/backend/templates/**/*.html
-              - /ee/**/templates/**/*.html
               - /frontend/src/**/*.html
       patterns:
           # The match has to start inside a tag. `[^<>]` stops it at the tag's end, so text and
@@ -87,7 +85,6 @@ rules:
           include:
               - /posthog/**/templates/**/*.html
               - /products/*/backend/templates/**/*.html
-              - /ee/**/templates/**/*.html
               - /frontend/src/**/*.html
       patterns:
           - pattern-regex: '(?i)<script\b(?![^>]*[\s"''](?:nonce|src)\s*=)(?![^>]*\btype\s*=\s*["'']?(?:application/(?:ld\+)?json|text/(?:template|x-template|html|plain|markdown)))[^>]*>'

@@ -27,7 +27,6 @@ rules:
                 - pattern: random.random()
       paths:
           include:
-              - ee/**/*.py
               - posthog/**/*.py
               - products/**/*.py
       metadata:

@@ -34,10 +34,6 @@ rules:
           # The paths that resolve a `User` by address, where a disagreeing fold sends a
           # request to the wrong account and an unindexed fold scans the whole table.
           include:
-              - /ee/api/agentic_provisioning/**/*.py
-              - /ee/api/authentication.py
-              - /ee/api/scim/**/*.py
-              - /ee/partners/stripe/api/provisioning/**/*.py
               - /posthog/api/authentication.py
               - /posthog/api/id_jag.py
               - /posthog/api/signup.py

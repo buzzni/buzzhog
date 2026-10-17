@@ -21,7 +21,6 @@ rules:
       paths:
           include:
               - 'common/**/*.py'
-              - 'ee/**/*.py'
               - 'posthog/**/*.py'
               - 'products/**/*.py'
           exclude:
@@ -36,7 +35,6 @@ rules:
               - '**/migrations/**'
               # Baseline: pre-existing offenders being migrated behind the flag
               # facade. Shrink this list — never grow it.
-              - '/ee/hogai/context/entity_search/context.py'
               - '/posthog/management/commands/reencrypt_flag_payloads.py'
               - '/products/experiments/backend/experiment_service.py'
               - '/products/experiments/backend/hogql_queries/experiment_exposures_query_runner.py'

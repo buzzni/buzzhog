@@ -16,7 +16,7 @@ from pydantic import BaseModel
 def _import_model(dotted_path: str) -> type[BaseModel]:
     """Import a class by its fully-qualified dotted path.
 
-    Example: ``products.feature_flags.backend.max_tools.FeatureFlagCreationSchema``
+    Example: ``posthog.schema.ExperimentMetric``
     """
     module_path, _, class_name = dotted_path.rpartition(".")
     if not module_path:
@@ -54,7 +54,7 @@ def pydantic_schema(dotted_path: str, indent: int = 2) -> str:
     Usage in a template::
 
         ```json
-        {{ pydantic_schema("products.feature_flags.backend.max_tools.FeatureFlagCreationSchema") }}
+        {{ pydantic_schema("posthog.schema.ExperimentMetric") }}
         ```
     """
     model_cls = _import_model(dotted_path)

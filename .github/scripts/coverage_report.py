@@ -158,7 +158,7 @@ def convert_core_data(core_dir: Path) -> None:
     """Write one coverage-core.xml from the core shards' .coverage files."""
     data_paths = sorted(core_dir.rglob(".coverage"))
     if data_paths:
-        # No source roots: the XML report strips them from filenames, so posthog/x.py and ee/x.py would collide.
+        # No source roots: the XML report strips them from filenames, so identical names under two roots would collide.
         write_xml_from_data(data_paths, core_dir / "coverage-core.xml", source=[], config_file=CORE_COVERAGE_CONFIG)
 
 
@@ -195,7 +195,7 @@ def resolve_core_path(filename: str, sources: list[str], cache: dict[str, str]) 
     ``posthog``), not repo-relative — even with relative_files. Pick the source whose joined
     path exists in the checkout; posthog wins ties since it's the bulk of core. Coverage doesn't
     tell us which source a given <class> actually came from, so when the same relative path
-    exists under more than one source (e.g. an ``ee/`` file shadowing a ``posthog/`` one), the
+    exists under more than one source (e.g. a ``common/`` file shadowing a ``posthog/`` one), the
     two classes' line data collapse into whichever source wins the tie — warn so that's visible
     instead of a silent misattribution.
     """
@@ -203,7 +203,7 @@ def resolve_core_path(filename: str, sources: list[str], cache: dict[str, str]) 
         return cache[filename]
     stripped = filename.lstrip("/")
     resolved = stripped
-    if not stripped.startswith(("posthog/", "ee/")):
+    if not stripped.startswith("posthog/"):
         candidates = [
             src
             for src in sorted(sources, key=lambda s: 0 if s == "posthog" else 1)
@@ -222,9 +222,9 @@ def resolve_core_path(filename: str, sources: list[str], cache: dict[str, str]) 
 
 
 def aggregate_core(artifacts_dir: Path) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
-    """Union covered / valid line numbers per file across the core (posthog/ee) coverage XMLs.
+    """Union covered / valid line numbers per file across the core (posthog) coverage XMLs.
 
-    Filenames are stored relative to their <source> root (posthog or ee); each is resolved
+    Filenames are stored relative to their <source> root (posthog); each is resolved
     back to a repo-relative path so diff-cover can match it against git diff paths.
     """
     covered: dict[str, set[int]] = defaultdict(set)
@@ -269,7 +269,7 @@ def write_combined_cobertura(
 ) -> None:
     """Emit one repo-relative Cobertura XML (products + core) from the unioned line sets.
 
-    Product files are rewritten via repo_path_for(); core (posthog/ee) files are already
+    Product files are rewritten via repo_path_for(); core (posthog) files are already
     repo-relative. <source> points at the repo root so diff-cover matches git diff paths.
     """
     coverage_el = ElementTree.Element("coverage", {"version": "diff-cover-combined"})
@@ -341,7 +341,7 @@ def diff_touches_backend(compare_branch: str) -> bool | None:
         path = line.strip()
         if not path.endswith(".py"):
             continue
-        if path.startswith(("posthog/", "ee/")) or (path.startswith("products/") and "/backend/" in path):
+        if path.startswith("posthog/") or (path.startswith("products/") and "/backend/" in path):
             return True
     return False
 
@@ -490,7 +490,7 @@ def main() -> int:
     parser.add_argument("--compare-branch", default="origin/master", help="diff-cover compare branch")
     parser.add_argument("--patch-json-out", type=Path, help="path for diff-cover's JSON report (machine payload)")
     parser.add_argument(
-        "--core-artifacts", type=Path, help="dir of core (posthog/ee) coverage-core-* artifacts to include"
+        "--core-artifacts", type=Path, help="dir of core (posthog) coverage-core-* artifacts to include"
     )
     args = parser.parse_args()
 
