@@ -538,3 +538,10 @@
 {"ts":"2026-10-17T06:01:48Z","id":"buzzhog-rbya","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent ab0f079edbeb14fea (sonnet high)"}
 {"ts":"2026-10-17T06:01:49Z","id":"buzzhog-o7if","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a2c8ce41e674d0c54 (sonnet medium)"}
 {"ts":"2026-10-17T06:01:49Z","id":"buzzhog-trtl","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: post-merge review subagent a575980cdc4fe04c0 (opus xhigh, read-only)"}
+{"ts":"2026-10-17T06:02:13Z","id":"buzzhog-dket","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"OpenAPI 재생성과 호출부 정리"}
+{"ts":"2026-10-17T06:02:13Z","id":"buzzhog-dket.f2u","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"issue OpenAPI·Orval·MCP 스키마 재생성"}
+{"ts":"2026-10-17T06:02:13Z","id":"buzzhog-dket.ujz","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"issue 지운 라우트의 프런트 호출부와 holdout 도구 정리"}
+{"ts":"2026-10-17T06:02:13Z","id":"buzzhog-dket","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-rbya 에서 펼쳤다 — hogli build:openapi 재생성 — SCIM·mcp_tools·holdout 라우트가 생성 코드에 남음"}
+{"ts":"2026-10-17T06:02:13Z","id":"buzzhog-rbya","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-dket 로 펼쳤다 (이슈 2건)"}
+{"ts":"2026-10-17T06:02:20Z","id":"buzzhog-dket.f2u","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T06:02:21Z","id":"buzzhog-dket.ujz","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
