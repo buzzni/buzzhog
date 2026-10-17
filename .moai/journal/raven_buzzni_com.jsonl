@@ -426,3 +426,13 @@
 {"ts":"2026-10-17T03:04:07Z","id":"buzzhog-i0a0.1z9","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
 {"ts":"2026-10-17T03:04:07Z","id":"buzzhog-i0a0.shb","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
 {"ts":"2026-10-17T03:04:07Z","id":"buzzhog-i0a0.glf","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T03:06:35Z","id":"buzzhog-wh86","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"MCP 서버 mcp_tools·max_tools 도구 정리"}
+{"ts":"2026-10-17T03:06:35Z","id":"buzzhog-wh86.y82","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"execute-sql·read-data-schema·docs-search 도구와 max_tools 호출 제거"}
+{"ts":"2026-10-17T03:06:35Z","id":"buzzhog-wh86.n7c","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"제거한 도구의 생성물·테스트·문서·참조 정리"}
+{"ts":"2026-10-17T03:06:35Z","id":"buzzhog-wh86","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-jx60 에서 펼쳤다 — MCP 서버의 mcp_tools·max_tools 도구 정리 (지운 엔드포인트가 404)"}
+{"ts":"2026-10-17T03:06:35Z","id":"buzzhog-jx60","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-wh86 로 펼쳤다 (이슈 2건)"}
+{"ts":"2026-10-17T03:06:40Z","id":"buzzhog-wh86.y82","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T03:06:41Z","id":"buzzhog-wh86.n7c","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T03:08:39Z","id":"buzzhog-dsv8.xzh","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"done"}
+{"ts":"2026-10-17T03:08:48Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Next: 에픽 닫힘. 위키 갱신(xzh)이 milestone/buzzhog-tfjd에 4224e8b7e2e로 들어갔다. 남은 일은 결정 대기 backlog x76a, bmih, 3dz9와 handed-on backlog(jx60, rbya, j6tf, 7sto, i81u). 남은 로컬 컨테이너 dsv8-pg, dsv8-redis와 이미지 buzzhog-dsv8:check는 정리해도 된다."}
+{"ts":"2026-10-17T03:08:48Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"report: buzzhog-dsv8.xzh\nMerge: 4224e8b7e2e on milestone/buzzhog-tfjd (wiki only, 5 files). Worktree and branch removed."}
