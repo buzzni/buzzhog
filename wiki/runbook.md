@@ -95,21 +95,19 @@ hobby compose에 나오는 것은 `capture`, `capture-logs`, `property-defs-rs`,
 그래서 컨텍스트를 `rust/`로 주면 proto 크레이트에 기대는 바이너리(`capture-logs`, `property-defs-rs`, `personhog-*`, `feature-flags`, `cymbal`)는 빌드가 실패할 것으로 보인다.
 컨텍스트를 어떻게 구성해야 하는지는 이 포크에 CI가 없어 확인하지 못했다(**미확인**).
 
-### 알려진 빌드 문제: `ee/` 디렉터리가 없다
+### `ee/` 디렉터리가 없다
 
-이 포크는 비 FOSS 코드를 제거했고 `ee/` 디렉터리가 없다. 근거: [결정 기록](adr/0001-remove-non-foss.md), 작업 트리에서 `ee` 경로 부재 확인.
-그런데 `Dockerfile`이 `ee`를 복사한다.
+이 포크는 비 FOSS 코드를 제거했고 `ee/` 디렉터리가 없다. 근거: [ADR 0001](adr/0001-remove-non-foss.md).
+에픽 `buzzhog-dsv8`(병합 `ca37aa9e209`)이 `Dockerfile`의 `COPY ee ee/` 두 줄과 `compileall` 대상의 `ee`를 지웠다. `Dockerfile.llm-analytics`와 `.dockerignore`도 같이 고쳤다.
+근거: `git show 0ac1ea3a6a1 -- Dockerfile`.
+`ee`를 무조건 import하던 코드도 걷어 냈다. 남은 `from ee` import 4개 파일은 `ImportError`를 받는 조건부 확장 지점이다([ADR 0002](adr/0002-remove-ee-residue-keep-extension-points.md)).
 
-- `Dockerfile:244`: `COPY ee ee/` (posthog-build 단계)
-- `Dockerfile:400`: `COPY --chown=posthog:posthog ee ee/` (최종 단계)
-- `Dockerfile:423`: `compileall` 대상 목록에 `ee`
+확인 범위는 다음과 같다.
 
-Docker는 존재하지 않는 `COPY` 원본에서 빌드를 멈추므로, 위 줄을 고치기 전에는 Django 이미지 빌드가 실패할 것으로 보인다.
-실제 빌드는 실행하지 않아 **미확인**이다. 이 문서가 코드를 바꾸지는 않는다.
-위 세 줄을 고쳐도 끝이 아니다.
-설정 모듈(`posthog/settings/web.py`, `posthog/settings/ee.py`)과 URL(`posthog/ee_urls.py`)은 `ee` import 실패를 무시하지만, 무조건 `ee`를 import하는 코드가 남아 있다.
-예: `posthog/api/rest_router.py`의 `from ee.api.quota_limits import ...`, `from ee.api.vercel import ...`. 테스트를 뺀 `posthog/`, `products/`, `common/`에 줄머리 `from ee.` import가 약 190곳 있다.
-그래서 `ee` 없이 Django가 기동하는지는 **미확인**이며, API URL을 불러오는 단계에서 `ImportError`가 날 것으로 보인다.
+- 이미지 안에서 가입 `201`, 핵심 API `200`을 받았다.
+- 마지막 수정(설정 14개 추가)은 이미지를 다시 빌드하지 않고, 수정한 `posthog/`와 `products/`를 기존 이미지에 마운트해서 확인했다.
+  그래서 지금 `Dockerfile`로 처음부터 빌드한 결과는 **미확인**이다.
+- 빌드 인자 없이 새로 빌드하는 전체 과정은 이 문서를 쓰는 동안 돌리지 않았다.
 
 ### 빌드 인자와 비밀값
 
@@ -276,6 +274,22 @@ docker-compose exec web ./bin/migrate --scope=clickhouse
 `manage.py migrate --check`, `migrate_clickhouse --check`, `run_async_migrations --check`를 차례로 돌린다.
 `POSTHOG_SKIP_MIGRATION_CHECKS`가 비어 있지 않으면 건너뛴다. hobby compose는 `worker`에 `POSTHOG_SKIP_MIGRATION_CHECKS: '1'`을 준다. 근거: `bin/migrate-check`, `bin/docker-worker-celery`, `docker-compose.hobby.yml`.
 
+### 빈 DB에서 처음 실행
+
+빈 Postgres에서 `manage.py migrate --noinput`이 끝까지 돈다. 끝난 뒤 적용하지 않은 마이그레이션이 0개다.
+과거에는 지운 `ee` 마이그레이션에 걸려 `NodeNotFoundError`(`posthog.1345 → ee.0061`)로 멈췄다.
+RBAC 모델 다섯 개를 `access_control` 앱으로 옮기고 그 테이블을 만드는 마이그레이션을 새로 써서 풀었다([ADR 0002](adr/0002-remove-ee-residue-keep-extension-points.md)).
+테이블 이름은 `ee_role`처럼 `ee_` 접두사가 그대로다.
+
+이 포크 코드로 이미 `migrate`한 DB는 없다(사람 확인). 업스트림 이미지로 만든 DB를 이 코드로 넘기는 경우는 확인하지 않았다(**미확인**).
+
+### ClickHouse 없이 이미지를 띄울 때
+
+`bin/migrate-check`가 `migrate_clickhouse --check`를 돌리므로, ClickHouse에 닿지 않는 호스트에서는 `bin/docker-server` 같은 시작 스크립트가 여기서 막힌다.
+`POSTHOG_SKIP_MIGRATION_CHECKS=1`을 주면 이 확인을 건너뛴다(위 "시작 시 마이그레이션 확인").
+건너뛰어도 `/_readyz`는 ClickHouse에 닿을 때까지 `503`을 준다. ClickHouse 없이 Postgres와 Redis만으로 확인한 결과다: 가입과 핵심 API는 응답했고, Postgres의 `migrate --check`는 통과했다.
+이 조합은 로컬 확인용이다. 운영에서는 ClickHouse를 같이 띄운다.
+
 ### 서비스 버전 범위
 
 `posthog/settings/service_requirements.py`에 Postgres `>=14.0.0`, Redis `>=7.0.0,<8.0.0`, ClickHouse `>=24.8,<=25.12`가 적혀 있다.
@@ -384,7 +398,7 @@ Django 마이그레이션은 앞으로만 간다고 가정하고 움직이는 �
 
 ## 미확인 항목
 
-- 이 포크 코드로 만든 Django 이미지가 `ee/` 부재 상태에서 빌드되는지 (`Dockerfile:244`, `Dockerfile:400`), 빌드되더라도 남은 `from ee.` import 때문에 기동이 실패하는지
+- 지금 `Dockerfile`로 처음부터 빌드한 Django 이미지가 뜨는지. `ee` 정리 뒤의 확인은 수정한 코드를 기존 이미지에 마운트해서 했다
 - `rust/` 컨텍스트에 `proto/`가 없을 때 Rust 이미지를 어떻게 빌드하는지
 - ClickHouse·객체 스토리지 백업·복원 절차와 ClickHouse 스키마 롤백
 - `docker-compose exec web ./bin/migrate`를 비롯해 이 문서의 `docker-compose` 명령 실행 결과, 실제 볼륨 이름
@@ -392,4 +406,4 @@ Django 마이그레이션은 앞으로만 간다고 가정하고 움직이는 �
 - ClickHouse 26.9가 이 코드와 실제로 잘 동작하는지
 - 설치 스크립트의 텔레메트리를 끄는 방법. 스크립트를 고치는 방법 외에는 찾지 못했다
 
-Decided in: buzzhog-uxbl
+Decided in: buzzhog-uxbl, buzzhog-dsv8
