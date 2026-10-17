@@ -7,7 +7,7 @@ import parserRecipeCreate from './aiObservability/parserRecipeCreate'
 import parserRecipeReference from './aiObservability/parserRecipeReference'
 // Debug
 import debugMcpUiApps from './debug/debugMcpUiApps'
-// Experiments (hand-written — CRUD + lifecycle are codegen in generated/experiments.ts)
+// Experiments (hand-written; products/experiments/mcp/tools.yaml disables the generated CRUD and lifecycle tools)
 import experimentGetByFlagKey from './experiments/getByFlagKey'
 import getExperimentResults from './experiments/getResults'
 // Feature flags

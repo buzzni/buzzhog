@@ -11,15 +11,14 @@ import { apiMutator } from '../../../../frontend/src/lib/api-orval-mutator'
 import type {
     BulkUpdateTagsUUIDRequestApi,
     BulkUpdateTagsUUIDResponseApi,
-    EnterpriseEventDefinitionApi,
     EventDefinitionBulkUpdateVerifiedRequestApi,
     EventDefinitionBulkUpdateVerifiedResponseApi,
     EventDefinitionRecordApi,
     EventDefinitionsByNameRetrieveParams,
     EventDefinitionsListParams,
     EventDefinitionsPrimaryPropertiesRetrieveParams,
-    PaginatedEnterpriseEventDefinitionListApi,
-    PatchedEnterpriseEventDefinitionApi,
+    PaginatedEventDefinitionRecordListApi,
+    PatchedEventDefinitionRecordApi,
     PrimaryPropertiesResponseApi,
 } from './api.schemas'
 
@@ -63,8 +62,8 @@ export const eventDefinitionsList = async (
     projectId: string,
     params?: EventDefinitionsListParams,
     options?: RequestInit
-): Promise<PaginatedEnterpriseEventDefinitionListApi> => {
-    return apiMutator<PaginatedEnterpriseEventDefinitionListApi>(getEventDefinitionsListUrl(projectId, params), {
+): Promise<PaginatedEventDefinitionRecordListApi> => {
+    return apiMutator<PaginatedEventDefinitionRecordListApi>(getEventDefinitionsListUrl(projectId, params), {
         ...options,
         method: 'GET',
     })
@@ -76,14 +75,14 @@ export const getEventDefinitionsCreateUrl = (projectId: string) => {
 
 export const eventDefinitionsCreate = async (
     projectId: string,
-    enterpriseEventDefinitionApi: NonReadonly<EnterpriseEventDefinitionApi>,
+    eventDefinitionRecordApi: NonReadonly<EventDefinitionRecordApi>,
     options?: RequestInit
-): Promise<EnterpriseEventDefinitionApi> => {
-    return apiMutator<EnterpriseEventDefinitionApi>(getEventDefinitionsCreateUrl(projectId), {
+): Promise<EventDefinitionRecordApi> => {
+    return apiMutator<EventDefinitionRecordApi>(getEventDefinitionsCreateUrl(projectId), {
         ...options,
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...options?.headers },
-        body: JSON.stringify(enterpriseEventDefinitionApi),
+        body: JSON.stringify(eventDefinitionRecordApi),
     })
 }
 
@@ -95,8 +94,8 @@ export const eventDefinitionsRetrieve = async (
     projectId: string,
     id: string,
     options?: RequestInit
-): Promise<EnterpriseEventDefinitionApi> => {
-    return apiMutator<EnterpriseEventDefinitionApi>(getEventDefinitionsRetrieveUrl(projectId, id), {
+): Promise<EventDefinitionRecordApi> => {
+    return apiMutator<EventDefinitionRecordApi>(getEventDefinitionsRetrieveUrl(projectId, id), {
         ...options,
         method: 'GET',
     })
@@ -109,14 +108,14 @@ export const getEventDefinitionsUpdateUrl = (projectId: string, id: string) => {
 export const eventDefinitionsUpdate = async (
     projectId: string,
     id: string,
-    enterpriseEventDefinitionApi: NonReadonly<EnterpriseEventDefinitionApi>,
+    eventDefinitionRecordApi: NonReadonly<EventDefinitionRecordApi>,
     options?: RequestInit
-): Promise<EnterpriseEventDefinitionApi> => {
-    return apiMutator<EnterpriseEventDefinitionApi>(getEventDefinitionsUpdateUrl(projectId, id), {
+): Promise<EventDefinitionRecordApi> => {
+    return apiMutator<EventDefinitionRecordApi>(getEventDefinitionsUpdateUrl(projectId, id), {
         ...options,
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...options?.headers },
-        body: JSON.stringify(enterpriseEventDefinitionApi),
+        body: JSON.stringify(eventDefinitionRecordApi),
     })
 }
 
@@ -127,14 +126,14 @@ export const getEventDefinitionsPartialUpdateUrl = (projectId: string, id: strin
 export const eventDefinitionsPartialUpdate = async (
     projectId: string,
     id: string,
-    patchedEnterpriseEventDefinitionApi?: NonReadonly<PatchedEnterpriseEventDefinitionApi>,
+    patchedEventDefinitionRecordApi?: NonReadonly<PatchedEventDefinitionRecordApi>,
     options?: RequestInit
-): Promise<EnterpriseEventDefinitionApi> => {
-    return apiMutator<EnterpriseEventDefinitionApi>(getEventDefinitionsPartialUpdateUrl(projectId, id), {
+): Promise<EventDefinitionRecordApi> => {
+    return apiMutator<EventDefinitionRecordApi>(getEventDefinitionsPartialUpdateUrl(projectId, id), {
         ...options,
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...options?.headers },
-        body: JSON.stringify(patchedEnterpriseEventDefinitionApi),
+        body: JSON.stringify(patchedEventDefinitionRecordApi),
     })
 }
 
@@ -198,18 +197,7 @@ export const getEventDefinitionsBulkUpdateVerifiedCreateUrl = (projectId: string
 /**
  * Mark multiple event definitions as verified or unverified in one request.
  *
- * In the same vein as ``bulk_update_tags``, but ``verified`` lives on the enterprise
- * ``EnterpriseEventDefinition`` extension rather than the base row, so this action:
- * - requires an enterprise license;
- * - scopes by project (``team__project_id``) and relies on project membership — the same
- *   boundary the single-object update path uses — rather than object-level RBAC;
- * - lazily promotes ingestion-created base rows to ``EnterpriseEventDefinition`` (mirroring
- *   ``_get_event_definition``) before setting ``verified``;
- * - mirrors the single-object semantics: verifying stamps ``verified_by``/``verified_at`` and
- *   unhides the event (an event cannot be both hidden and verified); unverifying clears them;
- * - logs a "changed" activity per event so the History tab matches the single-object path.
- *
- * Events already in the target state are skipped (not re-written, not logged).
+ * Verifying event definitions requires an enterprise license, so this action returns a validation error.
  */
 export const eventDefinitionsBulkUpdateVerifiedCreate = async (
     projectId: string,

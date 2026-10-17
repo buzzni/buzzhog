@@ -12,7 +12,7 @@
  *
  * - Related-capability hints: the result is non-empty and there is an adjacent
  *   capability the agent is unlikely to know about at this point of use (error
- *   alerts after listing issues, subscriptions after creating an insight).
+ *   alerts after listing issues, dashboards after creating an insight).
  *
  * Both registries are opt-in per tool: emptiness is not intrinsically
  * distinguishable from "correctly filtered to nothing", and a blanket hint on
@@ -45,8 +45,7 @@ const RELATED_CAPABILITY_HINTS: Record<string, string> = {
         'Related: a check like this can run continuously as a log alert — load the `authoring-log-alerts` skill to author a low-noise one.',
     'get-llm-total-costs-for-project':
         'Related: to explain who or what drives this spend, load the `analyzing-expensive-users` skill.',
-    'insight-create':
-        'Related: this insight can go on a dashboard (`building-a-dashboard` skill) or be delivered to email/Slack on a schedule (`managing-subscriptions` skill).',
+    'insight-create': 'Related: this insight can go on a dashboard (`building-a-dashboard` skill).',
 }
 
 /**

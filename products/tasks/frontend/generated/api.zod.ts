@@ -2989,7 +2989,7 @@ export const TasksThreadMessagesSendToAgentCreateBody = /* @__PURE__ */ zod
                         hedgehog_config: zod.record(zod.string(), zod.unknown()).nullish(),
                         role_at_organization: zod.string().nullish(),
                     })
-                    .describe('Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.'),
+                    .describe('Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.'),
                 zod.null(),
             ])
             .optional(),
@@ -3008,7 +3008,7 @@ export const TasksThreadMessagesSendToAgentCreateBody = /* @__PURE__ */ zod
                         hedgehog_config: zod.record(zod.string(), zod.unknown()).nullish(),
                         role_at_organization: zod.string().nullish(),
                     })
-                    .describe('Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.'),
+                    .describe('Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.'),
                 zod.null(),
             ])
             .optional(),

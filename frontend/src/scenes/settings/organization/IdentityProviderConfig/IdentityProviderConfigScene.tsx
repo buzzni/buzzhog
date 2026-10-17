@@ -25,7 +25,6 @@ import { IDENTITY_PROVIDER_FEATURES, isIdentityProviderConfigScope } from './ide
 import { IdentityProviderDomainScope } from './IdentityProviderDomainScope'
 import { OIDCConfigFields } from './OIDCConfigFields'
 import { SAMLConfigFields } from './SAMLConfigFields'
-import { SCIMConfigFields } from './SCIMConfigFields'
 import { XAAConfigFields } from './XAAConfigFields'
 
 export const scene: SceneExport<IdentityProviderConfigLogicProps> = {
@@ -54,15 +53,12 @@ export function IdentityProviderConfigScene(): JSX.Element | null {
         organizationDomains,
         organizationDomainsLoadFailed,
         organizationDomainsLoading,
-        revealedScimToken,
-        regeneratedScimTokenLoading,
         isDeleteModalOpen,
         deleteConfirmation,
     } = useValues(identityProviderConfigLogic)
     const {
         loadIdentityProviderConfig,
         loadOrganizationDomains,
-        regenerateScimToken,
         deleteIdentityProviderConfig,
         openDeleteModal,
         closeDeleteModal,
@@ -146,15 +142,10 @@ export function IdentityProviderConfigScene(): JSX.Element | null {
                                     )}
                                 />
                             ) : configScope === ConfigScopeEnumApi.Scim ? (
-                                <SCIMConfigFields
-                                    scimEnabled={identityProviderConfigForm.scim_enabled}
-                                    scimBaseUrl={identityProviderConfig?.scim_base_url ?? null}
-                                    revealedToken={revealedScimToken}
-                                    canRegenerateToken={Boolean(identityProviderConfig?.scim_enabled)}
-                                    tokenLoading={regeneratedScimTokenLoading}
-                                    disabled={isIdentityProviderConfigFormSubmitting}
-                                    onRegenerateToken={regenerateScimToken}
-                                />
+                                <LemonBanner type="info">
+                                    SCIM provisioning is not available. If SCIM is still enabled for a domain, turn it
+                                    off with Disable SCIM in the authentication domains list.
+                                </LemonBanner>
                             ) : configScope === ConfigScopeEnumApi.Oidc ? (
                                 <OIDCConfigFields
                                     siteUrl={siteUrl}

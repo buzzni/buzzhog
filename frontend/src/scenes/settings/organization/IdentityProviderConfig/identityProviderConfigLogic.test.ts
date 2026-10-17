@@ -204,7 +204,7 @@ describe('identityProviderConfigLogic', () => {
             saml_x509_cert: 'certificate',
         })
         // Saving keeps the user on the configuration page (the URL adopts the saved config's id)
-        // so the generated SCIM base URL and one-time token remain visible.
+        // so another save updates the same config instead of creating a duplicate.
         expect(router.values.location.pathname).toContain(
             urls.identityProviderConfig(ConfigScopeEnumApi.Saml, CREATED_CONFIG.id)
         )
