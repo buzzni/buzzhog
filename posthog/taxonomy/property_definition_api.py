@@ -519,6 +519,7 @@ ALWAYS_EXCLUDED_EVENT_PROPERTIES = set(
 
 
 class PropertyDefinitionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
+    is_seen_on_filtered_events = serializers.BooleanField(allow_null=True, read_only=True)
     warehouse_origin = serializers.JSONField(
         read_only=True,
         help_text=(

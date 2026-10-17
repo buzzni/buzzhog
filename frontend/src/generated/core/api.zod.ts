@@ -204,7 +204,7 @@ export const IdentityProviderConfigsCreateBody = /* @__PURE__ */ zod.object({
         .boolean()
         .optional()
         .describe(
-            'Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.'
+            'Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.'
         ),
     id_jag_issuer_url: zod
         .string()
@@ -308,7 +308,7 @@ export const IdentityProviderConfigsUpdateBody = /* @__PURE__ */ zod.object({
         .boolean()
         .optional()
         .describe(
-            'Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.'
+            'Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.'
         ),
     id_jag_issuer_url: zod
         .string()
@@ -412,7 +412,7 @@ export const IdentityProviderConfigsPartialUpdateBody = /* @__PURE__ */ zod.obje
         .boolean()
         .optional()
         .describe(
-            'Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.'
+            'Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.'
         ),
     id_jag_issuer_url: zod
         .string()
@@ -1082,10 +1082,12 @@ export const ProjectSecretApiKeysPartialUpdateBody = /* @__PURE__ */ zod.object(
         ),
 })
 
+export const propertyDefinitionsUpdateBodyNameMax = 400
+
 export const PropertyDefinitionsUpdateBody = /* @__PURE__ */ zod
     .object({
-        description: zod.string().nullish(),
-        tags: zod.array(zod.unknown()).optional(),
+        name: zod.string().max(propertyDefinitionsUpdateBodyNameMax),
+        is_numerical: zod.boolean().optional(),
         property_type: zod
             .union([
                 zod
@@ -1097,15 +1099,16 @@ export const PropertyDefinitionsUpdateBody = /* @__PURE__ */ zod
                 zod.null(),
             ])
             .optional(),
-        verified: zod.boolean().optional(),
-        hidden: zod.boolean().nullish(),
+        tags: zod.array(zod.unknown()).optional(),
     })
     .describe('Serializer mixin that handles tags for objects.')
 
+export const propertyDefinitionsPartialUpdateBodyNameMax = 400
+
 export const PropertyDefinitionsPartialUpdateBody = /* @__PURE__ */ zod
     .object({
-        description: zod.string().nullish(),
-        tags: zod.array(zod.unknown()).optional(),
+        name: zod.string().max(propertyDefinitionsPartialUpdateBodyNameMax).optional(),
+        is_numerical: zod.boolean().optional(),
         property_type: zod
             .union([
                 zod
@@ -1117,8 +1120,7 @@ export const PropertyDefinitionsPartialUpdateBody = /* @__PURE__ */ zod
                 zod.null(),
             ])
             .optional(),
-        verified: zod.boolean().optional(),
-        hidden: zod.boolean().nullish(),
+        tags: zod.array(zod.unknown()).optional(),
     })
     .describe('Serializer mixin that handles tags for objects.')
 

@@ -1,6 +1,7 @@
 from django.db import IntegrityError, transaction
 
 import structlog
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import (
     response,
     serializers,
@@ -24,6 +25,7 @@ def get_auto_materialized_property_names() -> set[str]:
     return set()
 
 
+@extend_schema_serializer(component_name="MaterializedColumnSlotPropertyDefinition")
 class PropertyDefinitionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PropertyDefinition

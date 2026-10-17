@@ -8,16 +8,6 @@
  * OpenAPI spec version: 1.0.0
  */
 /**
- * * `vercel` - Vercel
- */
-export type OrganizationIntegrationKindEnumApi =
-    (typeof OrganizationIntegrationKindEnumApi)[keyof typeof OrganizationIntegrationKindEnumApi]
-
-export const OrganizationIntegrationKindEnumApi = {
-    Vercel: 'vercel',
-} as const
-
-/**
  * * `engineering` - Engineering
  * * `data` - Data
  * * `product` - Product Management
@@ -72,34 +62,6 @@ export interface UserBasicApi {
     /** @nullable */
     readonly hedgehog_config: UserBasicApiHedgehogConfig
     role_at_organization?: RoleAtOrganizationEnumApi | BlankEnumApi | null
-}
-
-/**
- * Serializer for organization-level integrations.
- */
-export interface PatchedOrganizationIntegrationApi {
-    readonly id?: string
-    readonly kind?: OrganizationIntegrationKindEnumApi
-    /** @nullable */
-    readonly integration_id?: string | null
-    readonly config?: unknown
-    readonly created_at?: string
-    readonly updated_at?: string
-    readonly created_by?: UserBasicApi
-}
-
-/**
- * Serializer for organization-level integrations.
- */
-export interface OrganizationIntegrationApi {
-    readonly id: string
-    readonly kind: OrganizationIntegrationKindEnumApi
-    /** @nullable */
-    readonly integration_id: string | null
-    readonly config: unknown
-    readonly created_at: string
-    readonly updated_at: string
-    readonly created_by: UserBasicApi
 }
 
 export interface RoleExternalReferenceApi {

@@ -139,7 +139,7 @@
             "description": "SAML IdP X.509 signing certificate (PEM)."
         },
         "scim_enabled": {
-            "description": "Whether SCIM provisioning is enabled. Setting this true generates a bearer token (returned once); setting it false clears the token.",
+            "description": "Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.",
             "type": "boolean"
         }
     },

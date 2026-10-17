@@ -400,78 +400,6 @@ const identityProviderConfigsRetrieve = (): ToolBase<
     },
 })
 
-const IdentityProviderConfigsScimTokenCreateSchema = () => {
-    const IdentityProviderConfigsScimTokenCreateParams = orvalSchemas.IdentityProviderConfigsScimTokenCreateParams()
-    return IdentityProviderConfigsScimTokenCreateParams.omit({ organization_id: true })
-}
-
-const IdentityProviderConfigsScimTokenCreateSchemaExecute = z.strictObject({
-    confirmation_hash: z
-        .string()
-        .describe('The confirmation_hash returned by the matching -prepare tool. Pass it back verbatim.'),
-    confirmation: z.string().describe('The literal string "confirm", typed by the user in chat. Required to proceed.'),
-})
-
-const identityProviderConfigsScimTokenCreatePrepare = (): ToolBase<
-    ReturnType<typeof IdentityProviderConfigsScimTokenCreateSchema>,
-    PrepareConfirmedActionResult
-> => ({
-    name: 'identity-provider-configs-scim-token-create-prepare',
-    schema: IdentityProviderConfigsScimTokenCreateSchema(),
-    handler: async (
-        context: Context,
-        params: z.infer<ReturnType<typeof IdentityProviderConfigsScimTokenCreateSchema>>
-    ) => {
-        const __runtime = getConfirmedActionRuntime()
-        const __scopeOrgId = await context.stateManager.getOrgID()
-        return await prepareConfirmedAction(context, {
-            args: params,
-            purpose: 'identity-provider-configs-scim-token-create',
-            actionLabel: 'regenerate SCIM bearer token',
-            messageTemplate:
-                "Regenerate the SCIM bearer token for identity provider configuration {id}. Existing SCIM clients will stop working until updated. Reply 'confirm' to proceed.\n",
-            codec: __runtime.codec,
-            stash: __runtime.stash,
-            boundScope: { orgId: String(__scopeOrgId) },
-        })
-    },
-})
-
-const identityProviderConfigsScimTokenCreateExecute = (): ToolBase<
-    typeof IdentityProviderConfigsScimTokenCreateSchemaExecute,
-    Schemas.SCIMTokenResponse
-> => ({
-    name: 'identity-provider-configs-scim-token-create-execute',
-    schema: IdentityProviderConfigsScimTokenCreateSchemaExecute,
-    handler: async (
-        context: Context,
-        confirmationParams: z.infer<typeof IdentityProviderConfigsScimTokenCreateSchemaExecute>
-    ) => {
-        const __runtime = getConfirmedActionRuntime()
-        const __scopeOrgId = await context.stateManager.getOrgID()
-        const __guard = await executeConfirmedAction<
-            z.infer<ReturnType<typeof IdentityProviderConfigsScimTokenCreateSchema>>
-        >(context, {
-            incomingArgs: confirmationParams,
-            purpose: 'identity-provider-configs-scim-token-create',
-            codec: __runtime.codec,
-            ledger: __runtime.ledger,
-            stash: __runtime.stash,
-            expectedScope: { orgId: String(__scopeOrgId) },
-        })
-        if (!__guard.ok) {
-            return __guard.result as never
-        }
-        const params = __guard.verifiedArgs
-        const orgId = __scopeOrgId
-        const result = await context.api.request<Schemas.SCIMTokenResponse>({
-            method: 'POST',
-            path: `/api/organizations/${encodeURIComponent(String(orgId))}/identity_provider_configs/${encodeURIComponent(String(params.id))}/scim/token/`,
-        })
-        return result
-    },
-})
-
 const MediaImageUploadCompleteSchema = () => {
     const UploadedMediaCompleteUploadCreateParams = orvalSchemas.UploadedMediaCompleteUploadCreateParams()
     return UploadedMediaCompleteUploadCreateParams.omit({ project_id: true })
@@ -1125,8 +1053,6 @@ export const GENERATED_TOOLS: Record<string, () => ToolBase<ZodObjectAny>> = {
     'identity-provider-configs-partial-update-prepare': identityProviderConfigsPartialUpdatePrepare,
     'identity-provider-configs-partial-update-execute': identityProviderConfigsPartialUpdateExecute,
     'identity-provider-configs-retrieve': identityProviderConfigsRetrieve,
-    'identity-provider-configs-scim-token-create-prepare': identityProviderConfigsScimTokenCreatePrepare,
-    'identity-provider-configs-scim-token-create-execute': identityProviderConfigsScimTokenCreateExecute,
     'media-image-upload-complete': mediaImageUploadComplete,
     'media-image-upload-start': mediaImageUploadStart,
     'media-images-list': mediaImagesList,

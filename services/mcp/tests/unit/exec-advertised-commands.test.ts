@@ -26,7 +26,6 @@ const UNGATED_BY_DESIGN = new Set([
     'dashboard-widgets-batch-add',
     'dashboards-get-all',
     'data-catalog-metric-run',
-    'experiment-get',
     'feature-flag-get-all',
     'generate-app-url',
     'insight-create',
@@ -74,8 +73,10 @@ function namedCatalogTools(text: string): string[] {
 
 /** Kebab-case names that are deliberately not exec commands: a built-in skill
  *  loaded by name, and the render-ui tool, which MCP Apps hosts get as its own
- *  MCP tool rather than through the exec catalog. */
-const NOT_EXEC_COMMANDS = new Set(['querying-posthog-data', 'render-ui'])
+ *  MCP tool rather than through the exec catalog. `experiment-get` is an example
+ *  tool name in the render-ui prose; the experiments API is off, so no such
+ *  command exists. */
+const NOT_EXEC_COMMANDS = new Set(['querying-posthog-data', 'render-ui', 'experiment-get'])
 
 function advertisedCommands(text: string): string[] {
     return namedCatalogTools(text)

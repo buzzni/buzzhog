@@ -1006,10 +1006,9 @@ export const SurveyRatingQuestionSchemaTypeEnumApi = {
  * * `number` - number
  * * `emoji` - emoji
  */
-export type SurveyRatingQuestionSchemaDisplayEnumApi =
-    (typeof SurveyRatingQuestionSchemaDisplayEnumApi)[keyof typeof SurveyRatingQuestionSchemaDisplayEnumApi]
+export type DisplayEnumApi = (typeof DisplayEnumApi)[keyof typeof DisplayEnumApi]
 
-export const SurveyRatingQuestionSchemaDisplayEnumApi = {
+export const DisplayEnumApi = {
     Number: 'number',
     Emoji: 'emoji',
 } as const
@@ -1121,7 +1120,7 @@ export interface SurveyRatingQuestionSchemaApi {
      *
      * * `number` - number
      * * `emoji` - emoji */
-    display?: SurveyRatingQuestionSchemaDisplayEnumApi
+    display?: DisplayEnumApi
     /**
      * Rating scale can be one of 3, 5, or 7
      * @minimum 1
