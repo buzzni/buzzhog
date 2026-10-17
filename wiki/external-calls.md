@@ -6,6 +6,7 @@
 이 포크가 PostHog 소유 서버나 제3자 서비스로 내보내는 호출 중, 코드에서 확인한 것만 적는다.
 각 행에 위치(`파일:심볼`, 필요하면 줄)와 끄는 방법을 둔다.
 "미확인"은 코드나 실행으로 확인하지 못했다는 뜻이다. "코드 수정 필요"는 설정이나 환경변수로 끄는 길을 찾지 못했다는 뜻이고, 고칠 위치를 함께 적는다.
+"과금 서비스", "제3자 API"의 `ee` 관련 행은 에픽 `buzzhog-dsv8`(병합 `ca37aa9e209`) 기준으로 고쳤다. 다른 행의 줄 번호는 확인 기준 커밋 `70371e9eb38` 때의 것이라, `posthog/tasks/usage_report.py`처럼 그 에픽이 고친 파일은 줄이 밀렸을 수 있다.
 이 페이지는 동작을 기록할 뿐이다. 제품 코드는 고치지 않았다. 고칠 곳은 맨 아래 "코드 수정이 필요한 곳"에 모았다.
 의존성 라이선스는 [licenses.md](licenses.md), 브랜딩과 밖으로 나가는 신원 문자열은 [branding.md](branding.md)를 본다.
 
@@ -52,7 +53,7 @@
 ## 사용량 보고 (Celery 예약 작업)
 
 이 포크에서도 매일 PostHog 클라우드로 사용량 보고 이벤트가 나간다.
-`ee/`가 없어서 막히는 것은 과금 서비스로 가는 전송뿐이다. 이벤트 전송은 `ee`와 무관하고, `OPT_OUT_CAPTURE`로도 꺼지지 않는다.
+과금 서비스로 가는 전송은 코드에서 지웠다(아래 "과금 서비스"). 이벤트 전송은 `ee`와 무관하고, `OPT_OUT_CAPTURE`로도 꺼지지 않는다.
 
 ### 흐름
 
@@ -92,12 +93,16 @@
 
 ### 과금 서비스
 
+에픽 `buzzhog-dsv8`이 과금 서비스로 가는 코드를 지웠다. 근거: [ADR 0002](adr/0002-remove-ee-residue-keep-extension-points.md).
+
 | 항목 | 내용 | 근거 |
 | --- | --- | --- |
-| SQS 전송 | 과금 보고는 `ee.sqs.SQSProducer`로 큐에 넣는다. `settings.EE_AVAILABLE`이 거짓이면 생산자를 만들지 않아 보내지 않는다 | `posthog/tasks/usage_report.py:send_all_org_usage_reports`(3765~3768행, 3862~3863행) |
-| `send_report_to_billing_service` | `EE_AVAILABLE`이 거짓이면 바로 반환한다. 이 함수를 부르는 곳은 테스트뿐이다 | 같은 파일 561~583행, `git grep send_report_to_billing_service` |
-| `EE_AVAILABLE` | `ee.apps`를 import하지 못하면 `False`. 이 포크에는 `ee/`가 없다 | `posthog/settings/ee.py`, `ls ee` 실패 |
-| `BILLING_SERVICE_URL` | `ee.settings`에서만 정의된다(`posthog/settings/__init__.py:150~151`이 `ee` 앱이 있을 때만 import). 이 포크에서는 정의되지 않는다. `posthog/api/id_jag.py:170`은 `getattr(..., "")`로 읽어 빈 값이 된다. `posthog/admin/admins/organization_admin.py:billing_link`(326행)는 `settings.BILLING_SERVICE_URL`을 바로 읽으므로 관리자 조직 화면에서 `AttributeError`가 날 수 있다(실행하지 않음). 어느 쪽도 외부 호출은 아니다 | 같음 |
+| SQS 전송 | 없다. `ee.sqs.SQSProducer`로 큐에 넣던 코드(`_queue_report`)를 지웠다 | `git grep -n -i sqs posthog/tasks/usage_report.py`가 비어 있다 |
+| `send_report_to_billing_service` | 지웠다. 이 태스크를 부르는 곳도 없다 | `git grep send_report_to_billing_service`가 비어 있다 |
+| `EE_AVAILABLE` | `ee.apps`를 import하지 못하면 `False`. 이 포크에는 `ee/`가 없어 거짓이다. 확장 지점으로 남겼다. 라이선스 확인(`get_cached_instance_license`)이나 일부 예약 작업(`find_flags_with_enriched_analytics`)의 조건으로 읽는다 | `posthog/settings/ee.py`, `posthog/tasks/usage_report.py:get_instance_metadata`(467행), `posthog/tasks/scheduled.py`(943행) |
+| `BILLING_SERVICE_URL` | 정의되지 않는다(`ee.settings`가 정의하던 값). `posthog/api/id_jag.py`는 `getattr(..., "")`로 읽어 빈 값이 된다. 관리자 조직 화면의 billing 링크는 지웠다 | `posthog/api/id_jag.py`(170행), `posthog/admin/admins/organization_admin.py` |
+
+과금 서비스로 보내는 전송이 없어도 위 "사용량 보고"의 PostHog 클라우드 이벤트는 그대로 나간다.
 
 ### 끄는 방법
 
@@ -345,6 +350,8 @@ desktop 앱은 PostHog 업데이트 피드를 확인한다(위 절).
 | Slack (팀 연동) | `posthog/models/integration/slack.py`(100행 `WebClient`), `products/conversations/backend/slack.py`(208행), `products/slack_app/backend/services/slack_user_oauth.py`(328행) | 팀이 Slack 연동을 설정했을 때 |
 | Slack (내부 피드백) | `posthog/api/internal_feedback.py:create`(133~145행) | `INTERNAL_FEEDBACK_SLACK_BOT_TOKEN`과 채널을 설정했을 때만. 없으면 503 |
 | Slack (스레드 미러) | `posthog/helpers/slack_thread_mirror.py:post_comment_to_slack_thread`(89행~) | 호출자가 만든 `WebClient`를 받기만 한다. 자체로 연결하지 않는다 |
+| Customer.io (이메일 전송) | `posthog/email.py`(216행 `customerio_api_key`, 252행 `{CUSTOMER_IO_API_URL}/v1/send/email`)와 `posthog/helpers/email_utils.py`(651행 `/v1/esp/search_suppression/`). 설정은 `posthog/settings/email.py`의 `CUSTOMER_IO_API_KEY`(기본 빈 값)와 `CUSTOMER_IO_API_URL`(기본 `https://api.customer.io`)이다. 이전에는 지운 `ee` 설정이 정의했다 | `CUSTOMER_IO_API_KEY`를 넣었을 때만. 비어 있으면 `posthog/email.py:is_email_available`이 거짓이 되어 SMTP를 쓴다 |
+| LLM 제공자와 게이트웨이 | 설정은 `posthog/settings/llm.py`의 `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`(기본 `gpt-4.1-mini`), `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `REPLAY_VISION_GEMINI_API_KEY`, `INKEEP_API_KEY`, `LLM_GATEWAY_URL`, `LLM_GATEWAY_API_KEY`다. 이전에는 지운 `ee` 설정이 정의했다 | 키를 넣은 기능만. 키가 비어 있으면 그 기능은 쓸 수 없다고 응답한다. `OPENAI_BASE_URL`로 호스트를 바꿀 수 있다 |
 | Stripe | `posthog/settings/integrations.py`, `posthog/settings/payments.py` | 변수 미설정이면 비어 있음 |
 | AWS SES | 10분마다 `poll_ses_account_enforcement`를 조건 없이 등록한다. `SESProvider()`가 `SES_ACCESS_KEY_ID`·`SES_SECRET_ACCESS_KEY`(운영 기본값 `None`)와 `SES_REGION`(기본 `us-east-1`)으로 boto3 클라이언트를 만들고 `get_account()`를 부른다. 예외는 잡아서 기록만 한다. 자격 증명이 없을 때 boto3가 실제로 네트워크 요청을 하는지는 SDK 동작이라 미확인 | `posthog/tasks/scheduled.py`(486~492행), `products/workflows/backend/tasks/ses_account_reputation.py:poll_ses_account_enforcement`(56~66행), `products/workflows/backend/providers/ses.py:SESProvider`(284~310·403~410행), `posthog/settings/ses.py` |
 | 웹훅·CDP 대상 | `products/cdp/backend/templates/` | 사용자가 정한 URL |
@@ -373,4 +380,4 @@ desktop 앱은 PostHog 업데이트 피드를 확인한다(위 절).
 | 이미지 크롤러 신원 헤더 | `nodejs/src/ingestion/pipelines/sessionreplay/ml-mirror-image-fetch/request-identity.ts`, `web-bot-auth.ts` |
 | `BILLING_SERVICE_URL` 미정의 | `posthog/admin/admins/organization_admin.py:billing_link`(326행) |
 
-Decided in: buzzhog-gimc
+Decided in: buzzhog-gimc, buzzhog-dsv8

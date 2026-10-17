@@ -26,5 +26,6 @@
 | 번호 | 제목 | 상태 |
 | --- | --- | --- |
 | [0001](0001-remove-non-foss.md) | non-FOSS 부분 제거를 따라간다 | 채택 |
+| [0002](0002-remove-ee-residue-keep-extension-points.md) | ee 잔재를 걷어 내고 확장 지점은 남긴다 | 채택 |
 
-Decided in: buzzhog-a4ho
+Decided in: buzzhog-a4ho, buzzhog-dsv8
