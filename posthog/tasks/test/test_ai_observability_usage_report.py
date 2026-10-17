@@ -36,9 +36,10 @@ from posthog.tasks.ai_observability_usage_report import (
 )
 from posthog.utils import get_previous_day
 
+_TELEMETRY_API_KEY = "phc_test_key"
 _USAGE_REPORTS_ON = {
     "POSTHOG_TELEMETRY_HOST": "https://telemetry.example.com",
-    "POSTHOG_TELEMETRY_API_KEY": "phc_test_key",
+    "POSTHOG_TELEMETRY_API_KEY": _TELEMETRY_API_KEY,
     "POSTHOG_TELEMETRY_USAGE_REPORTS": True,
 }
 
@@ -1178,7 +1179,7 @@ class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, Clickhous
         mock_get_ph_client: MagicMock,
         mock_capture_report: MagicMock,
     ) -> None:
-        self.team.api_token = _USAGE_REPORTS_ON["POSTHOG_TELEMETRY_API_KEY"]
+        self.team.api_token = _TELEMETRY_API_KEY
         self.team.save()
 
         distinct_id = str(uuid4())
