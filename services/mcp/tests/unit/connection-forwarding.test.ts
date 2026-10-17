@@ -5,7 +5,7 @@ import { ApiClient } from '@/api/client'
 import { ForwardingApiClient } from '@/lib/connection-forwarding'
 import { ExecCommandError, PostHogApiError, PostHogTransportError } from '@/lib/errors'
 import { StateManager } from '@/lib/StateManager'
-import executeSqlTool from '@/tools/posthogAiTools/executeSql'
+import { GENERATED_TOOL_MAP } from '@/tools/generated'
 import { createConnectionCallTool } from '@/tools/posthogConnections/call'
 import type { Context, ToolBase, ZodObjectAny } from '@/tools/types'
 
@@ -282,28 +282,25 @@ describe('posthog connection forwarding', () => {
             expect(request).not.toHaveBeenCalledWith(expect.objectContaining({ path: FORWARD_PATH }))
         })
 
-        it('runs a tool that builds its own request through the connection, not against the target', async () => {
-            // `execute-sql` reaches the API through `invokeMcpTool` rather than a generated handler.
-            // Whatever route it takes has to be the client's, or it sends the caller's own bearer
+        it('runs a real tool that builds its own request through the connection, not against the target', async () => {
+            // Whatever route a tool takes has to be the client's, or it sends the caller's own bearer
             // token straight to the connected project's server and skips `forward/` entirely.
             const globalFetch = vi.fn()
             vi.stubGlobal('fetch', globalFetch)
-            const request = createRequestMock({ status: 200, data: { success: true, content: 'rows' } })
-            const tool = createConnectionCallTool((name) => (name === 'execute-sql' ? executeSqlTool() : undefined))
+            const request = createRequestMock({ status: 200, data: { count: 0, results: [] } })
+            const tool = createConnectionCallTool((name) =>
+                name === 'cohorts-list' ? (GENERATED_TOOL_MAP['cohorts-list']!() as ToolBase<ZodObjectAny>) : undefined
+            )
 
-            const result: any = await tool.handler(createContext(request), {
+            await tool.handler(createContext(request), {
                 connection_id: '99',
-                tool: 'execute-sql',
-                arguments: { query: 'select 1' },
+                tool: 'cohorts-list',
+                arguments: {},
             })
 
             const forwardCall = request.mock.calls.find(([opts]: any[]) => opts.path === FORWARD_PATH)
-            expect(forwardCall![0].body).toMatchObject({
-                method: 'POST',
-                path: 'api/environments/4242/mcp_tools/execute_sql/',
-            })
+            expect(forwardCall![0].body).toMatchObject({ method: 'GET', path: 'api/projects/4242/cohorts/' })
             expect(globalFetch).not.toHaveBeenCalled()
-            expect(result.result).toBe('rows')
         })
 
         it.each([

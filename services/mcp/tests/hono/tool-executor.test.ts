@@ -118,7 +118,7 @@ describe('ToolExecutor', () => {
         it('accepts cached exec calls even when the current session is in tools mode', async () => {
             const filteredTools = catalog
                 .getFilteredTools({ scopes: ['*'] })
-                .filter((tool) => tool.name === 'execute-sql' || tool.name === 'organization-get')
+                .filter((tool) => tool.name === 'organization-get')
 
             const result = (await executor.handleToolCall(
                 { name: 'exec', arguments: { command: 'tools' } },
@@ -127,7 +127,6 @@ describe('ToolExecutor', () => {
 
             expect(result.isError).toBeFalsy()
             const text = result.content?.[0]?.text ?? ''
-            expect(text).toContain('execute-sql')
             expect(text).toContain('organization-get')
             expect(text).not.toContain('feature-flag-get-all')
         })
