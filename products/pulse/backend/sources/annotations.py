@@ -44,8 +44,8 @@ class AnnotationsSource:
         )
         items: list[SourceItem] = []
         for annotation in annotations:
-            # The queryset excludes null/empty content, but guard at runtime too (a concurrent update
-            # could null it between query and iteration; `assert` would be stripped under `python -O`).
+            # The queryset excludes null content, but the field is nullable, so the type is still
+            # `str | None`. Narrow it with a check, because `python -O` strips an `assert`.
             content = annotation.content
             if content is None:
                 continue
