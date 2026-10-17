@@ -680,3 +680,4 @@
 {"ts":"2026-10-17T08:57:45Z","id":"buzzhog-m4ht.4wz","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — scheduled.py FOSS task gating; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T08:57:45Z","id":"buzzhog-pk6n","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent aad6cfffd617f9801 (l8z wiki, sonnet medium)"}
 {"ts":"2026-10-17T08:57:45Z","id":"buzzhog-j6tf","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Supervisor: test_usage_report.py part released to the worker after xkxt merged"}
+{"ts":"2026-10-17T08:57:52Z","id":"buzzhog-pk6n.l8z","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
