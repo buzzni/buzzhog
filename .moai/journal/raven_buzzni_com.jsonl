@@ -658,3 +658,12 @@
 {"ts":"2026-10-17T08:44:19Z","id":"buzzhog-lkn5.d6l","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (medium — ee globs and docs cleanup; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T08:44:19Z","id":"buzzhog-lkn5.fwe","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (medium — ee globs and docs cleanup; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T08:44:19Z","id":"buzzhog-j6tf","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a3f0d1259a721227f (sonnet high; test_usage_report.py part left out, xkxt holds posthog/tasks/)"}
+{"ts":"2026-10-17T08:44:49Z","id":"buzzhog-wlwp","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"FOSS 테스트 되살리기"}
+{"ts":"2026-10-17T08:44:49Z","id":"buzzhog-wlwp.dnu","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"hogql 테스트 복원 (test_property, test_printer, test_property_types)"}
+{"ts":"2026-10-17T08:44:49Z","id":"buzzhog-wlwp.vcp","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"녹화 목록·쿼터 캐시·cluster 테스트 복원"}
+{"ts":"2026-10-17T08:44:49Z","id":"buzzhog-wlwp.24m","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"API 테스트 복원 (signup, desktop access)"}
+{"ts":"2026-10-17T08:44:49Z","id":"buzzhog-wlwp","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-j6tf 에서 펼쳤다 — ee 파라미터 하나 때문에 지운 FOSS 테스트 되살리기"}
+{"ts":"2026-10-17T08:44:49Z","id":"buzzhog-j6tf","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-wlwp 로 펼쳤다 (이슈 3건)"}
+{"ts":"2026-10-17T08:44:54Z","id":"buzzhog-wlwp.dnu","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T08:44:54Z","id":"buzzhog-wlwp.vcp","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T08:44:54Z","id":"buzzhog-wlwp.24m","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
