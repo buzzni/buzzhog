@@ -478,3 +478,14 @@
 {"ts":"2026-10-17T04:54:05Z","id":"buzzhog-yfd6","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent (pending id) — with buzzhog-1t2y folded in (same file)"}
 {"ts":"2026-10-17T04:54:05Z","id":"buzzhog-1t2y","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent with buzzhog-yfd6 (same file, one worker)"}
 {"ts":"2026-10-17T04:54:10Z","id":"buzzhog-yfd6","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a54c688c409d04999 (sonnet high; 1t2y folded in)"}
+{"ts":"2026-10-17T04:55:20Z","id":"buzzhog-lmgu","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"CI의 없는 ee/ 경로 정리"}
+{"ts":"2026-10-17T04:55:20Z","id":"buzzhog-lmgu.cfa","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"ci-backend.yml에서 ee 경로 제거 (full_targets, COMPAT 타깃, POE 타깃, --cov=ee, 경로 필터)"}
+{"ts":"2026-10-17T04:55:20Z","id":"buzzhog-lmgu.tfx","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"turbo-discover·테스트·events-schema 타깃·optimize_test_durations의 ee 경로 제거"}
+{"ts":"2026-10-17T04:55:20Z","id":"buzzhog-lmgu.xqp","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"snob 그림자 선택 스크립트와 테스트의 ee 경로 제거"}
+{"ts":"2026-10-17T04:55:20Z","id":"buzzhog-lmgu","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-yfd6 에서 펼쳤다 — .depot/workflows/ci-backend.yml의 ee 경로 정리"}
+{"ts":"2026-10-17T04:55:20Z","id":"buzzhog-yfd6","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-lmgu 로 펼쳤다 (이슈 3건)"}
+{"ts":"2026-10-17T04:55:26Z","id":"buzzhog-1t2y","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"Folded into epic buzzhog-lmgu (same file and fix as buzzhog-yfd6); members lmgu.cfa/tfx/xqp cover its list"}
+{"ts":"2026-10-17T04:55:27Z","id":"buzzhog-lmgu","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Folded buzzhog-yfd6 and buzzhog-1t2y (closed with a note pointing here)."}
+{"ts":"2026-10-17T04:55:27Z","id":"buzzhog-lmgu.cfa","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T04:55:27Z","id":"buzzhog-lmgu.tfx","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T04:55:27Z","id":"buzzhog-lmgu.xqp","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
