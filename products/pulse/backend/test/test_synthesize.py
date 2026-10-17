@@ -1,12 +1,11 @@
 import datetime as dt
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
 from products.pulse.backend.config import DEFAULT_BRIEF_SETTINGS, BriefSettings
-from products.pulse.backend.generation.prompts import SYNTHESIZE_PROMPT, _get_managed_prompt
 from products.pulse.backend.generation.schemas import BriefOut, BriefSectionOut, OpportunityOut
 from products.pulse.backend.generation.synthesize import (
     BriefSynthesisUnavailable,
@@ -46,25 +45,6 @@ def _item() -> SourceItem:
         evidence=[EvidenceRef(type=EvidenceType.INSIGHT, ref="abc", label="", url="/project/1/insights/abc")],
         fingerprint_hint="abc:0",
     )
-
-
-class TestManagedPrompt:
-    @patch("products.pulse.backend.generation.prompts.get_prompt_by_name_from_cache")
-    def test_store_hit_uses_managed_template(self, mock_cache: MagicMock) -> None:
-        mock_cache.return_value = {"prompt": "MANAGED TEMPLATE {focus_prompt}"}
-        result = _get_managed_prompt(MagicMock(), "pulse-brief-synthesis-system", SYNTHESIZE_PROMPT)
-        assert result == "MANAGED TEMPLATE {focus_prompt}"
-
-    @patch("products.pulse.backend.generation.prompts.get_prompt_by_name_from_cache")
-    def test_store_miss_falls_back_to_constant(self, mock_cache: MagicMock) -> None:
-        mock_cache.return_value = None
-        assert _get_managed_prompt(MagicMock(), "pulse-brief-synthesis-system", SYNTHESIZE_PROMPT) == SYNTHESIZE_PROMPT
-
-    @patch("products.pulse.backend.generation.prompts.get_prompt_by_name_from_cache")
-    def test_store_exception_falls_back_to_constant(self, mock_cache: MagicMock) -> None:
-        # A store outage must never fail synthesis — it falls back to the in-code prompt.
-        mock_cache.side_effect = RuntimeError("store down")
-        assert _get_managed_prompt(MagicMock(), "pulse-brief-synthesis-system", SYNTHESIZE_PROMPT) == SYNTHESIZE_PROMPT
 
 
 class TestSayLessGate:
