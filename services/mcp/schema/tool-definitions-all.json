@@ -6223,7 +6223,7 @@
         }
     },
     "identity-provider-configs-list": {
-        "description": "List identity provider configurations in the active organization. Configurations can use SAML, OIDC, SCIM, or XAA (ID-JAG). Results include the protocol settings, SCIM URL, configuration status, and linked domain IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.",
+        "description": "List identity provider configurations in the active organization. Configurations can use SAML, OIDC, SCIM, or XAA (ID-JAG). Results include the protocol settings, configuration status, and linked domain IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.",
         "category": "Core",
         "feature": "core",
         "summary": "List identity provider configurations",
@@ -6265,7 +6265,7 @@
         }
     },
     "identity-provider-configs-retrieve": {
-        "description": "Get an identity provider configuration by ID. Returns its protocol settings, SCIM URL, configuration status, and linked domain IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.",
+        "description": "Get an identity provider configuration by ID. Returns its protocol settings, configuration status, and linked domain IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.",
         "category": "Core",
         "feature": "core",
         "summary": "Get an identity provider configuration",

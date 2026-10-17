@@ -98,7 +98,7 @@ tools:
         title: List identity provider configurations
         description: >
             List identity provider configurations in the active organization. Configurations can use SAML, OIDC, SCIM,
-            or XAA (ID-JAG). Results include the protocol settings, SCIM URL, configuration status, and linked domain
+            or XAA (ID-JAG). Results include the protocol settings, configuration status, and linked domain
             IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.
     identity-provider-configs-partial-update:
         operation: identity_provider_configs_partial_update
@@ -133,7 +133,7 @@ tools:
             idempotent: true
         title: Get an identity provider configuration
         description: >
-            Get an identity provider configuration by ID. Returns its protocol settings, SCIM URL, configuration status,
+            Get an identity provider configuration by ID. Returns its protocol settings, configuration status,
             and linked domain IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.
     media-image-upload-complete:
         operation: uploaded_media_complete_upload_create

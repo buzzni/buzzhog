@@ -5204,7 +5204,10 @@ export interface PropertyDefinitionApi {
     is_numerical?: boolean
     property_type?: PropertyTypeEnumApi | BlankEnumApi | null
     tags?: unknown[]
-    /** @nullable */
+    /**
+     * Whether the property was seen on the events named in `event_names`. Null when `event_names` is not sent.
+     * @nullable
+     */
     readonly is_seen_on_filtered_events: boolean | null
     /** Provenance for a person property populated from a data warehouse source (source/table/column/last synced), or null. Read-only. */
     readonly warehouse_origin: unknown
@@ -5229,7 +5232,10 @@ export interface PatchedPropertyDefinitionApi {
     is_numerical?: boolean
     property_type?: PropertyTypeEnumApi | BlankEnumApi | null
     tags?: unknown[]
-    /** @nullable */
+    /**
+     * Whether the property was seen on the events named in `event_names`. Null when `event_names` is not sent.
+     * @nullable
+     */
     readonly is_seen_on_filtered_events?: boolean | null
     /** Provenance for a person property populated from a data warehouse source (source/table/column/last synced), or null. Read-only. */
     readonly warehouse_origin?: unknown

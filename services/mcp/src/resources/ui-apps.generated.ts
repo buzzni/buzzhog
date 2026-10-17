@@ -10,7 +10,6 @@ export const ERROR_DETAILS_RESOURCE_URI = 'ui://posthog/error-details.html'
 export const ERROR_ISSUE_RESOURCE_URI = 'ui://posthog/error-issue.html'
 export const ERROR_ISSUE_LIST_RESOURCE_URI = 'ui://posthog/error-issue-list.html'
 export const EXPERIMENT_RESOURCE_URI = 'ui://posthog/experiment.html'
-export const EXPERIMENT_LIST_RESOURCE_URI = 'ui://posthog/experiment-list.html'
 export const EXPERIMENT_RESULTS_RESOURCE_URI = 'ui://posthog/experiment-results.html'
 export const FEATURE_FLAG_RESOURCE_URI = 'ui://posthog/feature-flag.html'
 export const FEATURE_FLAG_LIST_RESOURCE_URI = 'ui://posthog/feature-flag-list.html'
@@ -44,7 +43,6 @@ export type UiAppKey =
     | 'error-issue'
     | 'error-issue-list'
     | 'experiment'
-    | 'experiment-list'
     | 'experiment-results'
     | 'feature-flag'
     | 'feature-flag-list'
@@ -78,7 +76,6 @@ export const URI_MAP: Record<UiAppKey, string> = {
     'error-issue': ERROR_ISSUE_RESOURCE_URI,
     'error-issue-list': ERROR_ISSUE_LIST_RESOURCE_URI,
     experiment: EXPERIMENT_RESOURCE_URI,
-    'experiment-list': EXPERIMENT_LIST_RESOURCE_URI,
     'experiment-results': EXPERIMENT_RESULTS_RESOURCE_URI,
     'feature-flag': FEATURE_FLAG_RESOURCE_URI,
     'feature-flag-list': FEATURE_FLAG_LIST_RESOURCE_URI,
@@ -116,7 +113,6 @@ export const DISPATCHABLE_APP_KEYS: UiAppKey[] = [
     'error-issue',
     'error-issue-list',
     'experiment',
-    'experiment-list',
     'experiment-results',
     'feature-flag',
     'feature-flag-list',
@@ -203,12 +199,6 @@ export const UI_APPS: Array<{
         uri: EXPERIMENT_RESOURCE_URI,
         description: 'Experiment detail view',
         appDir: 'generated/experiment',
-    },
-    {
-        name: 'PostHog Experiment List',
-        uri: EXPERIMENT_LIST_RESOURCE_URI,
-        description: 'Experiment List view',
-        appDir: 'generated/experiment-list',
     },
     {
         name: 'PostHog Experiment Results',

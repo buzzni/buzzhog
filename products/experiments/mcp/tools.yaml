@@ -9,10 +9,6 @@ ui_apps:
     experiment:
         type: detail
         view_prop: experiment
-    experiment-list:
-        type: list
-        detail_tool: experiment-get
-        detail_args: '{ id: item.id }'
     experiment-results:
         type: detail
         view_prop: data
@@ -669,7 +665,6 @@ tools:
                 cast: string-int
             feature_flag_id:
                 cast: string-int
-        ui_app: experiment-list
         response:
             include:
                 - id
