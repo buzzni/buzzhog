@@ -12,10 +12,9 @@ const realisticTools = [
     { name: 'dashboard-get', category: 'Dashboards' },
     { name: 'feature-flag-create', category: 'Feature flags' },
     { name: 'feature-flag-get-all', category: 'Feature flags' },
-    { name: 'execute-sql', category: 'SQL' },
+    { name: 'cohorts-list', category: 'Cohorts' },
     { name: 'project-get', category: 'Core' },
     { name: 'business-knowledge-documents-search', category: 'Business knowledge' },
-    { name: 'docs-search', category: 'Docs' },
     { name: 'query-trends', category: 'Query wrappers' },
     { name: 'query-funnel', category: 'Query wrappers' },
 ]
@@ -49,10 +48,8 @@ describe('InstructionsFormatter', () => {
             const formatter = new InstructionsFormatter()
             const result = formatter.buildToolsInstructions(fullCtx)
             expect(result).toContain('### Basic functionality')
-            expect(result).toContain('### PostHog knowledge sources')
-            expect(result.indexOf('`business-knowledge-documents-search`')).toBeLessThan(
-                result.indexOf('`docs-search`')
-            )
+            expect(result).toContain('### Business knowledge')
+            expect(result).toContain('`business-knowledge-documents-search`')
             expect(result).toContain('### Retrieving data')
             expect(result).toContain('### Examples')
         })
@@ -75,31 +72,19 @@ describe('InstructionsFormatter', () => {
 
         it('omits business knowledge guidance when search is unavailable', () => {
             const formatter = new InstructionsFormatter()
-            expect(formatter.buildToolsInstructions({ guidelines: 'rules' })).not.toContain(
-                '### PostHog knowledge sources'
-            )
+            expect(formatter.buildToolsInstructions({ guidelines: 'rules' })).not.toContain('### Business knowledge')
         })
 
-        it('includes Inkeep guidance when only docs search is available', () => {
-            const formatter = new InstructionsFormatter()
-            const result = formatter.buildToolsInstructions({
-                guidelines: 'rules',
-                tools: [{ name: 'docs-search', category: 'Docs' }],
-            })
-
-            expect(result).toContain('### PostHog knowledge sources')
-            expect(result).not.toContain('`business-knowledge-documents-search`')
-            expect(result).toContain('check current PostHog documentation through Inkeep')
-        })
-
-        it('omits knowledge guidance when only business knowledge search is available', () => {
+        it('includes business knowledge guidance when document search is available', () => {
             const formatter = new InstructionsFormatter()
             const result = formatter.buildToolsInstructions({
                 guidelines: 'rules',
                 tools: [{ name: 'business-knowledge-documents-search', category: 'Business knowledge' }],
             })
 
-            expect(result).not.toContain('### PostHog knowledge sources')
+            expect(result).toContain('### Business knowledge')
+            expect(result).toContain('`business-knowledge-documents-search`')
+            expect(result).not.toContain('docs-search')
         })
 
         it('always includes the agent-feedback section', () => {
@@ -116,10 +101,8 @@ describe('InstructionsFormatter', () => {
             const formatter = new InstructionsFormatter()
             const result = formatter.buildExecInstructions(fullCtx)
             // query-* tools surface as the single `query` domain, not a separate catalog line
-            expect(result).toContain(
-                'business-knowledge-documents|dashboard|docs-search|execute-sql|feature-flag|project|query'
-            )
-            expect(result).not.toContain('### PostHog knowledge sources')
+            expect(result).toContain('business-knowledge-documents|cohorts|dashboard|feature-flag|project|query')
+            expect(result).not.toContain('### Business knowledge')
             expect(result).not.toContain('query-*:')
             // Env context is not here — it rides the exec command description, which has no
             // truncation cap, leaving this payload's whole budget to the domain index.
@@ -182,44 +165,37 @@ describe('InstructionsFormatter', () => {
             expect(result).toContain('Run `info <tool_name>` once if its schema is not in context.')
             expect(result).not.toContain('### Basic functionality')
             expect(result).not.toContain('### Examples')
-            expect(result).not.toContain('### PostHog knowledge sources')
+            expect(result).not.toContain('### Business knowledge')
         })
 
-        it('includes docs guidance without business knowledge when only docs search is available', () => {
-            const formatter = new InstructionsFormatter()
-            const result = formatter.buildExecToolDescription({ docsSearchEnabled: true })
-
-            expect(result).toContain('### PostHog knowledge sources')
-            expect(result).not.toContain('`business-knowledge-documents-search`')
-            expect(result.indexOf('### PostHog knowledge sources')).toBeLessThan(
-                result.indexOf('Using the `posthog` tool')
-            )
-            // The mandate leads the description, ahead of the grammar it depends on.
-            expect(result).toContain('`call docs-search <json_input>`')
-        })
-
-        it('omits knowledge guidance when only business knowledge search is available', () => {
+        it('leads with business knowledge guidance when document search is available', () => {
             const formatter = new InstructionsFormatter()
             const result = formatter.buildExecToolDescription({ businessKnowledgeSearchEnabled: true })
 
-            expect(result).not.toContain('### PostHog knowledge sources')
+            expect(result).toContain('### Business knowledge')
+            expect(result.indexOf('### Business knowledge')).toBeLessThan(result.indexOf('Using the `posthog` tool'))
+            // The mandate leads the description, ahead of the grammar it depends on.
+            expect(result).toContain('`call business-knowledge-documents-search <json_input>`')
         })
 
-        it('loads skills before checking business knowledge, repositories, and docs', () => {
+        it('omits knowledge guidance when document search is unavailable', () => {
+            const formatter = new InstructionsFormatter()
+            const result = formatter.buildExecToolDescription({ businessKnowledgeRepoSearchEnabled: true })
+
+            expect(result).not.toContain('### Business knowledge')
+        })
+
+        it('loads skills before checking business knowledge and repositories', () => {
             const formatter = new InstructionsFormatter()
             const result = formatter.buildExecToolDescription({
                 skillsEnabled: true,
-                docsSearchEnabled: true,
                 businessKnowledgeSearchEnabled: true,
                 businessKnowledgeRepoSearchEnabled: true,
             })
 
-            expect(result.indexOf('SKILL-FIRST MANDATE')).toBeLessThan(result.indexOf('### PostHog knowledge sources'))
+            expect(result.indexOf('SKILL-FIRST MANDATE')).toBeLessThan(result.indexOf('### Business knowledge'))
             expect(result.indexOf('business-knowledge-documents-search')).toBeLessThan(
                 result.indexOf('`call business-knowledge-repositories-search <json_input>`')
-            )
-            expect(result.indexOf('business-knowledge-repositories-search')).toBeLessThan(
-                result.indexOf('`call docs-search')
             )
             expect(result).toContain('Code or doc misses')
             expect(result.length).toBeLessThanOrEqual(2048)
@@ -233,12 +209,27 @@ describe('InstructionsFormatter', () => {
             { name: 'both', bk: true, repo: true, expected: true },
         ])('names repository search only when both tools are advertised: $name', ({ bk, repo, expected }) => {
             const tools = [
-                { name: 'docs-search', category: 'Docs' },
                 ...(bk ? [{ name: 'business-knowledge-documents-search', category: 'Business knowledge' }] : []),
                 ...(repo ? [{ name: 'business-knowledge-repositories-search', category: 'Business knowledge' }] : []),
             ]
             const result = new InstructionsFormatter().buildToolsInstructions({ ...fullCtx, tools })
             expect(result.includes('`business-knowledge-repositories-search`')).toBe(expected)
+        })
+    })
+
+    describe('document window guidance', () => {
+        it.each([
+            { name: 'window tool advertised', window: true },
+            { name: 'window tool withheld', window: false },
+        ])('names the window tool only when it is advertised: $name', ({ window }) => {
+            const tools = [
+                { name: 'business-knowledge-documents-search', category: 'Business knowledge' },
+                ...(window
+                    ? [{ name: 'business-knowledge-document-window-retrieve', category: 'Business knowledge' }]
+                    : []),
+            ]
+            const result = new InstructionsFormatter().buildToolsInstructions({ ...fullCtx, tools })
+            expect(result.includes('`business-knowledge-document-window-retrieve`')).toBe(window)
         })
     })
 
@@ -257,7 +248,7 @@ describe('InstructionsFormatter', () => {
             const formatter = new InstructionsFormatter()
             const result = formatter.buildExecCommandReference(fullCtx)
             expect(result).toContain('SCHEMA DRILL-DOWN RULE')
-            expect(result).not.toContain('### PostHog knowledge sources')
+            expect(result).not.toContain('### Business knowledge')
             expect(result).toContain('### Basic functionality')
             expect(result).toContain('### Examples')
         })
@@ -274,7 +265,7 @@ describe('InstructionsFormatter', () => {
             expect(result).toContain(ENV_POINTER)
             // Tool domains are temporarily omitted from the command reference while
             // probing claude.ai's per-tool size cap; discovery rides on `search`.
-            expect(result).not.toContain('dashboard|execute-sql')
+            expect(result).not.toContain('dashboard|cohorts')
             expect(result).toContain('- `query-trends` — time series')
         })
 
@@ -412,7 +403,7 @@ describe('InstructionsFormatter', () => {
         })
     })
 
-    // A blanket "search before every answer" mandate fired a docs or business-knowledge search
+    // A blanket "search before every answer" mandate fired a business-knowledge search
     // on unrelated requests. The exec description reaches any client that lists tool
     // descriptions, so both surfaces carrying the section must scope it by topic.
     describe('knowledge-search scoping', () => {
@@ -424,19 +415,16 @@ describe('InstructionsFormatter', () => {
             {
                 name: 'buildExecToolDescription',
                 render: (formatter: InstructionsFormatter) =>
-                    formatter.buildExecToolDescription({
-                        docsSearchEnabled: true,
-                        businessKnowledgeSearchEnabled: true,
-                    }),
+                    formatter.buildExecToolDescription({ businessKnowledgeSearchEnabled: true }),
             },
-        ])('$name only mandates a search for PostHog and company questions', ({ render }) => {
+        ])('$name only mandates a search for project and company questions', ({ render }) => {
             const result = render(new InstructionsFormatter())
 
-            expect(result).toContain('### PostHog knowledge sources')
+            expect(result).toContain('### Business knowledge')
             expect(result).not.toMatch(/every user request|even when the request looks simple/)
-            expect(result).toContain('call neither search')
+            expect(result).toContain('call no search')
             // The gate is the topic, never the location: a PostHog SDK question that names a
-            // file in the user's repository still has to reach docs-search.
+            // file in the user's repository still has to reach business knowledge search.
             expect(result).toContain('The topic decides, not the location')
         })
     })
@@ -609,17 +597,17 @@ describe('InstructionsFormatter', () => {
             if (supportsInstructions) {
                 // queries surface in instructions only as the `query` tool domain
                 expect(instructions).toContain(
-                    'business-knowledge-documents|dashboard|docs-search|execute-sql|feature-flag|project|query'
+                    'business-knowledge-documents|cohorts|dashboard|feature-flag|project|query'
                 )
                 expect(instructions).not.toContain('- `query-trends` — time series')
                 expect(instructions).not.toContain(ENV_POINTER)
                 expect(commandReference).toContain(ENV_POINTER)
-                expect(commandReference).not.toContain('dashboard|execute-sql')
+                expect(commandReference).not.toContain('dashboard|cohorts')
             } else {
                 expect(instructions).toBe('')
                 expect(commandReference).toContain('- `query-trends` — time series')
                 expect(commandReference).toContain(ENV_POINTER)
-                expect(commandReference).not.toContain('dashboard|execute-sql')
+                expect(commandReference).not.toContain('dashboard|cohorts')
             }
         })
     })

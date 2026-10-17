@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { checkReferencesInText, type ReferenceFinding } from '../../scripts/lib/tool-references'
 
 const TOOLS = new Set([
-    'execute-sql',
+    'insights-list',
     'experiment-ship-variant',
     'feature-flag-get-all',
     'external-data-schemas-partial-update',
-    'read-data-schema',
+    'query-trends',
     'scout-runs-list',
 ])
 const SKILLS = new Set(['finding-experiments', 'creating-experiments'])
@@ -28,13 +28,13 @@ describe('checkReferencesInText', () => {
         ],
         ['renamed skill (near-miss)', 'load the finding-experiment skill first', ['finding-experiment']],
         ['snake_case in plural phrase', 'use the launch, end, or ship_variant tools instead', ['ship_variant']],
-        ['wrong casing', '`execute_sql`: query the experiments table', ['execute_sql']],
-        ['one finding when phrase and casing rules overlap', 'use the `execute_sql` tool', ['execute_sql']],
+        ['wrong casing', '`insights_list`: query the experiments table', ['insights_list']],
+        ['one finding when phrase and casing rules overlap', 'use the `insights_list` tool', ['insights_list']],
         // Backticks are not intent: a backticked name that resembles nothing real is left alone.
         ['fictional backticked tool, no resemblance', 'Use the `experiment_results_summary` tool', []],
         ['fictional backticked skill, no resemblance', 'load the `managing-unicorns` skill first', []],
         ['fictional invocation, no resemblance', 'query it via `does-not-exist-here`', []],
-        ['exact tool name', 'use the read-data-schema tool to discover events', []],
+        ['exact tool name', 'use the query-trends tool to chart events', []],
         ['suffix shorthand', 'change the sync type with the `partial-update` tool', []],
         ['plural family reference', 'browse with the feature-flag tools', []],
         ['bare prose adjective (per-file)', 'this is a per-file tool for editing', []],

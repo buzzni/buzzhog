@@ -383,10 +383,10 @@ describe('ToolExecutor metrics', () => {
 
         it('carries the upstream status alongside the error type for API failures', async () => {
             vi.spyOn(catalog, 'getToolByName').mockReturnValue(
-                makeFakeTool('execute-sql', async () => {
+                makeFakeTool('query-trends', async () => {
                     throw new PostHogRateLimitError({
                         body: '{}',
-                        url: 'https://us.posthog.com/api/environments/2/mcp_tools/execute_sql/',
+                        url: 'https://us.posthog.com/api/environments/2/query/',
                         method: 'POST',
                         retryAfterSeconds: 5,
                     })
@@ -394,24 +394,24 @@ describe('ToolExecutor metrics', () => {
             )
 
             await executor.handleToolCall(
-                { name: 'execute-sql', arguments: {} },
-                makeToolExecutorState([{ name: 'execute-sql' }])
+                { name: 'query-trends', arguments: {} },
+                makeToolExecutorState([{ name: 'query-trends' }])
             )
 
-            expect(trackToolCallExtras('execute-sql')).toMatchObject({
+            expect(trackToolCallExtras('query-trends')).toMatchObject({
                 $mcp_error_type: 'rate_limited',
                 $mcp_error_status: 429,
                 // Subclasses of PostHogApiError get the same rebuilt-safe message shape.
-                $mcp_error_message: 'HTTP 429 Too Many Requests on POST /api/environments/2/mcp_tools/execute_sql/',
+                $mcp_error_message: 'HTTP 429 Too Many Requests on POST /api/environments/2/query/',
             })
         })
 
         it('classifies a downstream 429 as rate_limited, keeping it out of the error rate', async () => {
             vi.spyOn(catalog, 'getToolByName').mockReturnValue(
-                makeFakeTool('execute-sql', async () => {
+                makeFakeTool('query-trends', async () => {
                     throw new PostHogRateLimitError({
                         body: '{}',
-                        url: 'https://us.posthog.com/api/environments/2/mcp_tools/execute_sql/',
+                        url: 'https://us.posthog.com/api/environments/2/query/',
                         method: 'POST',
                         retryAfterSeconds: 5,
                     })
@@ -419,21 +419,21 @@ describe('ToolExecutor metrics', () => {
             )
 
             await executor.handleToolCall(
-                { name: 'execute-sql', arguments: {} },
-                makeToolExecutorState([{ name: 'execute-sql' }])
+                { name: 'query-trends', arguments: {} },
+                makeToolExecutorState([{ name: 'query-trends' }])
             )
 
-            expect(mockToolErrorsInc).toHaveBeenCalledWith({ tool: 'execute-sql', error_type: 'rate_limited' })
+            expect(mockToolErrorsInc).toHaveBeenCalledWith({ tool: 'query-trends', error_type: 'rate_limited' })
         })
 
         it('classifies a 429 wrapped in a cause chain as rate_limited', async () => {
             vi.spyOn(catalog, 'getToolByName').mockReturnValue(
-                makeFakeTool('execute-sql', async () => {
+                makeFakeTool('query-trends', async () => {
                     throw wrapError(
                         'Failed to run query',
                         new PostHogRateLimitError({
                             body: '{}',
-                            url: 'https://us.posthog.com/api/environments/2/mcp_tools/execute_sql/',
+                            url: 'https://us.posthog.com/api/environments/2/query/',
                             method: 'POST',
                             retryAfterSeconds: null,
                         })
@@ -442,11 +442,11 @@ describe('ToolExecutor metrics', () => {
             )
 
             await executor.handleToolCall(
-                { name: 'execute-sql', arguments: {} },
-                makeToolExecutorState([{ name: 'execute-sql' }])
+                { name: 'query-trends', arguments: {} },
+                makeToolExecutorState([{ name: 'query-trends' }])
             )
 
-            expect(mockToolErrorsInc).toHaveBeenCalledWith({ tool: 'execute-sql', error_type: 'rate_limited' })
+            expect(mockToolErrorsInc).toHaveBeenCalledWith({ tool: 'query-trends', error_type: 'rate_limited' })
         })
 
         it.each([

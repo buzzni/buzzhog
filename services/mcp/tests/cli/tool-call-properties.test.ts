@@ -86,13 +86,13 @@ describe('buildToolCallProperties', () => {
             { error_class: 'error', $mcp_error_type: 'memory_limit' },
         ],
     ])('classifies a %s without carrying the message', (_name, extra, expected) => {
-        expect(buildToolCallProperties('execute-sql', { ...base, ...extra })).toEqual({
-            tool_name: 'execute-sql',
-            $mcp_tool_name: 'execute-sql',
+        expect(buildToolCallProperties('insights-list', { ...base, ...extra })).toEqual({
+            tool_name: 'insights-list',
+            $mcp_tool_name: 'insights-list',
             $mcp_duration_ms: 42,
             $mcp_is_error: true,
             output_format: 'text',
-            ...catalogMetadata('execute-sql'),
+            ...catalogMetadata('insights-list'),
             ...expected,
         })
     })

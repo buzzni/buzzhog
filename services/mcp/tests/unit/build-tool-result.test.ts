@@ -406,14 +406,14 @@ describe('buildToolResultPayload — non-query use cases', () => {
     })
 
     it('passes string handler results through verbatim (no character-indexed expansion)', () => {
-        // Regression guard for the original bug: `execute-sql` and other
+        // Regression guard for the original bug: `query-run` and other
         // string-returning handlers must not be object-rest-destructured.
         const sqlResult = 'You are given a table...\n\nmarker|answer\nfix_applied|42'
 
         const payload = buildToolResultPayload({
             handlerResult: sqlResult,
             toolMeta: undefined,
-            toolName: 'execute-sql',
+            toolName: 'insights-list',
             params: {},
             suppressStructuredContentForFormattedResults: true,
             distinctId: undefined,
