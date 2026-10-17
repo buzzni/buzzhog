@@ -554,31 +554,12 @@ function isRecordableToolName(name: string, isKnownToolName: (name: string) => b
 // successor through `superseded_by` and is answered by `flagGatedToolMessage`
 // instead of by an entry here.
 const DEPRECATED_TOOL_REDIRECTS: Record<string, (allTools: Tool<ZodObjectAny>[]) => string> = {
-    // Removed in favor of SQL-based schema discovery via `system.information_schema.*`.
-    'read-data-warehouse-schema': () =>
-        'Tool "read-data-warehouse-schema" was removed in favor of SQL-based schema discovery. Use "execute-sql" against `system.information_schema.*` (`tables`, `columns`, `relationships`, `data_types`) — it scales to large catalogs and supports filtering/search (e.g. `WHERE description ILIKE \'%...%\'`). Consult the `querying-posthog-data` skill (a built-in local skill, when installed) for patterns.',
-    'entity-search': (allTools) => {
-        const base =
-            'Tool "entity-search" was removed. Use "execute-sql" to search PostHog data via HogQL. Consult the `querying-posthog-data` skill (a built-in local skill, when installed) for system-table patterns (system.insights, system.dashboards, system.cohorts, ...).'
-        const hasCatalog = allTools.some((t) => t.name === 'data-catalog-metric-run')
-        return hasCatalog
-            ? `${base} For governed business metrics, search \`system.information_schema.metrics\` instead of \`system.insights\`.`
-            : base
-    },
-    'event-definitions-list': () =>
-        'Tool "event-definitions-list" was removed. Use "read-data-schema" with input { "query": { "kind": "events" } } to list event definitions.',
-    'properties-list': () =>
-        'Tool "properties-list" was removed. Use "read-data-schema": { "query": { "kind": "event_properties", "event_name": "..." } } for event properties, or { "kind": "entity_properties", "entity": "person" | "session" | "group/<n>" } for entity properties.',
-    'property-definitions': () =>
-        'Tool "property-definitions" was removed. Use "read-data-schema" with the appropriate kind: "event_properties", "entity_properties", or "action_properties" — see its info schema for required fields.',
-    'query-generate-hogql-from-question': () =>
-        'Tool "query-generate-hogql-from-question" was removed. Write the HogQL yourself and run it via "execute-sql". Consult the `querying-posthog-data` skill (a built-in local skill, when installed) for HogQL patterns.',
     'query-run': (allTools) => {
         const queryTools = allTools
             .filter((t) => t.name.startsWith('query-'))
             .map((t) => `- ${t.name}: ${t.description.split('\n')[0]}`)
             .join('\n')
-        return `Tool "query-run" was removed. Pick the typed query tool that matches your intent, or use "execute-sql" for arbitrary HogQL. Available query-* tools:\n${queryTools}`
+        return `Tool "query-run" was removed. Pick the typed query tool that matches your intent. Available query-* tools:\n${queryTools}`
     },
     // Folded into "inbox-reports-list", which already served the same endpoint.
     // Spell out the filter renames: the replacement declares no required

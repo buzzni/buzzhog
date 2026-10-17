@@ -329,7 +329,7 @@ Other clients keep the full inline command reference.
 For finer-grained control you can allowlist specific tools by name using the `tools` query parameter. Only the exact tool names listed will be exposed, regardless of their feature category.
 
 ```text
-https://mcp.posthog.com/mcp?tools=dashboard-get,feature-flag-get-all,execute-sql
+https://mcp.posthog.com/mcp?tools=dashboard-get,feature-flag-get-all,insight-get
 ```
 
 When `features` and `tools` are both provided they are combined as a **union** — a tool is included if it matches a feature category **or** is in the tools list. This lets you select a feature group and add a handful of individual tools on top:

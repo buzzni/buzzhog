@@ -36,13 +36,10 @@ import getOrganizations from './organizations/getOrganizations'
 import setActiveOrganization from './organizations/setActive'
 // PostHog AI tools
 import {
-    EXECUTE_SQL_TOOL_NAME,
-    executeSql,
     externalDataSourcesDbSchema,
     externalDataSourcesJobs,
     externalDataSourcesPreview,
     externalDataSyncLogs,
-    readDataSchema,
 } from './posthogAiTools'
 // PostHog connections (run this project's tools against a connected project in another org/region)
 import { createConnectionCallTool } from './posthogConnections/call'
@@ -128,10 +125,6 @@ export const TOOL_MAP: Record<string, () => ToolBase<ZodObjectAny>> = {
     'tasks-artifacts-list': tasksArtifactsList,
     'tasks-comments-list': tasksCommentsList,
     'tasks-comments-retrieve': tasksCommentsRetrieve,
-
-    // PostHog AI tools
-    [EXECUTE_SQL_TOOL_NAME]: executeSql,
-    'read-data-schema': readDataSchema,
 
     // Data warehouse (custom handlers for non-standard request shapes)
     'external-data-sources-db-schema': externalDataSourcesDbSchema,

@@ -22,7 +22,7 @@ tools:
             the issue's kind, severity, status, and check-specific payload, the detail view adds a human-readable
             `title`, a one-line `summary` of the problem, a `link` to the relevant page in PostHog, and `remediation` —
             fix-it guidance with two fields: `remediation.human` (how to fix it in the PostHog UI) and
-            `remediation.agent` (how you should investigate it — often via other tools like execute-sql or docs-search —
+            `remediation.agent` (how you should investigate it — often via other PostHog tools —
             and, when the fix lives in the user's codebase, how to apply it directly, e.g. bump a PostHog SDK
             dependency, change a posthog.init option, or add a reverse-proxy route).
 
