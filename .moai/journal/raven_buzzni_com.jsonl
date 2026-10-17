@@ -748,3 +748,8 @@
 {"ts":"2026-10-17T11:21:15Z","id":"buzzhog-zyjo.0xv","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — MCP prose and schema regeneration; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T11:21:15Z","id":"buzzhog-zyjo.h1s","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — MCP prose and schema regeneration; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T11:21:15Z","id":"buzzhog-uqfm","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a061f14562cc8cea1 (sonnet medium)"}
+{"ts":"2026-10-17T11:22:44Z","id":"buzzhog-r0gt","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"DEV_API_KEY 죽은 코드 제거"}
+{"ts":"2026-10-17T11:22:44Z","id":"buzzhog-r0gt.87h","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"죽은 DEV_API_KEY 경로 제거"}
+{"ts":"2026-10-17T11:22:44Z","id":"buzzhog-r0gt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-uqfm 에서 펼쳤다 — DEV_API_KEY 설정이 사라져 setup_local_api_key·dev 키 노출·apps.py fallback이 죽은 코드 (posthog/settings 담당 워커 이후)"}
+{"ts":"2026-10-17T11:22:44Z","id":"buzzhog-uqfm","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-r0gt 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T11:22:50Z","id":"buzzhog-r0gt.87h","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
