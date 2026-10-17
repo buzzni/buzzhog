@@ -439,3 +439,8 @@
 {"ts":"2026-10-17T03:09:17Z","id":"buzzhog-dsv8","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: 4224e8b7e2e"}
 {"ts":"2026-10-17T03:09:17Z","id":"buzzhog-dsv8.xzh","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (low — wiki only, upstream.md·ADR 0002·external-calls.md·runbook.md)"}
 {"ts":"2026-10-17T03:09:39Z","id":"buzzhog-7sto","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent aadcff1df859fa9aa"}
+{"ts":"2026-10-17T03:10:15Z","id":"buzzhog-trtl","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"SCIM 끄기 API"}
+{"ts":"2026-10-17T03:10:15Z","id":"buzzhog-trtl.osx","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"issue scim_enabled=false를 받아 토큰을 지운다"}
+{"ts":"2026-10-17T03:10:15Z","id":"buzzhog-trtl","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-7sto 에서 펼쳤다 — SCIM을 API로 끌 수 없음 — scim_enabled 읽기 전용"}
+{"ts":"2026-10-17T03:10:15Z","id":"buzzhog-7sto","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-trtl 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T03:10:20Z","id":"buzzhog-trtl.osx","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
