@@ -21,7 +21,6 @@ rules:
                 regex: ^(Team|Organization)$
       paths:
           include:
-              - ee/**/*.py
               - posthog/**/*.py
               - products/**/*.py
           exclude:

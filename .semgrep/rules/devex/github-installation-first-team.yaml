@@ -54,7 +54,6 @@ rules:
                 - pattern-not: Integration.objects. ... .filter(..., team=$TEAM, ...). ... [$INDEX]
       paths:
           include:
-              - ee/**/*.py
               - posthog/**/*.py
               - products/**/*.py
           exclude:

@@ -8,7 +8,7 @@ hogbox or a droplet. Swapping the layer changes the backend, not this file.
 
 Recipe (mount-over-image — the default, ~minutes per PR):
   - Run the ready-made published image (``ghcr.io/posthog/posthog:master``) and
-    bind-mount the PR's backend source (``posthog``/``ee``/``products``) over the
+    bind-mount the PR's backend source (``posthog``/``products``) over the
     image's ``/code``. The image is the prod Dockerfile: it runs from
     ``WORKDIR /code`` via ``./bin/docker-server`` with the frontend baked at
     ``/code/frontend/dist``. Mounting the source swaps the BACKEND code live — no
@@ -261,7 +261,6 @@ class PostHogPreviewStack:
     # and a PR that changes a proto runs against its own stubs.
     MOUNTS = [
         ("posthog", "/code/posthog"),
-        ("ee", "/code/ee"),
         ("products", "/code/products"),
         ("packages/personhog-proto/personhog", "/code/personhog"),
         ("rust/persons_migrations", "/code/rust/persons_migrations"),
@@ -541,8 +540,8 @@ class PostHogPreviewStack:
             # companion settings change that reads this from the env; it's an
             # inert no-op on an image that predates it.
             "      - USE_LOCAL_SETUP=1",
-            # ee/urls.py registers /admin/* only when ADMIN_PORTAL_ENABLED is true,
-            # and ee/settings.py defaults it to DEMO or DEBUG — both false here. So
+            # The image registers /admin/* only when ADMIN_PORTAL_ENABLED is true,
+            # and the setting defaults to DEMO or DEBUG — both false here. So
             # without this, Django has no /admin route at all: the request falls
             # through to the SPA, which prefixes any path it doesn't know with the
             # project id, and /admin lands on /project/1/admin. A box reaches admin
