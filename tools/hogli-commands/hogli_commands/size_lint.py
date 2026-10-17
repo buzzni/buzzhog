@@ -38,12 +38,9 @@ TOKENS_PER_LINE: Final = 12
 
 SCOPE: Final = (
     "posthog/*.py",
-    "ee/*.py",
     "products/*.py",
     "frontend/*.ts",
     "frontend/*.tsx",
-    "ee/*.ts",
-    "ee/*.tsx",
     "products/*.ts",
     "products/*.tsx",
 )

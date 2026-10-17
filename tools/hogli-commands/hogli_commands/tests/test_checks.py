@@ -154,7 +154,7 @@ class TestParseHelpers:
                 "pytest -c ../../pytest.ini --rootdir ../.. backend/ stats/tests -v --tb=short",
                 ["backend/", "stats/tests"],
             ),
-            ("pytest backend/test_max_tools.py", ["backend/test_max_tools.py"]),
+            ("pytest backend/test_tasks.py", ["backend/test_tasks.py"]),
             ("echo 'No backend tests'", []),
             ("pytest -v", []),
             ("pytest -c ../../pytest.ini --rootdir ../.. -k 'not slow' backend/tests", ["backend/tests"]),
@@ -886,10 +886,8 @@ class TestPytestPathValidation:
     def test_file_path_passes(self, tmp_path: Path) -> None:
         ctx = _make_product(
             tmp_path,
-            scripts={
-                "backend:test": "pytest -c ../../pytest.ini --rootdir ../.. backend/test_max_tools.py -v --tb=short"
-            },
-            test_files=["test_max_tools.py"],
+            scripts={"backend:test": "pytest -c ../../pytest.ini --rootdir ../.. backend/test_tasks.py -v --tb=short"},
+            test_files=["test_tasks.py"],
         )
         result = check.run(ctx)
         assert not result.issues
@@ -1968,9 +1966,9 @@ class TestOrphanedTestFilesCheck:
     def test_specific_file_path_in_pytest_does_not_false_flag(self, tmp_path: Path) -> None:
         ctx = self._ctx(
             tmp_path,
-            scripts={"backend:test": "pytest backend/test_max_tools.py -v"},
+            scripts={"backend:test": "pytest backend/test_tasks.py -v"},
         )
-        (ctx.backend_dir / "test_max_tools.py").write_text("")
+        (ctx.backend_dir / "test_tasks.py").write_text("")
         result = self._orphan_check.run(ctx)
         assert not result.issues
 
@@ -2421,8 +2419,7 @@ class TestNarrowedTurboWiringSurface:
         "inputs, expected",
         [
             (["backend/facade/**", "backend/hogql_queries/**"], True),  # a garage dir counts as narrowing surface
-            (["backend/facade/**", "backend/max_tools.py"], True),  # a single-file garage counts too
-            (["backend/facade/**", "backend/tasks.py"], True),  # the flat-file tasks garage form
+            (["backend/facade/**", "backend/tasks.py"], True),  # a single-file garage counts too
             (["backend/hogql_queries/**"], False),  # garage alone isn't a real contract surface
             (["backend/facade/**", "backend/logic/**"], False),  # a non-wiring dir breaks the narrowing
         ],

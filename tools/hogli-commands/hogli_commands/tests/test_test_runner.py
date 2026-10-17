@@ -40,7 +40,11 @@ class TestDetectTestType:
         [
             ("posthog/api/test/test_user.py", "python", ["pytest", "-s", "posthog/api/test/test_user.py"]),
             ("posthog/models/test/test_team.py", "python", ["pytest", "-s", "posthog/models/test/test_team.py"]),
-            ("ee/clickhouse/test/test_client.py", "python", ["pytest", "-s", "ee/clickhouse/test/test_client.py"]),
+            (
+                "common/hogvm/python/test/test_crypto.py",
+                "python",
+                ["pytest", "-s", "common/hogvm/python/test/test_crypto.py"],
+            ),
             (
                 "products/alerts/backend/test/test_api.py",
                 "python",

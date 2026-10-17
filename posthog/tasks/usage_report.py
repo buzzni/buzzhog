@@ -14,7 +14,6 @@ from django.db import connection
 from django.db.models import Count, Q, Sum
 
 import structlog
-import posthoganalytics
 from cachetools import cached
 from celery import shared_task
 from dateutil import parser
@@ -46,6 +45,7 @@ from posthog.settings import CLICKHOUSE_CLUSTER, INSTANCE_TAG
 from posthog.tasks.ai_observability_usage_report import LLM_PROMPT_FETCHED_EVENT
 from posthog.tasks.report_utils import capture_event
 from posthog.tasks.utils import CeleryQueue
+from posthog.telemetry import get_usage_reports_target
 from posthog.usage_counters import (
     RECORD_USAGE_UNITS,
     SHADOW_MISSING_ORGS,
@@ -461,6 +461,12 @@ def get_product_name(realm: str, has_license: bool) -> str:
         return "unknown"
 
 
+def _usage_report_user(user: User) -> dict[str, Any]:
+    if user.anonymize_data or not settings.POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII:
+        return {"id": user.id, "distinct_id": user.distinct_id}
+    return {"id": user.id, "distinct_id": user.distinct_id, "first_name": user.first_name, "email": user.email}
+
+
 def get_instance_metadata(period: DayRange) -> InstanceMetadata:
     has_license = False
 
@@ -496,31 +502,13 @@ def get_instance_metadata(period: DayRange) -> InstanceMetadata:
         metadata.clickhouse_version = str(version_requirement.get_clickhouse_version())
 
         metadata.users_who_logged_in = [
-            (
-                {"id": user.id, "distinct_id": user.distinct_id}
-                if user.anonymize_data
-                else {
-                    "id": user.id,
-                    "distinct_id": user.distinct_id,
-                    "first_name": user.first_name,
-                    "email": user.email,
-                }
-            )
+            _usage_report_user(user)
             for user in User.objects.filter(is_active=True, last_login__gte=period.start, last_login__lte=period.end)
         ]
         metadata.users_who_logged_in_count = len(metadata.users_who_logged_in)
 
         metadata.users_who_signed_up = [
-            (
-                {"id": user.id, "distinct_id": user.distinct_id}
-                if user.anonymize_data
-                else {
-                    "id": user.id,
-                    "distinct_id": user.distinct_id,
-                    "first_name": user.first_name,
-                    "email": user.email,
-                }
-            )
+            _usage_report_user(user)
             for user in User.objects.filter(
                 is_active=True,
                 date_joined__gte=period.start,
@@ -549,8 +537,20 @@ def get_org_user_count(organization_id: str) -> int:
 
 
 @cached(cache={})
-def get_ph_client(*args: Any, **kwargs: Any) -> PostHogClient:
-    return PostHogClient("sTMFPsFhdP1Ssg", *args, **kwargs)
+def _usage_reports_client(host: str, api_key: str, sync_mode: bool) -> PostHogClient:
+    return PostHogClient(api_key, host=host, sync_mode=sync_mode)
+
+
+def get_ph_client(*, sync_mode: bool = False) -> PostHogClient | None:
+    """The client for usage report events, or None when usage reports are off.
+
+    Keyed on the destination as well, so that a changed setting gets a client of its own rather than
+    the one cached for the previous destination.
+    """
+    target = get_usage_reports_target()
+    if target is None:
+        return None
+    return _usage_reports_client(target.host, target.api_key, sync_mode)
 
 
 def _execute_split_query(
@@ -2772,6 +2772,8 @@ def capture_report(
         raise ValueError("Organization_id must be provided")
 
     pha_client = get_ph_client(sync_mode=True)
+    if pha_client is None:
+        return
 
     try:
         capture_event(
@@ -3678,18 +3680,15 @@ def send_all_org_usage_reports(
     skip_capture_event: bool = False,
     organization_ids: Optional[list[str]] = None,
 ) -> None:
-
-    are_usage_reports_disabled = posthoganalytics.feature_enabled("disable-usage-reports", "internal_billing_events")
-    if are_usage_reports_disabled:
-        posthoganalytics.capture_exception(Exception(f"Usage reports are disabled for {at}"))
+    pha_client = get_ph_client(sync_mode=True)
+    if pha_client is None and not dry_run:
+        logger.info("Usage reports are off, set POSTHOG_TELEMETRY_USAGE_REPORTS and the telemetry collector")
         return
 
     at_date = parser.parse(at) if at else None
     period = get_previous_day(at=at_date)
 
     instance_metadata = get_instance_metadata(period)
-
-    pha_client = get_ph_client(sync_mode=True)
 
     if organization_ids:
         logger.info(
@@ -3740,16 +3739,17 @@ def send_all_org_usage_reports(
     logger.info("Sending usage reports to billing")
     queue_time_start = datetime.now()
 
-    pha_client.capture(
-        distinct_id="internal_billing_events",
-        event="usage reports starting",
-        properties={
-            "total_orgs": total_orgs,
-            "region": get_instance_region(),
-            **filtering_properties,
-        },
-        groups={"instance": settings.SITE_URL},
-    )
+    if pha_client is not None:
+        pha_client.capture(
+            distinct_id="internal_billing_events",
+            event="usage reports starting",
+            properties={
+                "total_orgs": total_orgs,
+                "region": get_instance_region(),
+                **filtering_properties,
+            },
+            groups={"instance": settings.SITE_URL},
+        )
 
     for org_report in org_reports.values():
         try:
@@ -3781,21 +3781,22 @@ def send_all_org_usage_reports(
             logger.exception(f"Failed to process organization {organization_id}", error=loop_err)
 
     queue_time_duration = (datetime.now() - queue_time_start).total_seconds()
-    pha_client.capture(
-        distinct_id="internal_billing_events",
-        event="usage reports complete",
-        properties={
-            "total_orgs": total_orgs,
-            "period_start": period.start.isoformat(),
-            "period_end": period.end.isoformat(),
-            "total_orgs_sent": total_orgs_sent,
-            "query_time": query_time_duration,
-            "queue_time": queue_time_duration,
-            "total_time": query_time_duration + queue_time_duration,
-            "region": get_instance_region(),
-            **filtering_properties,
-        },
-        groups={"instance": settings.SITE_URL},
-    )
+    if pha_client is not None:
+        pha_client.capture(
+            distinct_id="internal_billing_events",
+            event="usage reports complete",
+            properties={
+                "total_orgs": total_orgs,
+                "period_start": period.start.isoformat(),
+                "period_end": period.end.isoformat(),
+                "total_orgs_sent": total_orgs_sent,
+                "query_time": query_time_duration,
+                "queue_time": queue_time_duration,
+                "total_time": query_time_duration + queue_time_duration,
+                "region": get_instance_region(),
+                **filtering_properties,
+            },
+            groups={"instance": settings.SITE_URL},
+        )
 
     logger.info(f"Usage reports complete. Total orgs: {total_orgs}, total orgs sent: {total_orgs_sent}.")

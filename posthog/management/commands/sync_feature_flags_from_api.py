@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 import requests
 
 from posthog.models import Project, User
-from posthog.ph_client import PH_US_API_KEY
+from posthog.telemetry import get_telemetry_target
 
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 
@@ -28,26 +28,23 @@ def sync_feature_flags_from_api(
     output_fn: Callable[[str], None] = print,
 ) -> None:
     """
-    Fetch feature flags from the PostHog API and sync them to the database.
+    Fetch feature flags from this instance's telemetry collector and sync them to the database.
 
     Args:
         distinct_id: The distinct ID for which to evaluate feature flags
         groups: Optional dict of group types to IDs (customer, instance, organization, project)
         output_fn: Function to call for output (defaults to print, can use self.stdout.write for management commands)
     """
-    if groups is None:
-        groups = {
-            "customer": "cus_IK2DWsWVn2ZM16",
-            "instance": "https://us.posthog.com",
-            "organization": "4dc8564d-bd82-1065-2f40-97f7c50f67cf",
-            "project": "fc445b88-e2c4-488e-bb52-aa80cd7918c9",
-        }
+    target = get_telemetry_target()
+    if target is None:
+        output_fn("Skipping feature flag sync: POSTHOG_TELEMETRY_HOST and POSTHOG_TELEMETRY_API_KEY are not set")
+        return
 
-    output_fn(f"Fetching feature flags for {distinct_id}...")
+    output_fn(f"Fetching feature flags for {distinct_id} from {target.host}...")
     response = requests.post(
-        "https://us.i.posthog.com/flags?v=2",
+        f"{target.host}/flags?v=2",
         headers={"Content-Type": "application/json"},
-        data=json.dumps({"api_key": PH_US_API_KEY, "distinct_id": distinct_id, "groups": groups}),
+        data=json.dumps({"api_key": target.api_key, "distinct_id": distinct_id, "groups": groups or {}}),
         timeout=30,
     )
     response.raise_for_status()
@@ -138,7 +135,7 @@ def sync_feature_flags_from_api(
 
 
 class Command(BaseCommand):
-    help = "Sync feature flags by fetching them from the PostHog API"
+    help = "Sync feature flags by fetching them from the telemetry collector (POSTHOG_TELEMETRY_HOST)"
 
     def add_arguments(self, parser):
         parser.add_argument(

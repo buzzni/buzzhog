@@ -182,31 +182,6 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
 
     # List & retrieve
 
-    def test_scim_enabled_can_only_be_turned_off(self):
-        self._make_admin()
-        config = IdentityProviderConfig.objects.create(
-            organization=self.organization,
-            name="Legacy SCIM provider",
-            config_scope="saml",
-            scim_enabled=True,
-            scim_bearer_token="hashed-example-token",
-        )
-        url = f"/api/organizations/@current/identity_provider_configs/{config.id}/"
-        self.assertTrue(self.client.get(url).json()["has_scim"])
-
-        response = self.client.patch(url, {"scim_enabled": True})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        config.refresh_from_db()
-        self.assertTrue(config.scim_enabled)
-
-        response = self.client.patch(url, {"scim_enabled": False})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertFalse(response.json()["scim_enabled"])
-        self.assertFalse(response.json()["has_scim"])
-        config.refresh_from_db()
-        self.assertFalse(config.scim_enabled)
-        self.assertIsNone(config.scim_bearer_token)
-
     def test_member_can_list_configs(self):
         IdentityProviderConfig.objects.create(organization=self.organization, name="Okta")
         response = self.client.get("/api/organizations/@current/identity_provider_configs")
@@ -387,6 +362,73 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
         self.assertTrue(response.json()["has_saml"])
         config.refresh_from_db()
         self.assertEqual(config.saml_entity_id, "entity-id")
+
+    def test_scim_enabled_can_only_be_turned_off(self):
+        self._make_admin()
+        response = self.client.post(
+            "/api/organizations/@current/identity_provider_configs/",
+            {"config_scope": "saml", "scim_enabled": True},
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(response.json()["scim_enabled"])
+
+        config = IdentityProviderConfig.objects.create(
+            organization=self.organization,
+            name="Legacy SCIM provider",
+            config_scope="saml",
+            scim_enabled=True,
+            scim_bearer_token="hashed-example-token",
+        )
+        url = f"/api/organizations/@current/identity_provider_configs/{config.id}/"
+        self.assertTrue(self.client.get(url).json()["has_scim"])
+
+        response = self.client.patch(url, {"scim_enabled": True})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        config.refresh_from_db()
+        self.assertTrue(config.scim_enabled)
+
+        response = self.client.patch(url, {"scim_enabled": False})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.json()["scim_enabled"])
+        self.assertFalse(response.json()["has_scim"])
+        config.refresh_from_db()
+        self.assertFalse(config.scim_enabled)
+        self.assertIsNone(config.scim_bearer_token)
+
+        response = self.client.patch(url, {"scim_enabled": True})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.json()["scim_enabled"])
+        self.assertFalse(response.json()["has_scim"])
+        config.refresh_from_db()
+        self.assertFalse(config.scim_enabled)
+
+    def test_form_put_keeps_the_fields_it_omits(self):
+        self._make_admin()
+        domain = OrganizationDomain.objects.create(
+            organization=self.organization, domain="example.com", verified_at=timezone.now()
+        )
+        config = IdentityProviderConfig.objects.create(
+            organization=self.organization,
+            name="Legacy SCIM provider",
+            config_scope="saml",
+            domain_scope="selected",
+            scim_enabled=True,
+            scim_bearer_token="hashed-example-token",
+        )
+        LinkedIdentityProviderConfig.objects.create(identity_provider_config=config, organization_domain=domain)
+
+        response = self.client.put(
+            f"/api/organizations/@current/identity_provider_configs/{config.id}/",
+            {"name": "Renamed", "config_scope": "saml", "id_jag_allowed_clients[0]": "example-client"},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["organization_domain_ids"], [str(domain.id)])
+        config.refresh_from_db()
+        self.assertEqual(config.name, "Renamed")
+        self.assertEqual(config.id_jag_allowed_clients, ["example-client"])
+        self.assertTrue(config.scim_enabled)
+        self.assertEqual(config.scim_bearer_token, "hashed-example-token")
 
     # ID-JAG (XAA)
 

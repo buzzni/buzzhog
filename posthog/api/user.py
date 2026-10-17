@@ -2146,11 +2146,6 @@ def redirect_to_site(request):
     if toolbar_flags_key:
         params["toolbarFlagsKey"] = toolbar_flags_key
 
-    if not settings.TEST and not os.environ.get("OPT_OUT_CAPTURE"):
-        params["instrument"] = True
-        params["userEmail"] = request.user.email
-        params["distinctId"] = request.user.distinct_id
-
     # pass the empty string as the safe param so that `//` is encoded correctly.
     # see https://github.com/PostHog/posthog/issues/9671
     state = urllib.parse.quote(json.dumps(params), safe="")

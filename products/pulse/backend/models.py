@@ -74,7 +74,7 @@ class PulseModel(TeamScopedRootMixin, CreatedMetaFields, UpdatedMetaFields, UUID
 
 class BriefConfig(PulseModel):
     name = models.CharField(max_length=400)
-    # Free text steering the LLM; capped because it is interpolated into the synthesis prompt.
+    # Free text steering the LLM; capped to bound its size as LLM input.
     focus_prompt = models.TextField(blank=True, default="", max_length=2000)
     # Shape: BriefAnchorsSerializer (api/brief.py) — {"dashboards": [int], "insights": [short_id str]}
     anchors = models.JSONField(default=dict)

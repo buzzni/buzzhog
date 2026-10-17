@@ -7,7 +7,9 @@ from django.db.models import Q
 import posthoganalytics
 from drf_spectacular.utils import extend_schema, extend_schema_field
 from rest_framework import exceptions, request, response, serializers, status
+from rest_framework.fields import empty
 from rest_framework.request import Request
+from rest_framework.utils import html
 from rest_framework.viewsets import ModelViewSet
 
 from posthog.api.routing import TeamAndOrgViewSetMixin
@@ -209,6 +211,23 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
     def validate_id_jag_jwks_url(self, value: str | None) -> str | None:
         return self._validate_id_jag_url(value)
 
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        attrs = super().to_internal_value(data)
+        if html.is_html_input(data):
+            # On a full form-encoded write, DRF reads an omitted BooleanField as False and an omitted
+            # many-related field as [], which would turn SCIM off and unlink every domain. A JSON body
+            # leaves omitted fields unset, so drop these values to give both encodings one meaning.
+            # Only these two types are checked, because a list sent as "name[0]=..." has no bare "name" key.
+            for field in self._writable_fields:
+                if (
+                    isinstance(field, (serializers.BooleanField, serializers.ManyRelatedField))
+                    and field.field_name not in data
+                    and field.default is empty
+                    and not field.required
+                ):
+                    attrs.pop(field.source, None)
+        return attrs
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         organization: Organization = self.context["view"].organization
 
@@ -331,10 +350,9 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
         self._merge_oidc_client_secret(validated_data)
         organization_domains = validated_data.pop("organization_domains", None)
         validated_data.pop("scim_bearer_token", None)
-        if validated_data.get("scim_enabled") is False:
+        if validated_data.pop("scim_enabled", None) is False:
+            validated_data["scim_enabled"] = False
             validated_data["scim_bearer_token"] = None
-        else:
-            validated_data.pop("scim_enabled", None)
 
         instance = super().update(instance, validated_data)
         if organization_domains is not None:

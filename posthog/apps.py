@@ -6,16 +6,14 @@ from django.conf import settings
 import structlog
 import posthoganalytics
 from asgiref.sync import async_to_sync
-from posthoganalytics.client import Client
 
-from posthog.git import get_git_branch, get_git_commit_short
 from posthog.organization_caching import connect_signal_handlers as connect_organization_cache_signal_handlers
 from posthog.ph_client import filter_scout_experiment_capture
+from posthog.telemetry import get_telemetry_target
 from posthog.utils import (
     _build_flag_provider,
     get_available_timezones_with_offsets,
     get_instance_region,
-    get_machine_id,
     initialize_self_capture_api_token,
 )
 
@@ -59,7 +57,9 @@ class PostHogConfig(AppConfig):
 
         self._setup_lazy_admin()
         self._prewarm_timezone_offsets_cache()
-        posthoganalytics.api_key = "sTMFPsFhdP1Ssg"  # ty: ignore[invalid-assignment]
+        telemetry_target = get_telemetry_target()
+        posthoganalytics.api_key = telemetry_target.api_key if telemetry_target else None  # ty: ignore[invalid-assignment]
+        posthoganalytics.host = telemetry_target.host if telemetry_target else None  # ty: ignore[invalid-assignment]
         # Fall back to DEV_API_KEY in debug so feature flags work locally without manual env setup.
         # DEV_API_KEY lives in ee/settings.py — getattr returns None in OSS mode.
         posthoganalytics.personal_api_key = os.environ.get(
@@ -95,10 +95,7 @@ class PostHogConfig(AppConfig):
         # Frame locals can hold credentials that the SDK masking does not reliably redact, so never send them.
         posthoganalytics.capture_exception_code_variables = False
 
-        if settings.E2E_TESTING:
-            posthoganalytics.api_key = "phc_ex7Mnvi4DqeB6xSQoXU1UVPzAmUIpiciRKQQXGGTYQO"  # ty: ignore[invalid-assignment]
-            posthoganalytics.personal_api_key = None
-        elif settings.TEST or os.environ.get("OPT_OUT_CAPTURE", False):
+        if settings.TEST or settings.OPT_OUT_CAPTURE:
             posthoganalytics.disabled = True  # ty: ignore[invalid-assignment]
         elif settings.DEBUG or settings.SELF_CAPTURE:
             # In dev, analytics is by default turned to self-capture, i.e. data going into this very instance of PostHog
@@ -114,7 +111,6 @@ class PostHogConfig(AppConfig):
             if settings.SERVER_GATEWAY_INTERFACE == "WSGI":
                 async_to_sync(initialize_self_capture_api_token)()
 
-            # log development server launch to posthog
             if os.getenv("RUN_MAIN") == "true":
                 # posthog.tasks.__init__ is a celery autoimport aggregator: importing any
                 # submodule loads every task module. Keep that off django.setup() for all
@@ -123,19 +119,14 @@ class PostHogConfig(AppConfig):
 
                 # Sync all organization.available_product_features once on launch, in case plans changed
                 sync_all_organization_available_product_features()
+        elif telemetry_target is None:
+            # The SDK falls back to its PostHog Cloud host when it has no host of its own, so an
+            # instance without a collector must not send, and its flags take their local defaults.
+            posthoganalytics.disabled = True  # ty: ignore[invalid-assignment]
 
-                # NOTE: This has to be created as a separate client so that the "capture" call doesn't lock in the properties
-                phcloud_client = Client(posthoganalytics.api_key)
-
-                phcloud_client.capture(
-                    distinct_id=get_machine_id(),
-                    event="development server launched",
-                    properties={"git_rev": get_git_commit_short(), "git_branch": get_git_branch()},
-                )
         # Use HyperCache to provide flag definitions instead of per-process API polling.
         # Falls back to the SDK's emergency API fetch (via personal_api_key) only when
-        # the cache is cold. In E2E testing personal_api_key is None, so a cold cache
-        # will result in no flag definitions being loaded — which is acceptable there.
+        # the cache is cold.
         if not posthoganalytics.disabled:
             posthoganalytics.flag_definition_cache_provider = _build_flag_provider()  # ty: ignore[invalid-assignment]
 

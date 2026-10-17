@@ -318,7 +318,6 @@ _WEBHOOK_CONSUMERS_PREFIXES = ("backend/webhook_consumers.py",)
 # wiring, everything else is a leak. See products/architecture.md § Wiring couplings.
 GARAGE_PREFIXES: tuple[str, ...] = (
     "backend/hogql_queries/",
-    "backend/max_tools.py",
     "backend/temporal/",
     "backend/tasks.py",
     "backend/tasks/",
@@ -328,8 +327,8 @@ GARAGE_PREFIXES: tuple[str, ...] = (
 # query's kind string, so `product:crossings` can read the dispatch table and find every test
 # outside the product that executes a runner (the `drives(...)` lines in the crossings baseline).
 # Such a location must stay in the inputs only while a line exists for it. The other locations are
-# reached through channels the scan does not read yet (Celery task names, Temporal workflow names,
-# Max tool names), so they stay watched by presence until their channel is scanned too.
+# reached through channels the scan does not read yet (Celery task names, Temporal workflow names),
+# so they stay watched by presence until their channel is scanned too.
 COMPUTED_WIRING_LOCATIONS: frozenset[str] = frozenset({"backend/hogql_queries/"})
 
 
@@ -1047,9 +1046,7 @@ def unwatched_model_surface(product_dir: Path) -> set[str]:
 #
 # The names the doctrine spells out. A product may call the same wiring anything, so the stem list
 # is a floor and _is_capability_module decides the rest from what a module hands out.
-CAPABILITY_SUBMODULES: frozenset[str] = frozenset(
-    {"dags", "hogql", "max_tools", "models", "queries", "tasks", "temporal"}
-)
+CAPABILITY_SUBMODULES: frozenset[str] = frozenset({"dags", "hogql", "models", "queries", "tasks", "temporal"})
 
 # Facade stems that are never capability submodules whatever they hand out. `api*.py` holds the
 # data capabilities, so a body there is the designed shape; contracts and enums are the sanctioned

@@ -17,7 +17,6 @@ from posthog.models import Team, UploadedMedia
 from posthog.models.oauth import OAuthAccessToken, OAuthApplication
 from posthog.models.organization import Organization, OrganizationMembership
 from posthog.models.uploaded_media import MEDIA_PURPOSE_DESKTOP_FEEDBACK, MEDIA_PURPOSE_EMAIL
-from posthog.ph_client import PH_US_API_KEY
 
 from products.surveys.backend.desktop_feedback import (
     DESKTOP_FEEDBACK_MEDIA_RETENTION,
@@ -32,7 +31,14 @@ def _image_file(name: str = "example.png", image_format: str = "PNG") -> SimpleU
     return SimpleUploadedFile(name, buffer.getvalue(), content_type=content_types[image_format])
 
 
-@override_settings(OBJECT_STORAGE_ENABLED=True)
+_TELEMETRY_API_KEY = "phc_test_telemetry_key"
+
+
+@override_settings(
+    OBJECT_STORAGE_ENABLED=True,
+    POSTHOG_TELEMETRY_HOST="https://telemetry.example.com",
+    POSTHOG_TELEMETRY_API_KEY=_TELEMETRY_API_KEY,
+)
 class TestDesktopFeedback(APIBaseTest):
     def setUp(self) -> None:
         super().setUp()
@@ -40,7 +46,7 @@ class TestDesktopFeedback(APIBaseTest):
         self.internal_team = Team.objects.create(
             organization=self.internal_org,
             name="Internal feedback",
-            api_token=PH_US_API_KEY,
+            api_token=_TELEMETRY_API_KEY,
         )
 
     @patch("posthog.models.uploaded_media.object_storage.write")

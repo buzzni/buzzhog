@@ -358,19 +358,14 @@ describe('the authorized urls list logic', () => {
             const params = parseHash(directToolbarUrl('https://example.com', { token: 'phc_abc' }))
             expect(params.action).toBe('ph_authorize')
             expect(params.toolbarVersion).toBe('toolbar')
-            expect(params.instrument).toBe(true)
+            expect(params.instrument).toBeUndefined()
             expect(params.token).toBe('phc_abc')
         })
 
-        it('includes user identity fields', () => {
-            const params = parseHash(
-                directToolbarUrl('https://example.com', {
-                    userEmail: 'user@example.com',
-                    distinctId: 'distinct_123',
-                })
-            )
-            expect(params.userEmail).toBe('user@example.com')
-            expect(params.distinctId).toBe('distinct_123')
+        it('does not include user identity fields', () => {
+            const params = parseHash(directToolbarUrl('https://example.com', { token: 'phc_abc' }))
+            expect(params.userEmail).toBeUndefined()
+            expect(params.distinctId).toBeUndefined()
         })
 
         it('sets userIntent to add-action when no specific intent', () => {
