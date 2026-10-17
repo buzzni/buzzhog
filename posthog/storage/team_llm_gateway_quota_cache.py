@@ -249,17 +249,6 @@ def project_team_quota(team: Team) -> bool | None:
     return True if projected.written else False if projected.cleared else None
 
 
-def clear_team_quota(team: Team | int) -> None:
-    if not _enabled():
-        return
-    try:
-        team_llm_gateway_quota_hypercache.delete_cache_entry(team, kinds=["redis"])
-    except Exception as e:
-        team_id = team.id if isinstance(team, Team) else team
-        logger.warning("llm_gateway_quota: clear failed", team_id=team_id, error=str(e))
-        capture_exception(e)
-
-
 def project_org_quota(organization: Organization) -> int:
     """Includes child environments so an obo naming either the project or an environment resolves."""
     if not _enabled():

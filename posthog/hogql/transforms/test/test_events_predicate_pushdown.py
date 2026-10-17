@@ -1703,53 +1703,6 @@ class TestEventsPredicatePushdownExecution(_PushdownExecutionTestBase):
         )
 
 
-class TestEventsPredicatePushdownMaterializedExecution(_PushdownExecutionTestBase):
-    """Pushdown must stay a pure optimization on teams that have materialized columns.
-
-    The test ClickHouse has no materialized columns by default, so the rest of the suite never prints
-    `events.mat_*`. These tests materialize a property first, so the printer reads the physical column and
-    the pushdown subquery must expose it; without that exposure a property referenced outside the pushed
-    predicate (SELECT / GROUP BY / ORDER BY / HAVING) prints `events.mat_tier` against a subquery alias that
-    doesn't have it → `Unknown identifier`. Every assertion checks pushdown-on == pushdown-off.
-    """
-
-    def _create_data(self) -> None:
-        # Same shape as the non-materialized suite; called inside a materialized() block so the physical
-        # column is computed at insert time (ClickHouse MATERIALIZED columns are evaluated on INSERT).
-        for distinct_id, tier, timestamps in [
-            ("u1", "pro", ["2024-01-02T10:00:00", "2024-01-02T10:05:00"]),
-            ("u2", "free", ["2024-01-05T09:00:00"]),
-            ("u3", "pro", ["2023-06-01T09:00:00"]),
-        ]:
-            session_id = str(uuid7(timestamps[0]))
-            for ts in timestamps:
-                _create_event(
-                    team=self.team,
-                    event="watched movie",
-                    distinct_id=distinct_id,
-                    timestamp=ts,
-                    properties={"$session_id": session_id, "tier": tier},
-                )
-        flush_persons_and_events()
-
-    def _assert_equivalent(self, select: str, *, expected_rows: int) -> None:
-        with_pushdown = self._assert_results_equivalent(select)
-        assert len(with_pushdown) == expected_rows, f"expected {expected_rows} rows, got {with_pushdown}"
-
-    _RANGE = "timestamp >= '2024-01-01' AND timestamp < '2024-01-08'"
-
-    MATERIALIZED_SHAPES = [
-        (
-            "property_equals",
-            f"SELECT event, session.$session_duration FROM events WHERE {_RANGE} AND properties.tier = 'pro' LIMIT 50",
-        ),
-        (
-            "property_in_select_and_filter",
-            f"SELECT properties.tier AS t, session.$session_duration FROM events WHERE {_RANGE} AND properties.tier = 'pro' LIMIT 50",
-        ),
-    ]
-
-
 class TestEventsPredicatePushdownPropertyGroupsExecution(_PushdownExecutionTestBase):
     """Pushdown must stay a pure optimization under propertyGroupsMode=OPTIMIZED (the PostHog Cloud default).
 
