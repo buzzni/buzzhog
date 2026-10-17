@@ -245,3 +245,8 @@ corpora/
 /.context/
 # Rendered by the image build with `manage.py render_wizard_tool_catalog`
 /products/wizard/tool-catalog.json
+
+# moai
+.moai/lock
+.moai/*.tmp.*
+/.worktrees/

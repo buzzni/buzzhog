@@ -1,0 +1,8 @@
+# moai — issue tracker settings for this repository
+prefix = "buzzhog"
+statuses = "todo,in_progress,review,done"
+# How a person is shown: full (`Name (email)`) · name · email
+naming = "full"
+
+# Wiki pages live here, apart from upstream PostHog docs/
+wiki_dir = "wiki"
