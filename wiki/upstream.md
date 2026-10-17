@@ -78,14 +78,16 @@
 현재 트리에서 `ee/`는 없다(`git ls-files ee`가 0줄).
 `.github/workflows`도 없다(`git ls-files .github/workflows`가 0줄).
 
-### 알려진 부작용: 끊어진 `ee` import
+### 알려진 부작용: 끊어진 `ee` import (해소됨)
 
-`ee/`를 지웠지만 `from ee...` 또는 `import ee`를 쓰는 Python 파일이 264개 남아 있다.
-근거: `git grep -lE '^\s*(from|import) ee(\.|\s|$)' -- '*.py'`. 예: `posthog/admin/admins/conversation_admin.py`, `posthog/admin/admins/oauth_admin.py`.
-264개 중 105개는 테스트 경로(`tests/`, `test/`, `test_*.py`, `*_test.py`, `conftest.py`)이고, 1개는 semgrep 규칙 예제(`.semgrep/rules/security/idor-team-scoped-models.py`)다.
-근거: 위 명령의 출력을 `grep -cE '(^|/)(tests?/|test_[^/]*\.py$|[^/]*_test\.py$|conftest\.py$)'`로 센다.
-이 import가 실행 시점에 어떻게 처리되는지는 미확인이다(조건부 import인지, 깨지는지 확인하지 않았다).
-영향 조사는 [모듈 지도](modules.md)와 [설정](configuration.md)에서 이어서 다룬다.
+`ee/`를 지운 직후에는 `from ee...` 또는 `import ee`를 쓰는 Python 파일이 264개 남아 있었다.
+에픽 `buzzhog-dsv8`(병합 `ca37aa9e209`)이 이를 정리했다.
+지금 남은 파일은 4개이고 모두 `ee`가 없어도 되도록 감싼 확장 지점이다.
+근거: `git grep -lE '^\s*(from|import) ee(\.|\s|$)' -- '*.py'`가 `posthog/ee_urls.py`, `posthog/settings/__init__.py`, `posthog/settings/ee.py`, `posthog/settings/web.py`만 보여 준다.
+어떤 기능을 자르고 어떤 자리를 남겼는지는 [ADR 0002](adr/0002-remove-ee-residue-keep-extension-points.md)에 적었다.
+
+업스트림을 다시 병합하면 업스트림이 새로 넣은 `from ee` import가 들어올 수 있다.
+위 명령으로 병합 뒤에 확인한다.
 
 ## 패치 로그
 
@@ -93,15 +95,28 @@
 
 ### 지금까지의 차이
 
-`master`(`70371e9eb38`)의 트리는 업스트림 끝 커밋 `e289996cf97`의 트리와 같다.
+`master`(`70371e9eb38`)의 트리는 업스트림 끝 커밋 `e289996cf97`의 트리와 같았다.
 근거: `git diff --stat e289996cf97 70371e9eb38`의 출력이 비어 있다.
-따라서 코드 패치는 없다.
+그 뒤 에픽 `buzzhog-dsv8`이 `ee` 잔재를 걷어 내면서 코드 패치가 처음 생겼다.
+이 패치는 마일스톤 브랜치 `milestone/buzzhog-tfjd`에 병합 커밋 `ca37aa9e209`로 들어 있다.
+근거: `git log --oneline e289996cf97..ca37aa9e209 -- . ':!wiki'`.
 
-현재 위키 브랜치와 업스트림 끝의 차이는 `wiki/` 아래 파일 추가뿐이다. 근거: `git diff --name-status e289996cf97 HEAD`.
+업스트림 끝 `e289996cf97`과 비교한 차이는 `wiki/`를 뺀 파일 503개다(추가 7, 삭제 147, 수정 349).
+근거: `git diff --name-status e289996cf97 ca37aa9e209 -- . ':!wiki'`.
+이 수는 `ca37aa9e209`에서 센 값이다. 이후 커밋이 들어오면 위 명령으로 다시 센다.
 
-| 파일 | 이유 | 커밋 | 업스트림 반영 |
-| --- | --- | --- | --- |
-| (없음) | 코드 패치 없음 | - | - |
+같은 파일을 여러 번 고친 경우가 있으므로, 파일별 행 대신 영역별로 묶어 적는다.
+다음 동기화에서 충돌이 나면 영역의 커밋으로 `git log --oneline e289996cf97..HEAD -- <파일>`을 돌려 포크 수정을 찾는다.
+
+| 영역 | 파일 | 이유 | 커밋 | 업스트림 반영 |
+| --- | --- | --- | --- | --- |
+| `ee` import 정리, `posthog/` | 모듈 수십 개. 예: `posthog/api/rest_router.py`, `posthog/tasks/usage_report.py`, `posthog/tasks/scheduled.py` | 지운 `ee/`를 가져오는 import를 없애거나 조건부로 바꿨다. SCIM, billing, 쿼터 제한, 라이선스, Vercel, 구체화 컬럼 관리, PostHog AI temporal 워크플로, Salesforce 보강을 삭제했다 | `1ab1a2084d5`, `7589e6af6ab` | 없음 |
+| `ee` import 정리, `products/` | 34개 제품 모듈. `max_tools.py`를 삭제한 제품이 많다 | 쿼터는 제한 없음, billing 정보 없음, 구독 발송은 꺼짐으로 자른다. 실험의 holdout·saved metric serializer를 `products/experiments/backend/presentation/holdout_serializers.py`로 새로 썼다 | `486af9263a3` | 없음 |
+| RBAC 모델의 앱 레이블 | `products/access_control/backend/models/`, `products/access_control/backend/migrations/0000_rbac_models.py`, `0004_featureflagroleaccess.py`, 의존을 고친 마이그레이션 29개 | `Role`, `RoleMembership`, `AccessControl`, `FeatureFlagRoleAccess`, `OrganizationResourceAccess`가 `ee` 앱에 있어 마이그레이션 그래프가 끊겼다. 앱 레이블을 `access_control`로 옮기고 테이블 이름 `ee_*`는 유지했다 | `84dbc958ac3` | 없음 |
+| 설정 | `posthog/settings/email.py`, `posthog/settings/llm.py`(새 파일), `posthog/settings/__init__.py` | 지운 `ee` 설정만 정의하던 Customer.io와 LLM 제공자 설정 14개를 환경변수로 읽게 했다 | `772ab459cce` | 없음 |
+| 도구 설정 | `tach.toml`, mypy·ruff·import-linter 설정, 소유자 파일 | `ee`를 목록에서 뺐다 | `cfb59cf0e3b` | 없음 |
+| 이미지 | `Dockerfile`, `Dockerfile.llm-analytics`, `.dockerignore` | `ee` 복사와 `compileall` 대상을 뺐다 | `0ac1ea3a6a1` | 없음 |
+| 리뷰 수정 | `posthog/api/authentication.py`, `bin/start-backend`, `services/agent-proxy/` 등 17개 | 도메인이 다른 SSO를 강제할 때 GitHub·GitLab 로그인을 거절하는 단계를 FOSS로 새로 넣었다. 테스트가 쓰던 이름을 고쳤다 | `abcf3ec53fa`, `accf3d0501a` | 없음 |
 
 ### 이후 기록하는 방법
 
@@ -109,7 +124,7 @@
 
 1. 커밋 제목에 이유를 쓴다. 예: `fix(scope): ...`.
 2. 표에 파일 경로, 이유, 커밋 해시를 적는다. 해시는 `git rev-parse --short`로 얻는다.
-3. 다음 동기화에서 충돌이 날 파일을 미리 알 수 있도록, 같은 파일을 두 번 고치면 행을 합치지 말고 따로 둔다.
+3. 다음 동기화에서 충돌이 날 파일을 미리 알 수 있도록, 새로 고치는 파일은 파일 경로를 적은 행으로 따로 둔다. 같은 파일을 두 번 고쳐도 행을 합치지 않는다. 에픽 하나가 수십 개 파일을 같은 이유로 고친 경우만 위 표처럼 영역 행으로 묶고, 커밋 해시로 파일을 다시 찾는다.
 4. 업스트림이 같은 수정을 가져오면 행을 지우지 말고 "업스트림 반영" 열에 해시를 적는다.
 
 현재 차이 목록을 다시 만드는 명령:
@@ -222,7 +237,7 @@ head -1 LICENSE
 
 - 레이아웃 원문: [monorepo-layout.md](../docs/internal/monorepo-layout.md)
 - 라이선스 영향: [라이선스](licenses.md)
-- 결정 기록: [ADR 0001: non-FOSS 제거](adr/0001-remove-non-foss.md)
+- 결정 기록: [ADR 0001: non-FOSS 제거](adr/0001-remove-non-foss.md), [ADR 0002: ee 잔재 제거와 확장 지점](adr/0002-remove-ee-residue-keep-extension-points.md)
 - 용어: [용어집](glossary.md)
 
-Decided in: buzzhog-whby
+Decided in: buzzhog-whby, buzzhog-dsv8
