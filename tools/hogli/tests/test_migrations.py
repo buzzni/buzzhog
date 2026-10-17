@@ -8,6 +8,8 @@ import pytest
 
 from parameterized import parameterized
 
+from common.migration_utils import get_managed_app_names, get_managed_app_paths
+
 
 class TestPathTraversalValidation:
     """Test path validation prevents directory traversal and injection attacks."""
@@ -203,8 +205,6 @@ class TestSharedMigrationUtils:
 
     def test_cache_migration_file_returns_false_for_invalid(self) -> None:
         """cache_migration_file should return False for invalid inputs."""
-        from pathlib import Path
-
         from common.migration_utils import cache_migration_file
 
         # Invalid inputs should return False (not raise)
@@ -217,15 +217,23 @@ class TestManagedApps:
     def _tmp(self, tmp_path: Path) -> None:
         self._tmp_path = tmp_path
 
-    @parameterized.expand([("ee_absent", False), ("ee_present", True)])
-    def test_ee_is_managed_only_while_its_migrations_exist(self, _name: str, ee_present: bool) -> None:
-        from common.migration_utils import get_managed_app_names, get_managed_app_paths
-
+    @parameterized.expand(
+        [
+            ("ee_absent", (), False),
+            ("ee_package", ("__init__.py",), True),
+            ("ee_bytecode_left_by_git", ("__pycache__/0001_initial.cpython-312.pyc",), False),
+        ]
+    )
+    def test_ee_is_managed_only_while_its_migrations_package_exists(
+        self, _name: str, ee_files: tuple[str, ...], ee_managed: bool
+    ) -> None:
         base_dir = self._tmp_path
         (base_dir / "products" / "access_control" / "backend" / "migrations").mkdir(parents=True)
-        if ee_present:
-            (base_dir / "ee" / "migrations").mkdir(parents=True)
+        for rel_path in ee_files:
+            ee_file = base_dir / "ee" / "migrations" / rel_path
+            ee_file.parent.mkdir(parents=True, exist_ok=True)
+            ee_file.touch()
 
-        expected = {"posthog", "rbac", "access_control"} | ({"ee"} if ee_present else set())
+        expected = {"posthog", "rbac", "access_control"} | ({"ee"} if ee_managed else set())
         assert get_managed_app_names(base_dir) == expected
         assert set(get_managed_app_paths(base_dir)) == expected

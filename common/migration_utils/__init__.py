@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import shutil
 import warnings
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -39,7 +39,7 @@ def validate_migration_path_components(app: str, name: str) -> None:
     files outside the cache directory.
 
     Args:
-        app: The Django app label (e.g., "posthog", "rbac")
+        app: The Django app label (e.g., "posthog", "access_control")
         name: The migration name without .py extension (e.g., "0001_initial")
 
     Raises:
@@ -137,18 +137,27 @@ def cache_migration_file(app: str, name: str, source_path: Path) -> bool:
 
 # Core PostHog apps that have migrations we manage
 # These are always included; product apps are discovered dynamically
-CORE_MANAGED_APPS = frozenset({"posthog", "rbac"})
+CORE_MANAGED_APP_DIRS: Mapping[str, Path] = {
+    "posthog": Path("posthog") / "migrations",
+    "rbac": Path("posthog") / "rbac" / "migrations",
+}
+CORE_MANAGED_APPS = frozenset(CORE_MANAGED_APP_DIRS)
 
-# Optional apps are managed only while their migrations directory exists.
-# This fork has no ee package, but a dev database migrated before ee was removed
-# still has ee rows in django_migrations. If ee were managed without its files,
-# every ee row would show as orphaned and migrations:sync/down could not roll them back.
-OPTIONAL_MANAGED_APP_DIRS: dict[str, Path] = {"ee": Path("ee") / "migrations"}
+# Optional apps are managed only while their migrations package is in the checkout.
+# A database can keep ee rows in django_migrations when the checkout has no ee package.
+# If ee were managed without its files, every ee row would show as orphaned,
+# and migrations:sync/down cannot roll back an app that Django does not install.
+OPTIONAL_MANAGED_APP_DIRS: Mapping[str, Path] = {"ee": Path("ee") / "migrations"}
 
 
 def _present_optional_app_paths(base_dir: Path) -> dict[str, Path]:
+    # Look for __init__.py, not only the directory, because git keeps the ignored
+    # __pycache__/ when it removes the tracked migration files. Django also treats
+    # a migrations directory without __init__.py as an app with no migrations.
     return {
-        app: base_dir / rel_dir for app, rel_dir in OPTIONAL_MANAGED_APP_DIRS.items() if (base_dir / rel_dir).is_dir()
+        app: base_dir / rel_dir
+        for app, rel_dir in OPTIONAL_MANAGED_APP_DIRS.items()
+        if (base_dir / rel_dir / "__init__.py").is_file()
     }
 
 
@@ -172,20 +181,8 @@ def discover_product_apps(base_dir: Path) -> set[str]:
     return apps
 
 
-def get_managed_app_names(base_dir: Path) -> set[str]:
-    """Get all managed app names (core + present optional + product apps).
-
-    Args:
-        base_dir: The repository root directory
-
-    Returns:
-        Set of app names we manage migrations for
-    """
-    return set(CORE_MANAGED_APPS) | set(_present_optional_app_paths(base_dir)) | discover_product_apps(base_dir)
-
-
 def get_managed_app_paths(base_dir: Path) -> dict[str, Path]:
-    """Get all managed apps with their migration directory paths.
+    """Get all managed apps (core + present optional + product apps) with their migration directory paths.
 
     Args:
         base_dir: The repository root directory
@@ -194,8 +191,7 @@ def get_managed_app_paths(base_dir: Path) -> dict[str, Path]:
         Dict mapping app names to their migration directories
     """
     apps = {
-        "posthog": base_dir / "posthog" / "migrations",
-        "rbac": base_dir / "posthog" / "rbac" / "migrations",
+        **{app: base_dir / rel_dir for app, rel_dir in CORE_MANAGED_APP_DIRS.items()},
         **_present_optional_app_paths(base_dir),
     }
 
@@ -204,6 +200,18 @@ def get_managed_app_paths(base_dir: Path) -> dict[str, Path]:
         apps[product_name] = base_dir / "products" / product_name / "backend" / "migrations"
 
     return apps
+
+
+def get_managed_app_names(base_dir: Path) -> set[str]:
+    """Get all managed app names.
+
+    Args:
+        base_dir: The repository root directory
+
+    Returns:
+        Set of app names we manage migrations for
+    """
+    return set(get_managed_app_paths(base_dir))
 
 
 # Context managers for rollback operations
