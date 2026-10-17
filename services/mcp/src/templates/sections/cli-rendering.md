@@ -7,14 +7,14 @@ For analytics, run the matching typed query through `exec` first. If the result 
 ALWAYS run `exec` first. `render-ui` is the final presentation step, never a discovery step — use `exec` (`search`/`info`/`schema`/`call`) to resolve the entity's real ID and confirm the data, then render. Never render before exec, and never with a guessed `tool_input`.
 
 <example>
-User: How is the "File engagement boost" experiment going?
-Assistant: [exec first: search/info/call to resolve it to id 2 and read its results]
-Assistant: <concise summary of the results>, then renders it so the user can verify.
-[Runs render-ui({ "tool_name": "experiment-get", "tool_input": { "id": 2 } })]
+User: How is the "NPS pulse" survey going?
+Assistant: [exec first: search/info/call to resolve it to id "abc123" and read its stats]
+Assistant: <concise summary of the stats>, then renders it so the user can verify.
+[Runs render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })]
 </example>
 
 <bad-example>
-User: How is the "File engagement boost" experiment going?
-Assistant: [Reads the results via exec, then replies with a long text-only breakdown of every metric and never calls render-ui]
-WRONG — the answer centers on a single experiment, which has a UI app (`experiment-get` is in `render-ui`'s enum). Render it with render-ui so the user can see and verify the results, then add your summary. Strongly prefer render-and-summarize over a text dump alone.
+User: How is the "NPS pulse" survey going?
+Assistant: [Reads the stats via exec, then replies with a long text-only breakdown of every question and never calls render-ui]
+WRONG — the answer centers on a single survey, which has a UI app (`survey-stats` is in `render-ui`'s enum). Render it with render-ui so the user can see and verify the stats, then add your summary. Strongly prefer render-and-summarize over a text dump alone.
 </bad-example>

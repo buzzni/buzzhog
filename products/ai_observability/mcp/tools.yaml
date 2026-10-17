@@ -94,8 +94,7 @@ tools:
         description: >
             List all clustering job configurations for the current team (max 10 per team). Each job defines an analysis
             level (trace, generation, or evaluation) and event filters that scope which items are included in clustering
-            runs. To inspect emitted cluster results, use the exploring LLM clusters skill and query the cluster events
-            with execute-sql.
+            runs. To inspect emitted cluster results, use the exploring LLM clusters skill.
     llma-clustering-job-update:
         operation: llm_analytics_clustering_jobs_partial_update
         enabled: true
@@ -836,8 +835,7 @@ tools:
         description: >
             Manually trigger an evaluation run for a specific $ai_generation event. Enqueues a Temporal workflow that
             asynchronously executes the evaluation and stores the result as a '$ai_evaluation' event. Returns a
-            workflow_id and status "started". Pair with execute-sql to query results: SELECT * FROM events WHERE event =
-            '$ai_evaluation'.
+            workflow_id and status "started".
         param_overrides:
             evaluation_id:
                 aliases:

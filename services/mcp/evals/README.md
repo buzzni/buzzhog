@@ -59,7 +59,6 @@ LIVE_POSTHOG_URL=http://localhost:8000 LIVE_MCP_TOKEN=phx_... \
 ```
 
 - It creates or updates every flag in `fixtures.feature_flags`, and soft-deletes every key in `fixtures.absent_feature_flags`. Running it again resets those flags.
-- `flag-create-routes-to-experiment` is the exception. The agent picks the key of the flag its experiment manages, so the seeder cannot reset it. Delete that experiment and flag by hand when you need a clean project.
 - It writes through the REST API, not the MCP server, so the tools under test do not build their own starting state.
 - Without `--project` it seeds the token's current project. Seed the project the MCP session acts on.
 - The token needs `feature_flag:write`, plus `user:read` when `--project` is omitted.

@@ -7,7 +7,7 @@ import { TableVisualizer } from './TableVisualizer'
 import type { HogQLResult } from './types'
 
 // A timestamp column plus a numeric column triggers the time-series detection path,
-// which renders a chart instead of a table — the shape execute-sql results most often take.
+// which renders a chart instead of a table — the shape a time-series query result often takes.
 const TIME_SERIES: HogQLResult = {
     columns: ['day', 'unique_users'],
     results: [
