@@ -628,3 +628,15 @@
 {"ts":"2026-10-17T08:00:40Z","id":"buzzhog-xkxt","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-m4ht 로 펼쳤다 (이슈 1건)"}
 {"ts":"2026-10-17T08:00:40Z","id":"buzzhog-dket.gij","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"review — OpenAPI 재생성과 호출부 정리 전체"}
 {"ts":"2026-10-17T08:00:47Z","id":"buzzhog-m4ht.4wz","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T08:01:20Z","id":"buzzhog-dket.gij","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T08:01:21Z","id":"buzzhog-dket.f2u","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-17T08:01:21Z","id":"buzzhog-dket.ujz","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-17T08:02:25Z","id":"buzzhog-lkn5","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"ee 툴링 잔재 2"}
+{"ts":"2026-10-17T08:02:25Z","id":"buzzhog-lkn5.d6l","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"ee 마운트·글롭 정리"}
+{"ts":"2026-10-17T08:02:25Z","id":"buzzhog-lkn5","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-r6xt 에서 펼쳤다 — ee 문서·툴링 잔재 2: hogbox-preview stack.py ./ee bind mount, playwright_area_map.json ee/** 글롭, .semgrep/rules/devex·.github/scripts 의 ee 글롭"}
+{"ts":"2026-10-17T08:02:25Z","id":"buzzhog-r6xt","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-lkn5 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T08:02:39Z","id":"buzzhog-lkn5.d6l","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T08:02:42Z","id":"buzzhog-lkn5.fwe","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"없는 max_tools.py 설명 문서 정리"}
+{"ts":"2026-10-17T08:02:42Z","id":"buzzhog-lkn5.fwe","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-rq71 에서 펼쳤다 — 없는 max_tools.py를 설명하는 문서: writing-skills.md:322 pydantic_schema 예시, products/posthog_ai/scripts/pydantic_schema docstring, replay_vision README, customer_analytics Accounts AGENTS.md, surveys debugging SKILL.md"}
+{"ts":"2026-10-17T08:02:42Z","id":"buzzhog-rq71","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-lkn5 의 멤버 buzzhog-lkn5.fwe 로 펼쳤다"}
+{"ts":"2026-10-17T08:02:47Z","id":"buzzhog-lkn5.fwe","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
