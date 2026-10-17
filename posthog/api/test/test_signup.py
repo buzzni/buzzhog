@@ -2577,6 +2577,75 @@ class TestInviteSignupAPI(APIBaseTest):
         self.assertEqual(len(member_join_emails), 0)
 
     @patch("posthoganalytics.capture")
+    def test_existing_user_can_sign_up_to_a_new_organization(self, mock_capture):
+        user = self._create_user("test+159@posthog.com", VALID_TEST_PASSWORD, role_at_organization="product")
+        new_org = Organization.objects.create(name="TestCo")
+        new_team = Team.objects.create(organization=new_org)
+        invite: OrganizationInvite = OrganizationInvite.objects.create(
+            target_email="test+159@posthog.com", organization=new_org
+        )
+
+        self.client.force_login(user)
+
+        count = User.objects.count()
+
+        with self.is_cloud(True), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(f"/api/signup/{invite.id}/")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": user.pk,
+                "uuid": str(user.uuid),
+                "distinct_id": user.distinct_id,
+                "last_name": "",
+                "first_name": "",
+                "email": "test+159@posthog.com",
+                "redirect_url": "/",
+                "is_email_verified": None,
+                "hedgehog_config": None,
+                "role_at_organization": "product",
+            },
+        )
+
+        # No new user is created
+        self.assertEqual(User.objects.count(), count)
+
+        # User is now a member of the organization
+        user.refresh_from_db()
+        self.assertEqual(user.organization_memberships.count(), 2)
+        self.assertTrue(user.organization_memberships.filter(organization=new_org).exists())
+
+        # User is now changed to the new organization
+        self.assertEqual(user.organization, new_org)
+        self.assertEqual(user.team, new_team)
+
+        # User is not changed
+        self.assertEqual(user.first_name, "")
+        self.assertEqual(user.email, "test+159@posthog.com")
+        self.assertFalse(user.is_staff)  # Not first user in the instance
+        self.assertEqual(user.role_at_organization, "product")
+
+        # Assert that the sign up event & identify calls were sent to PostHog analytics
+        mock_capture.assert_called_once_with(
+            event="user joined organization",
+            distinct_id=user.distinct_id,
+            properties={
+                "organization_id": str(new_org.id),
+                "user_number_of_org_membership": 2,
+                "org_current_invite_count": 0,
+                "org_current_project_count": 1,
+                "org_current_members_count": 1,
+                "$set": ANY,
+            },
+            groups={"instance": ANY, "organization": str(new_org.id)},
+        )
+
+        # Assert that the user remains logged in
+        response = self.client.get("/api/users/@me/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @patch("posthoganalytics.capture")
     def test_cannot_use_claim_invite_endpoint_to_update_user(self, mock_capture):
         """
         Tests that a user cannot use the claim invite endpoint to change their name or password

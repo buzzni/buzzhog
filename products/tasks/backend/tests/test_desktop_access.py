@@ -8,7 +8,13 @@ from django.test import override_settings
 from parameterized import parameterized
 from rest_framework import status
 
-from products.tasks.backend.access import DesktopAccessResolutionError, get_desktop_access_decision
+from posthog.models import Organization, OrganizationMembership, Team
+
+from products.tasks.backend.access import (
+    DESKTOP_SIGNUP_GATE_FLAG,
+    DesktopAccessResolutionError,
+    get_desktop_access_decision,
+)
 from products.tasks.backend.logic.services.code_usage_gate import code_access_required_response
 
 
@@ -104,6 +110,29 @@ class TestDesktopAccessPolicy(APIBaseTest):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), {"has_access": True, "has_loops_access": True})
+
+    @override_settings(DESKTOP_SIGNUP_CUTOFF="2000-01-01T00:00:00+00:00")
+    def test_project_endpoint_is_scoped_to_each_organization(self) -> None:
+        other_organization = Organization.objects.create(name="Other organization")
+        other_team = Team.objects.create(organization=other_organization, name="Other project")
+        OrganizationMembership.objects.create(
+            organization=other_organization,
+            user=self.user,
+            level=OrganizationMembership.Level.MEMBER,
+        )
+
+        def gate_paused_for_the_first_organization(key: str, _distinct_id: str, *_args, **kwargs) -> bool:
+            return key == DESKTOP_SIGNUP_GATE_FLAG and kwargs["groups"]["organization"] == str(self.organization.id)
+
+        self.mock_feature_flag.side_effect = gate_paused_for_the_first_organization
+
+        paused_response = self.client.get(f"/api/projects/{self.team.id}/desktop/access/")
+        allowed_response = self.client.get(f"/api/projects/{other_team.id}/desktop/access/")
+
+        self.assertEqual(paused_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(paused_response.json(), {"allowed": False, "reason": None})
+        self.assertEqual(allowed_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(allowed_response.json(), {"allowed": True, "reason": None})
 
     @patch(
         "products.tasks.backend.presentation.views.desktop_access.get_desktop_access_decision",

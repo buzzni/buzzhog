@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
@@ -5563,6 +5564,93 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
             properties=properties,
         )
 
+    @parameterized.expand(
+        [
+            [
+                "test_poe_v1_still_falls_back_to_person_subquery",
+                True,
+                False,
+                False,
+                PersonsOnEventsMode.PERSON_ID_NO_OVERRIDE_PROPERTIES_ON_EVENTS,
+            ],
+            [
+                "test_poe_being_unavailable_we_fall_back_to_person_id_overrides",
+                False,
+                False,
+                False,
+                PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
+            ],
+            [
+                "test_poe_being_unavailable_we_fall_back_to_person_subquery",
+                False,
+                False,
+                False,
+                PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
+            ],
+            [
+                "test_allow_denormalised_props_fix_does_not_stop_all_poe_processing",
+                False,
+                True,
+                False,
+                PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS,
+            ],
+            [
+                "test_poe_v2_available_person_properties_are_used_in_replay_listing",
+                False,
+                True,
+                True,
+                PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS,
+            ],
+        ]
+    )
+    def test_effect_of_poe_settings_on_query_generated(
+        self,
+        _name: str,
+        poe_v1: bool,
+        poe_v2: bool,
+        allow_denormalized_props: bool,
+        expected_poe_mode: PersonsOnEventsMode,
+    ) -> None:
+        with self.settings(
+            PERSON_ON_EVENTS_OVERRIDE=poe_v1,
+            PERSON_ON_EVENTS_V2_OVERRIDE=poe_v2,
+            ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalized_props,
+        ):
+            assert self.team.person_on_events_mode == expected_poe_mode
+
+            query = RecordingsQuery.model_validate(
+                {
+                    "properties": [
+                        {
+                            "key": "rgInternal",
+                            "value": ["false"],
+                            "operator": "exact",
+                            "type": "person",
+                        }
+                    ]
+                },
+            )
+            session_recording_list_instance = SessionRecordingListFromQuery(
+                query=query, team=self.team, hogql_query_modifiers=None
+            )
+
+            hogql_parsed_select = session_recording_list_instance.get_query()
+            printed_query = self._print_query(hogql_parsed_select)
+
+            if poe_v1 or poe_v2:
+                assert "person.properties" not in printed_query
+                assert "events.person_properties" in printed_query
+            else:
+                assert re.search(
+                    r"tupleElement\(argMax\(tuple\(replaceRegexpAll\(nullIf\(nullIf\(JSONExtractRaw\(person\.properties, %\(hogql_val_\d+\)s\), ''\), 'null'\), '^\"|\"\$', ''\)\), person\.version\), 1\) AS properties___rgInternal",
+                    printed_query,
+                )
+                assert re.search(
+                    r"ifNull\(equals\(events__person\.properties___rgInternal, %\(hogql_val_\d+\)s\), 0\)",
+                    printed_query,
+                )
+            self.assertQueryMatchesSnapshot(printed_query)
+
     test_case_combinations = [
         ["poe v2 and materialized columns allowed", False, True, True],
         ["poe v2 and materialized columns off", False, True, False],
@@ -5571,6 +5659,75 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
         ["poe v1 and materialized columns allowed", True, False, True],
         ["poe v1 and not materialized columns not allowed", True, False, False],
     ]
+
+    @parameterized.expand(test_case_combinations)
+    @snapshot_clickhouse_queries
+    def test_event_filter_with_person_properties(
+        self,
+        _name: str,
+        poe1_enabled: bool,
+        poe2_enabled: bool,
+        allow_denormalised_props: bool,
+    ) -> None:
+        with self.settings(
+            PERSON_ON_EVENTS_OVERRIDE=poe1_enabled,
+            PERSON_ON_EVENTS_V2_OVERRIDE=poe2_enabled,
+            ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalised_props,
+        ):
+            user_one = "test_event_filter_with_person_properties-user"
+            user_two = "test_event_filter_with_person_properties-user2"
+            session_id_one = f"test_event_filter_with_person_properties-1-{str(uuid4())}"
+            session_id_two = f"test_event_filter_with_person_properties-2-{str(uuid4())}"
+
+            create_person(team=self.team, distinct_ids=[user_one], properties={"email": "bla"})
+            create_person(team=self.team, distinct_ids=[user_two], properties={"email": "bla2"})
+
+            self._add_replay_with_pageview(session_id_one, user_one)
+            produce_replay_summary(
+                distinct_id=user_one,
+                session_id=session_id_one,
+                first_timestamp=(self.base_time + relativedelta(seconds=30)),
+                team_id=self.team.id,
+            )
+            self._add_replay_with_pageview(session_id_two, user_two)
+            produce_replay_summary(
+                distinct_id=user_two,
+                session_id=session_id_two,
+                first_timestamp=(self.base_time + relativedelta(seconds=30)),
+                team_id=self.team.id,
+            )
+
+            match_everyone_filter = RecordingsQuery.model_validate(
+                {"properties": []},
+            )
+
+            session_recording_list_instance = SessionRecordingListFromQuery(
+                query=match_everyone_filter, team=self.team, hogql_query_modifiers=None
+            )
+            (session_recordings, _, _, _) = session_recording_list_instance.run()
+
+            assert sorted([x["session_id"] for x in session_recordings]) == sorted([session_id_one, session_id_two])
+
+            match_bla_filter = RecordingsQuery.model_validate(
+                {
+                    "properties": [
+                        {
+                            "key": "email",
+                            "value": ["bla"],
+                            "operator": "exact",
+                            "type": "person",
+                        }
+                    ]
+                },
+            )
+
+            session_recording_list_instance = SessionRecordingListFromQuery(
+                query=match_bla_filter, team=self.team, hogql_query_modifiers=None
+            )
+            (session_recordings, _, _, _) = session_recording_list_instance.run()
+
+            assert len(session_recordings) == 1
+            assert session_recordings[0]["session_id"] == session_id_one
 
     def _add_replay_with_pageview(self, session_id: str, user: str) -> None:
         self.create_event(

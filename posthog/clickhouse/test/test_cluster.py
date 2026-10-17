@@ -508,6 +508,74 @@ def test_find_existing_mutations_renders_tz_aware_datetimes_before_connecting() 
     assert "'2025-12-31 19:00:00'" in lookup_call.args[1]["__command_0"]
 
 
+def test_alter_mutation_multiple_commands(cluster: ClickhouseCluster) -> None:
+    table = EVENTS_DATA_TABLE()
+
+    sentinel_uuid = uuid.uuid1()  # unique to this test run to ensure we have a clean slate
+
+    def no_op_update(suffix: str) -> str:
+        # The predicate never matches a row, so the mutation is cheap but still recorded in system.mutations.
+        return f"UPDATE properties = '{{}}' WHERE distinct_id = '{sentinel_uuid}_{suffix}'"
+
+    command_a, command_b, command_c = no_op_update("a"), no_op_update("b"), no_op_update("c")
+
+    runner = AlterTableMutationRunner(
+        table=table,
+        commands={command_a, command_b},
+    )
+
+    # nothing should be running yet
+    existing_mutations = cluster.map_all_hosts(runner.find_existing_mutations).result()
+    assert all(not mutations for mutations in existing_mutations.values())
+
+    # start all mutations
+    shard_mutations = cluster.map_one_host_per_shard(runner).result()
+    wait_and_check_mutations_on_shards(cluster, shard_mutations)
+
+    # all commands should have an associated mutation id at this point
+    existing_mutations = cluster.map_all_hosts(runner.find_existing_mutations).result()
+    assert all(mutations.keys() == runner.commands for mutations in existing_mutations.values())
+
+    # if we run the same mutation with a subset of commands, nothing new should be scheduled (this ensures after a
+    # code change that removes a command from the mutation, we won't error when we mutations from previous versions)
+    runner_with_single_command = AlterTableMutationRunner(
+        table=table,
+        commands={command_a},
+    )
+
+    # "start" all mutations (in actuality, this is a noop)
+    shard_mutations = cluster.map_one_host_per_shard(runner_with_single_command).result()
+    wait_and_check_mutations_on_shards(cluster, shard_mutations)
+
+    # the command should still be the same from the previous run
+    assert all(
+        mutations == {command: existing_mutations[host][command] for command in runner_with_single_command.commands}
+        for host, mutations in (
+            cluster.map_all_hosts(runner_with_single_command.find_existing_mutations).result().items()
+        )
+    )
+
+    # if we run the same mutation with additional commands, only the new command should be executed
+    new_command = command_c
+    runner_with_extra_command = AlterTableMutationRunner(
+        table=table,
+        commands={*runner.commands, new_command},
+    )
+
+    # the new command should not yet be findable
+    assert cluster.map_all_hosts(runner_with_extra_command.find_existing_mutations).result() == existing_mutations
+
+    # start all mutations
+    shard_mutations = cluster.map_one_host_per_shard(runner_with_extra_command).result()
+    wait_and_check_mutations_on_shards(cluster, shard_mutations)
+
+    # now all commands should be present
+    assert all(
+        mutations.keys() == runner_with_extra_command.commands
+        for mutations in (cluster.map_all_hosts(runner_with_extra_command.find_existing_mutations).result().values())
+    )
+
+
 def test_map_hosts_by_role() -> None:
     bootstrap_client_mock = Mock()
     bootstrap_client_mock.execute = Mock()

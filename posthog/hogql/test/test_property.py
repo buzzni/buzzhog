@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any, Literal, Optional, Union, cast
 
 import time_machine
@@ -2544,6 +2545,48 @@ class TestPropertyIsSetIsNotSetWithData(APIBaseTest):
 
     def _expected_is_not_set_values(self, is_materialized: bool) -> dict[str, int]:
         return {k: 1 - v for k, v in self._expected_is_set_values(is_materialized).items()}
+
+    @parameterized.expand(
+        [
+            ("is_set", "is_set", False),
+            ("is_not_set", "is_not_set", True),
+        ]
+    )
+    def test_is_set_and_is_not_set_operators(self, _name: str, operator: str, inverted: bool):
+        select_exprs: list[ast.Expr] = [
+            ast.Alias(
+                alias=prop_name,
+                expr=property_to_expr(
+                    {"type": "event", "key": prop_name, "operator": operator},
+                    team=self.team,
+                    scope="event",
+                ),
+            )
+            for prop_name, _, _, _ in self.test_cases
+        ]
+
+        query_ast = ast.SelectQuery(
+            select=select_exprs,
+            select_from=ast.JoinExpr(table=ast.Field(chain=["events"])),
+            where=ast.CompareOperation(
+                op=ast.CompareOperationOp.Eq,
+                left=ast.Field(chain=["event"]),
+                right=ast.Constant(value=self.event_name),
+            ),
+        )
+
+        result = execute_hogql_query(team=self.team, query=query_ast)
+        assert result.columns
+        row: Iterable[Any] = result.results[0]
+        assert row
+        results = dict(zip(result.columns, row))
+
+        expected = (
+            self._expected_is_not_set_values(is_materialized=False)
+            if inverted
+            else self._expected_is_set_values(is_materialized=False)
+        )
+        assert results == expected
 
 
 class TestPropertyDateOperatorsWithData(APIBaseTest):
