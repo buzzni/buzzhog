@@ -406,8 +406,8 @@ describe('buildToolResultPayload — non-query use cases', () => {
     })
 
     it('passes string handler results through verbatim (no character-indexed expansion)', () => {
-        // Regression guard for the original bug: `query-run` and other
-        // string-returning handlers must not be object-rest-destructured.
+        // Regression guard for the original bug: string-returning handlers
+        // must not be object-rest-destructured.
         const sqlResult = 'You are given a table...\n\nmarker|answer\nfix_applied|42'
 
         const payload = buildToolResultPayload({

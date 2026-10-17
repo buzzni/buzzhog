@@ -1,6 +1,6 @@
 Run a funnel query to analyze conversion rates through a sequence of steps. Funnel insights help understand user behavior as users navigate through a product. A funnel consists of a sequence of at least two events or actions, where some users progress to the next step while others drop off. Funnels use percentages as the primary aggregation type.
 
-No tool lists events, actions, or properties, so use the names the user gave for filters and breakdowns, and tell the user which names you could not confirm.
+No tool lists events or properties, so use the names the user gave for filters and breakdowns, and tell the user which names you could not confirm. Find an action's id with `actions-get-all`.
 
 IMPORTANT: Funnels REQUIRE AT LEAST TWO series (events or actions).
 

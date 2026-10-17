@@ -62,19 +62,21 @@ export interface InstructionsContext {
     notebookRunEnabled?: boolean | undefined
 }
 
-const BUSINESS_KNOWLEDGE_WINDOW_TOOL = 'business-knowledge-document-window-retrieve'
+export const BUSINESS_KNOWLEDGE_SEARCH_TOOL = 'business-knowledge-documents-search'
+export const BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL = 'business-knowledge-repositories-search'
+export const BUSINESS_KNOWLEDGE_WINDOW_TOOL = 'business-knowledge-document-window-retrieve'
 
 function businessKnowledgeSearchLine(execSyntax: boolean, windowEnabled: boolean): string {
     const search = execSyntax
-        ? 'run `call business-knowledge-documents-search <json_input>`'
-        : 'call `business-knowledge-documents-search`'
-    const window = windowEnabled
-        ? ` If \`${BUSINESS_KNOWLEDGE_WINDOW_TOOL}\` is also available, use it when a result needs more context.`
-        : ''
+        ? `run \`call ${BUSINESS_KNOWLEDGE_SEARCH_TOOL} <json_input>\``
+        : `call \`${BUSINESS_KNOWLEDGE_SEARCH_TOOL}\``
+    const window = !windowEnabled
+        ? ''
+        : execSyntax
+          ? ` Run \`call ${BUSINESS_KNOWLEDGE_WINDOW_TOOL} <json_input>\` when a result needs more context.`
+          : ` Call \`${BUSINESS_KNOWLEDGE_WINDOW_TOOL}\` when a result needs more context.`
     return `- First, ${search} with a short, broad query based on the user's topic.${window}`
 }
-
-const BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL = 'business-knowledge-repositories-search'
 
 /** Document search does not read GitHub. Code questions and an empty document search use the repo tools.
  *  The exec line stays short to keep the exec description under Claude Code's 2048-char cap. */
@@ -115,9 +117,7 @@ function envContextSections(ctx: InstructionsContext): string[] {
  */
 export class InstructionsFormatter {
     private knowledgeFirstSections(ctx: InstructionsContext): string[] {
-        const businessKnowledgeSearchEnabled = ctx.tools?.some(
-            ({ name }) => name === 'business-knowledge-documents-search'
-        )
+        const businessKnowledgeSearchEnabled = ctx.tools?.some(({ name }) => name === BUSINESS_KNOWLEDGE_SEARCH_TOOL)
         const businessKnowledgeRepoSearchEnabled = ctx.tools?.some(
             ({ name }) => name === BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL
         )

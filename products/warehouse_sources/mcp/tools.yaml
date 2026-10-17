@@ -319,6 +319,7 @@ tools:
             source_type, access_method ('direct' for pure live-query sources, 'warehouse' for synced sources with live
             queries on), and supports_hogql for each; when supports_hogql is false, only raw SQL (sendRawQuery) works.
             Unlike external-data-sources-list, it does not include table schemas or sources that cannot be live-queried.
+            Use this to discover valid connectionId values for a HogQLQuery.
     external-data-sources-create:
         operation: external_data_sources_create
         enabled: true

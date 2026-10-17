@@ -2163,6 +2163,7 @@ describe('exec tool', () => {
                     skillsEnabled: true,
                     businessKnowledgeSearchEnabled: true,
                     businessKnowledgeRepoSearchEnabled: true,
+                    businessKnowledgeWindowEnabled: true,
                 }),
                 commandReference,
                 undefined

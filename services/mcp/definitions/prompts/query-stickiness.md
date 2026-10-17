@@ -1,6 +1,6 @@
 Run a stickiness query to measure how many intervals (e.g. days) within a date range users performed an event. Stickiness insights show user engagement intensity — the X-axis shows the number of intervals (1, 2, 3, ...) and the Y-axis shows how many users performed the event on exactly that many intervals. They're useful for understanding how deeply users engage with a feature.
 
-No tool lists events, actions, or properties, so use the names the user gave for filters, and tell the user which names you could not confirm.
+No tool lists events or properties, so use the names the user gave for filters, and tell the user which names you could not confirm. Find an action's id with `actions-get-all`.
 
 Examples of use cases include:
 

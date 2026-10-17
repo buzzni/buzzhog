@@ -1,6 +1,6 @@
 Run a retention query to analyze how many users return over time after performing an initial action. Retention insights show you how many users return during subsequent periods. They're useful for understanding user engagement and stickiness.
 
-No tool lists events, actions, or properties, so use the names the user gave for filters, and tell the user which names you could not confirm.
+No tool lists events or properties, so use the names the user gave for filters, and tell the user which names you could not confirm. Find an action's id with `actions-get-all`.
 
 Examples of use cases include:
 

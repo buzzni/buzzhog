@@ -191,9 +191,11 @@ describe('InstructionsFormatter', () => {
                 skillsEnabled: true,
                 businessKnowledgeSearchEnabled: true,
                 businessKnowledgeRepoSearchEnabled: true,
+                businessKnowledgeWindowEnabled: true,
             })
 
-            expect(result.indexOf('SKILL-FIRST MANDATE')).toBeLessThan(result.indexOf('### Business knowledge'))
+            expect(result.indexOf('SKILLS FIRST')).toBeGreaterThanOrEqual(0)
+            expect(result.indexOf('SKILLS FIRST')).toBeLessThan(result.indexOf('### Business knowledge'))
             expect(result.indexOf('business-knowledge-documents-search')).toBeLessThan(
                 result.indexOf('`call business-knowledge-repositories-search <json_input>`')
             )
@@ -228,8 +230,15 @@ describe('InstructionsFormatter', () => {
                     ? [{ name: 'business-knowledge-document-window-retrieve', category: 'Business knowledge' }]
                     : []),
             ]
-            const result = new InstructionsFormatter().buildToolsInstructions({ ...fullCtx, tools })
+            const formatter = new InstructionsFormatter()
+            const result = formatter.buildToolsInstructions({ ...fullCtx, tools })
             expect(result.includes('`business-knowledge-document-window-retrieve`')).toBe(window)
+            // In exec mode a bare tool name reads as a command and is rejected, so the line must use `call`.
+            const execResult = formatter.buildExecToolDescription({
+                businessKnowledgeSearchEnabled: true,
+                businessKnowledgeWindowEnabled: window,
+            })
+            expect(execResult.includes('`call business-knowledge-document-window-retrieve <json_input>`')).toBe(window)
         })
     })
 
@@ -265,7 +274,7 @@ describe('InstructionsFormatter', () => {
             expect(result).toContain(ENV_POINTER)
             // Tool domains are temporarily omitted from the command reference while
             // probing claude.ai's per-tool size cap; discovery rides on `search`.
-            expect(result).not.toContain('dashboard|cohorts')
+            expect(result).not.toContain('cohorts|dashboard')
             expect(result).toContain('- `query-trends` — time series')
         })
 
@@ -423,7 +432,7 @@ describe('InstructionsFormatter', () => {
             expect(result).toContain('### Business knowledge')
             expect(result).not.toMatch(/every user request|even when the request looks simple/)
             expect(result).toContain('call no search')
-            // The gate is the topic, never the location: a PostHog SDK question that names a
+            // The gate is the topic, never the location: a project or company question that names a
             // file in the user's repository still has to reach business knowledge search.
             expect(result).toContain('The topic decides, not the location')
         })
@@ -602,12 +611,12 @@ describe('InstructionsFormatter', () => {
                 expect(instructions).not.toContain('- `query-trends` — time series')
                 expect(instructions).not.toContain(ENV_POINTER)
                 expect(commandReference).toContain(ENV_POINTER)
-                expect(commandReference).not.toContain('dashboard|cohorts')
+                expect(commandReference).not.toContain('cohorts|dashboard')
             } else {
                 expect(instructions).toBe('')
                 expect(commandReference).toContain('- `query-trends` — time series')
                 expect(commandReference).toContain(ENV_POINTER)
-                expect(commandReference).not.toContain('dashboard|cohorts')
+                expect(commandReference).not.toContain('cohorts|dashboard')
             }
         })
     })

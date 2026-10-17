@@ -1,6 +1,6 @@
 Run a paths query to analyze the most common sequences of events or pages that users navigate through. Paths insights visualize user flows as a directed graph, showing how users move between steps and where they drop off.
 
-No tool lists events, actions, or properties, so use the names the user gave for filters, and tell the user which names you could not confirm.
+No tool lists events or properties, so use the names the user gave for filters, and tell the user which names you could not confirm. Find an action's id with `actions-get-all`.
 
 Examples of use cases include:
 

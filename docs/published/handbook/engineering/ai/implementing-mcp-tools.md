@@ -655,7 +655,7 @@ client when the remaining event fits; events that remain oversized are dropped.
 
 Native widgets read app data, existing `structuredContent`, or a direct result object.
 They never decode TOON or JSON from result text.
-A query widget renders the executed query from the tool result through the shared Query component in a `DataVisualizationNode`.
+A query widget renders the executed query from the tool result through the shared Query component.
 The Query component fetches the results for this visualization.
 All query widgets require the executed query from the tool result. Old transcripts containing only text show the generic tool card.
 Failed calls and missing or malformed widget data also use that fallback.

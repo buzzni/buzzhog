@@ -84,7 +84,7 @@ describe('schema-utils', () => {
             })
 
             it('says so for a wrapper that is a union of object variants', () => {
-                // `insight-query` keys its shape off a `kind` discriminator.
+                // This wrapper keys its shape off a `kind` discriminator.
                 const unionQuery = {
                     anyOf: [
                         { type: 'object', properties: { kind: { const: 'events' } } },

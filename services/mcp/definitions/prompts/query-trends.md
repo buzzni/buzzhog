@@ -2,7 +2,7 @@ Run a trends query to analyze metrics over time. Trends insights visualize event
 
 Use this tool for native trends with supported aggregations, series, breakdowns, formulas, and period comparisons. When another method preserves the requested calculation and output, prefer this tool for a new query, including simple aggregates. Keep valid existing queries when they fit the task.
 
-No tool lists events, actions, or properties, so use the names the user gave for filters and breakdowns, and tell the user which names you could not confirm.
+No tool lists events or properties, so use the names the user gave for filters and breakdowns, and tell the user which names you could not confirm. Find an action's id with `actions-get-all`.
 
 The trends insights have the following features:
 

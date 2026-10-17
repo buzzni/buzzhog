@@ -65,8 +65,8 @@ tools:
 
 
             ALWAYS validate an ActorsQuery through its matching 'query-*-actors' tool (e.g. 'query-trends-actors',
-            'query-lifecycle-actors') before saving it. Only pass a 'query' that returned successfully — this catches column-name and
-            syntax errors before they fail cohort population.
+            'query-lifecycle-actors') before saving it. Only pass an ActorsQuery that returned successfully — this catches
+            column-name and syntax errors before they fail cohort population.
 
 
             Example — from SQL (HogQLQuery), alias the id column as person_id:
@@ -154,8 +154,8 @@ tools:
             limit. The query must expose the person id under one of these column names, checked in order: 'person_id',
             'actor_id', 'id', or 'distinct_id' (selecting from the 'events' or 'persons' tables resolves the actor
             automatically). Validate an ActorsQuery through its matching 'query-*-actors' tool (e.g.
-            'query-trends-actors') before saving it, and only save one that returned successfully. Prefer this over 'cohorts-add-persons-to-static-cohort-partial-update' for anything
-            beyond a handful (~20) of people.
+            'query-trends-actors') before saving it, and only save one that returned successfully. Prefer this over
+            'cohorts-add-persons-to-static-cohort-partial-update' for anything beyond a handful (~20) of people.
         exclude_params:
             - groups
             - version

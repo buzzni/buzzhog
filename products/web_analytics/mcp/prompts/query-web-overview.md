@@ -28,4 +28,4 @@ Use `query-trends` instead for per-event counts — pageviews, sign-ups, button 
 
 # Out of scope
 
-`conversionGoal` is supported as an input on this tool. Goal-funnel breakdowns (`WebGoalsQuery`), web vitals, and external clicks aren't exposed as separate query modes.
+`conversionGoal` is supported as an input on this tool. Goal-funnel breakdowns (`WebGoalsQuery`), web vitals, and external clicks aren't exposed as separate query modes. Use `query-web-vitals` for web vitals.

@@ -6,7 +6,7 @@ Use `query-web-vitals` for **page-level** vitals questions: "which pages are slo
 
 Use `query-trends` on the `$web_vitals` event (property math on `$web_vitals_LCP_value` etc.) for a **site-wide trend over time** — this tool has no time axis; it aggregates the whole window.
 
-Requires the project to capture the `$web_vitals` event (`capture_performance` in posthog-js). If results come back empty, do not conclude pages are fine. Tell the user that capture could not be confirmed.
+Requires the project to capture the `$web_vitals` event (`capture_performance` in posthog-js). If results come back empty, count `$web_vitals` events with `query-trends` before concluding pages are fine.
 
 # Inputs
 
