@@ -36,19 +36,19 @@ class TestFindPythonDependencies(unittest.TestCase):
             ("simple_module", "posthog.utils", "posthog/utils.py"),
             (
                 "package_module",
-                "products.exports.backend.temporal.subscriptions",
-                "products/exports/backend/temporal/subscriptions/__init__.py",
+                "posthog.temporal.exports",
+                "posthog/temporal/exports/__init__.py",
             ),
             ("nested_module", "posthog.hogql_queries.query_runner", "posthog/hogql_queries/query_runner.py"),
             ("nonexistent_module", "posthog.nonexistent.module", None),
-            ("ee_module", "ee.tasks.subscriptions.subscription_utils", "ee/tasks/subscriptions/subscription_utils.py"),
+            ("module_file", "posthog.temporal.exports.workflows", "posthog/temporal/exports/workflows.py"),
         ]
     )
     def test_module_to_file(self, _name, module, expected_file):
         self.assertEqual(module_to_file(module), expected_file)
 
     def test_returns_only_python_file_paths(self):
-        files = find_all_dependency_files(self.graph, "products.exports.backend.temporal.subscriptions")
+        files = find_all_dependency_files(self.graph, "posthog.temporal.exports")
         self.assertIsInstance(files, set)
         for f in files:
             self.assertTrue(f.endswith(".py"), f"Expected .py file, got {f}")
@@ -59,13 +59,13 @@ class TestFindPythonDependencies(unittest.TestCase):
             ("The utils file (e.g. caching key)", "posthog/utils.py", True),
             ("The underlying query runner", "posthog/hogql_queries/query_runner.py", True),
             # Non-dependencies - should NOT be included
-            ("API endpoint that calls the worker", "ee/api/subscription.py", False),
+            ("API endpoint that calls the worker", "posthog/api/comments.py", False),
             ("Schedule config that starts workflows", "posthog/temporal/schedule.py", False),
             ("Unrelated admin module", "posthog/admin/__init__.py", False),
         ]
     )
     def test_file_inclusion(self, _name, file_path, should_be_included):
-        files = find_all_dependency_files(self.graph, "products.exports.backend.temporal.subscriptions")
+        files = find_all_dependency_files(self.graph, "posthog.temporal.exports")
         if should_be_included:
             self.assertIn(file_path, files)
         else:
@@ -74,18 +74,18 @@ class TestFindPythonDependencies(unittest.TestCase):
     @parameterized.expand(
         [
             # Direct dependencies - should trigger rebuild
-            ("entrypoint_init", "products/exports/backend/temporal/subscriptions/__init__.py", True),
-            ("entrypoint_activities", "products/exports/backend/temporal/subscriptions/activities.py", True),
-            ("entrypoint_workflows", "products/exports/backend/temporal/subscriptions/workflows.py", True),
+            ("entrypoint_init", "posthog/temporal/exports/__init__.py", True),
+            ("entrypoint_activities", "posthog/temporal/exports/activities.py", True),
+            ("entrypoint_workflows", "posthog/temporal/exports/workflows.py", True),
             # Transitive dependencies (the bug that caused issue https://github.com/PostHog/posthog/pull/42307) - should trigger rebuild
             ("transitive_utils", "posthog/utils.py", True),
             ("transitive_query_runner", "posthog/hogql_queries/query_runner.py", True),
             # Export-related files - should trigger rebuild
             ("exporter", "posthog/tasks/exporter.py", True),
             ("image_exporter", "products/exports/backend/tasks/image_exporter.py", True),
-            ("subscription_utils", "ee/tasks/subscriptions/subscription_utils.py", True),
+            ("retry_policy", "posthog/temporal/exports/retry_policy.py", True),
             # Files that should NOT affect the worker
-            ("api_endpoint", "ee/api/subscription.py", False),
+            ("api_endpoint", "posthog/api/comments.py", False),
             ("schedule_config", "posthog/temporal/schedule.py", False),
             ("frontend_code", "frontend/src/test.tsx", False),
             ("rust_code", "rust/some_file.rs", False),
@@ -95,7 +95,7 @@ class TestFindPythonDependencies(unittest.TestCase):
     def test_change_detection(self, _name, changed_file, should_be_affected):
         affected, _matching = check_if_changes_affect_entrypoint(
             self.graph,
-            "products.exports.backend.temporal.subscriptions",
+            "posthog.temporal.exports",
             [changed_file],
         )
         self.assertEqual(
@@ -108,7 +108,7 @@ class TestFindPythonDependencies(unittest.TestCase):
     def test_multiple_changes_one_affects(self):
         affected, matching = check_if_changes_affect_entrypoint(
             self.graph,
-            "products.exports.backend.temporal.subscriptions",
+            "posthog.temporal.exports",
             ["frontend/test.tsx", "posthog/utils.py", "README.md"],
         )
         self.assertTrue(affected)
@@ -117,7 +117,7 @@ class TestFindPythonDependencies(unittest.TestCase):
     def test_multiple_changes_none_affect(self):
         affected, matching = check_if_changes_affect_entrypoint(
             self.graph,
-            "products.exports.backend.temporal.subscriptions",
+            "posthog.temporal.exports",
             ["frontend/test.tsx", "README.md", "rust/main.rs"],
         )
         self.assertFalse(affected)
@@ -163,8 +163,8 @@ class TestFindPythonDependencies(unittest.TestCase):
     def test_returns_sorted_matching_files(self):
         _affected, matching = check_if_changes_affect_entrypoint(
             self.graph,
-            "products.exports.backend.temporal.subscriptions",
-            ["posthog/utils.py", "posthog/hogql_queries/query_runner.py", "ee/models/license.py"],
+            "posthog.temporal.exports",
+            ["posthog/utils.py", "posthog/hogql_queries/query_runner.py", "posthog/admin/__init__.py"],
         )
         self.assertGreater(len(matching), 1, "Need multiple matches to verify sorting")
         self.assertEqual(matching, sorted(matching))
@@ -172,9 +172,9 @@ class TestFindPythonDependencies(unittest.TestCase):
     @parameterized.expand(
         [
             # Entrypoint - should trigger rebuild
-            ("entrypoint_init", "products/exports/backend/temporal/subscriptions/__init__.py", True),
-            ("entrypoint_activities", "products/exports/backend/temporal/subscriptions/activities.py", True),
-            ("entrypoint_workflows", "products/exports/backend/temporal/subscriptions/workflows.py", True),
+            ("entrypoint_init", "posthog/temporal/exports/__init__.py", True),
+            ("entrypoint_activities", "posthog/temporal/exports/activities.py", True),
+            ("entrypoint_workflows", "posthog/temporal/exports/workflows.py", True),
             # posthog/temporal/common - should trigger rebuild
             ("temporal_common_base", "posthog/temporal/common/base.py", True),
             ("temporal_common_client", "posthog/temporal/common/client.py", True),
@@ -183,14 +183,13 @@ class TestFindPythonDependencies(unittest.TestCase):
             # products/exports/backend/tasks/ - should trigger rebuild
             ("image_exporter", "products/exports/backend/tasks/image_exporter.py", True),
             ("csv_exporter", "products/exports/backend/tasks/csv_exporter.py", True),
-            # ee/tasks/subscriptions/ - should trigger rebuild
-            ("subscription_utils", "ee/tasks/subscriptions/subscription_utils.py", True),
-            ("email_subscriptions", "ee/tasks/subscriptions/email_subscriptions.py", True),
+            ("retry_policy", "posthog/temporal/exports/retry_policy.py", True),
+            ("types", "posthog/temporal/exports/types.py", True),
             # Transitive dependencies - should trigger rebuild
             ("utils", "posthog/utils.py", True),
             ("query_runner", "posthog/hogql_queries/query_runner.py", True),
             # Non-dependencies - should NOT trigger rebuild
-            ("api_endpoint", "ee/api/subscription.py", False),
+            ("api_endpoint", "posthog/api/comments.py", False),
             ("schedule_config", "posthog/temporal/schedule.py", False),
             ("admin", "posthog/admin/admins/batch_imports.py", False),
             ("tests", "posthog/test/test_utils.py", False),
@@ -199,7 +198,7 @@ class TestFindPythonDependencies(unittest.TestCase):
     def test_analytics_platform_worker_file_triggers_rebuild(self, _name, changed_file, should_trigger):
         affected, _ = check_if_changes_affect_entrypoint(
             self.graph,
-            "products.exports.backend.temporal.subscriptions",
+            "posthog.temporal.exports",
             [changed_file],
         )
         if should_trigger:
@@ -210,7 +209,7 @@ class TestFindPythonDependencies(unittest.TestCase):
     @parameterized.expand(
         [
             ("posthog", "posthog"),
-            ("ee", "ee"),
+            ("products", "products"),
         ]
     )
     def test_graph_contains_package_modules(self, _name, package):

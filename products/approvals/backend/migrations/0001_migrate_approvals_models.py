@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("posthog", "1238_ducklakebackfill_earliest_event_date"),
+        ("access_control", "0000_rbac_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

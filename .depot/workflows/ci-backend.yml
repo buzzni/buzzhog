@@ -202,7 +202,7 @@ env:
     # Authenticated steps set an explicit step-level token.
     OTEL_SERVICE_NAME: ''
     CLICKHOUSE_SERVER_IMAGE_VERSION: ${{ github.event.inputs.clickhouseServerVersion || '' }}
-    CLICKHOUSE_COMPAT_PYTEST_TARGETS: 'posthog/clickhouse ee/clickhouse'
+    CLICKHOUSE_COMPAT_PYTEST_TARGETS: 'posthog/clickhouse'
     OBJECT_STORAGE_ENABLED: 'True'
     OBJECT_STORAGE_ENDPOINT: 'http://localhost:19000'
     OBJECT_STORAGE_ACCESS_KEY_ID: 'object_storage_root_user'
@@ -327,8 +327,6 @@ jobs:
                         # NOTE: we are at risk of missing a dependency here. We could make
                         # the dependencies more clear if we separated the backend/frontend
                         # code completely
-                        - 'ee/**/*'
-                        - '!ee/frontend/**' # frontend code under ee/ must not trigger backend
                         - 'common/__init__.py'
                         - 'common/hogql_parser/**'
                         - 'rust/hogql/parser/**'
@@ -440,8 +438,6 @@ jobs:
                         # turbo-discover uses Turbo query affectedness to detect changed
                         # products and decide whether Django runs.
                         # Everything from backend: EXCEPT products/**/backend/**/*
-                        - 'ee/**/*'
-                        - '!ee/frontend/**' # frontend code under ee/ must not trigger backend
                         - 'common/__init__.py'
                         - 'common/hogql_parser/**'
                         - 'rust/hogql/parser/**'
@@ -517,7 +513,7 @@ jobs:
                         - added|modified: 'products/*/backend/migrations/*.py'
                         - added|modified: 'products/*/migrations/*.py'
                       # Any migration file in any app (broader than `migrations` above,
-                      # which omits ee/ and posthog sub-package dirs). Gates the
+                      # which omits posthog sub-package dirs). Gates the
                       # deleted-migration check in repo-checks.
                       migrations_any:
                         - '**/migrations/*.py'
@@ -869,7 +865,7 @@ jobs:
                       posthog-events-schema-prune-
             # The backend test selector picks the Django tests this PR needs, and on a legacy
             # diff its product list narrows the product matrix too: turbo-discover.js cannot
-            # see which products a posthog/ or ee/ edit reaches, and the selector can, because
+            # see which products a posthog/ edit reaches, and the selector can, because
             # it follows the import graph into products/. Both matrices read one verdict, so
             # they can never disagree about whether the selection is trustworthy.
             # Only on a legacy diff: turbo-discover.js trusts the selection only when the paths
@@ -3066,7 +3062,7 @@ jobs:
     django:
         needs: [changes, turbo-discover, detect-snapshot-mode, get_clickhouse_versions, build_django_matrix]
         # Run legacy pytest if:
-        # 1. Legacy code directly changed (ee/, posthog/)
+        # 1. Legacy code directly changed (posthog/)
         # 2. OR product changes affect legacy code (turbo-discover outputs run_legacy=true)
         # 3. OR turbo-discover itself failed (conservative: run Django on detection failure)
         # 4. OR a product-only change has events_json paths to run. build_django_matrix
@@ -3511,12 +3507,12 @@ jobs:
                   JSON_TARGETS: ${{ matrix.json-targets && 'true' || 'false' }}
                   # The narrowed events_json paths. Empty when the row takes the whole list.
                   JSON_TARGETS_FILES: ${{ fromJSON(needs.turbo-discover.outputs.selection || '{}').json_targets_files }}
-                  # devex: measure core (posthog/ee) coverage on PRs to size the gap vs products. sysmon = low overhead.
+                  # devex: measure core (posthog) coverage on PRs to size the gap vs products. sysmon = low overhead.
                   COVERAGE_CORE: sysmon
                   # Mirrors canonical: the coverage report skips narrowed runs, so
                   # instrumenting one is pure overhead, and the events_json rows rerun
                   # tests the legacy rows already measure.
-                  COV_ARGS: ${{ github.event_name == 'pull_request' && needs.turbo-discover.outputs.mode != 'selected' && !matrix.json-targets && '--cov=posthog --cov=ee --cov-config=.github/coverage-core.cfg --cov-report=' || '' }}
+                  COV_ARGS: ${{ github.event_name == 'pull_request' && needs.turbo-discover.outputs.mode != 'selected' && !matrix.json-targets && '--cov=posthog --cov-config=.github/coverage-core.cfg --cov-report=' || '' }}
               shell: 'signal-fanout bash --noprofile --norc -eo pipefail {0}'
               run: |
                   unset GITHUB_TOKEN # reserved var injected by Depot CI; can't override via env: (see workflow env note)
@@ -3629,12 +3625,12 @@ jobs:
                           $COV_ARGS \
                           $PYTEST_ARGS
                   else
-                    full_targets="posthog ee/"
+                    full_targets="posthog"
                     full_ignores=()
                     if [[ "${{ matrix.compat }}" == "true" ]]; then
                         full_targets="$CLICKHOUSE_COMPAT_PYTEST_TARGETS"
                     elif [[ "${{ matrix.person-on-events }}" == "true" ]]; then
-                        full_targets="./posthog/clickhouse/ ./posthog/api/test/dashboards/test_dashboard.py ee/clickhouse/"
+                        full_targets="./posthog/clickhouse/ ./posthog/api/test/dashboards/test_dashboard.py"
                         full_ignores+=(--ignore=posthog/hogql_queries --ignore=posthog/hogql)
                     fi
                     # shellcheck disable=SC2086

@@ -382,18 +382,6 @@ class ClickHouseClient:
             headers["X-ClickHouse-Key"] = key
         return headers
 
-    @classmethod
-    def from_posthog_settings(cls, settings, **kwargs):
-        """Initialize a ClickHouseClient from PostHog settings."""
-        return cls(
-            url=settings.CLICKHOUSE_URL,
-            user=settings.CLICKHOUSE_USER,
-            password=settings.CLICKHOUSE_PASSWORD,
-            password_file=settings.CLICKHOUSE_PASSWORD_FILE,
-            database=settings.CLICKHOUSE_DATABASE,
-            **kwargs,
-        )
-
     async def is_alive(self, timeout: float = 30.0) -> bool:
         """Check if the connection is alive by sending a ping request.
 

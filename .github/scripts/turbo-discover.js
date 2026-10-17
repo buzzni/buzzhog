@@ -17,7 +17,7 @@
 // nothing declares who its consumers are. A changed lib's direct consumers come
 // from scanning products/ for its import statements, and the tach map then
 // supplies the product-to-product closure over those consumers. The same scan
-// covers posthog/, ee/ and common/, where an importer has no product id to
+// covers posthog/ and common/, where an importer has no product id to
 // select, so the only sound answer there is the full suite.
 //
 // Products under SMALL_THRESHOLD duration get grouped into one matrix entry
@@ -373,7 +373,7 @@ const productToModule = (product) => product.replace(/-/g, '_')
 const moduleToProduct = (module) => module.replace(/_/g, '-')
 
 // The product that owns a file path from the map, or null for a file outside
-// products/ (posthog, ee, common, tools) and for the loose files directly under
+// products/ (posthog, common, tools) and for the loose files directly under
 // products/ (conftest.py, __init__.py).
 function productOfFile(file) {
     if (!file.startsWith(PRODUCTS_DIR)) {
@@ -389,7 +389,7 @@ function productOfFile(file) {
 // product that owns a file in the map is a key, with or without cross-product
 // imports, so a reader can tell "no importers" from "not walked".
 //
-// Files outside products/ (posthog, ee, common) are dropped on both sides
+// Files outside products/ (posthog, common) are dropped on both sides
 // deliberately. See tachDependents for why routing through them would be
 // wrong, not just inconvenient. Test files stay in: a test that imports
 // another product's facade depends on that product as much as production
@@ -739,7 +739,7 @@ function productPrefix(product) {
 //
 // Roots that hold no product, so an importer there can only be answered with the
 // full suite.
-const CORE_SCAN_DIRS = ['posthog', 'ee', 'common']
+const CORE_SCAN_DIRS = ['posthog', 'common']
 // Enough core importers to name in the log; the decision needs only the first.
 const CORE_IMPORTER_SAMPLE = 3
 const SKIPPED_SCAN_DIRS = new Set(['__pycache__', 'node_modules', '.venv'])
@@ -998,12 +998,12 @@ function packProducts(products, durations, productsScaled = false, seedJobs = []
 // Path filters matching the Django workflow pytest invocations. A segment that
 // drifts from its pytest targets sizes shards for a run that never happens, so
 // turbo-discover.test.js asserts these against ci-backend.yml itself.
-// Core: posthog/ + ee/ minus the paths the Core invocation --ignore's
+// Core: posthog/ minus the paths the Core invocation --ignore's
 // CorePOE: the POE-off safeguard allowlist, a subset of Core's pool run under the legacy joined mode
 // Temporal: posthog/temporal + the product temporal/emission suites it runs alongside
 const DJANGO_SEGMENTS = {
     Core: {
-        include: ['posthog/', 'ee/'],
+        include: ['posthog/'],
         exclude: ['posthog/temporal/', 'posthog/dags/', 'common/hogvm/python/test/', 'posthog/test/repo_invariants/'],
     },
     CorePOE: {
@@ -1012,7 +1012,6 @@ const DJANGO_SEGMENTS = {
         include: [
             'posthog/clickhouse/',
             'posthog/api/test/dashboards/test_dashboard.py',
-            'ee/clickhouse/',
         ],
         exclude: [
             'posthog/temporal/',
@@ -1211,7 +1210,7 @@ function fallbackSelection(fallbackMode, reason, selection) {
 //   applies        this run selects at all (a PR, off the merge queue, no force label)
 //   disabled       the DISABLE_BACKEND_TEST_SELECTION kill switch
 //   draft          fall back by skipping rather than by running everything
-//   legacyChanged  the paths filter saw an edit under posthog/ or ee/
+//   legacyChanged  the paths filter saw an edit under posthog/
 //   runLegacy      whether the Django suite runs, and why
 //   selection      the selector's parsed output, null when it did not produce one
 function decideSelection({ applies, disabled, draft, legacyChanged, runLegacy, runLegacyReason, selection }) {
@@ -1721,7 +1720,7 @@ if (legacyChanged) {
         } else {
             products = [...new Set([...products, ...schemaProducts])].sort()
         }
-        // Core (posthog/, ee/, etc.) imports schema heavily; always run Django on schema changes.
+        // Core (posthog/, etc.) imports schema heavily; always run Django on schema changes.
         runLegacy = true
         runLegacyReason = 'schema'
     }

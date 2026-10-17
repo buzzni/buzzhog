@@ -562,7 +562,6 @@ def collect_existing_tests(segment: str | None = None) -> set[str]:
         "pytest",
         "posthog",
         "products",
-        "ee/",
         "-m",
         "not async_migrations",
         "--ignore=posthog/temporal",

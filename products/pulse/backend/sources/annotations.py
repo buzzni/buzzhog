@@ -44,7 +44,7 @@ class AnnotationsSource:
         )
         items: list[SourceItem] = []
         for annotation in annotations:
-            # Untrusted free text is sanitized once at the prompt-render boundary (_render_items).
+            # Untrusted free text must be sanitized once at the prompt-render boundary, not here.
             # The queryset excludes null/empty content, but guard at runtime too (a concurrent update
             # could null it between query and iteration; `assert` would be stripped under `python -O`).
             content = annotation.content

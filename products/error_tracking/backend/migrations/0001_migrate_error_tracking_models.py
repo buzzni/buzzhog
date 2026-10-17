@@ -16,6 +16,7 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("posthog", "0879_migrate_error_tracking_models"),
+        ("access_control", "0000_rbac_models"),
     ]
 
     database_operations: list[Any] = [
