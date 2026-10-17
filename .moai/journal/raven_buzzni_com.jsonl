@@ -571,3 +571,8 @@
 {"ts":"2026-10-17T06:28:26Z","id":"buzzhog-v47p","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: f094fc605fd on milestone/buzzhog-tfjd; members done; worktree removed. Parked buzzhog-lhec."}
 {"ts":"2026-10-17T06:28:27Z","id":"buzzhog-v47p.zz2","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (medium — pulse dead-code removal; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T06:28:27Z","id":"buzzhog-d19s","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent ad428ef599dd9931f (sonnet medium; F1+F2+F5, F3 left out)"}
+{"ts":"2026-10-17T06:28:45Z","id":"buzzhog-nqu4","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"SCIM 끄기 후속"}
+{"ts":"2026-10-17T06:28:45Z","id":"buzzhog-nqu4.pa1","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"issue form PUT가 SCIM을 끄지 않게 하고 테스트 보강"}
+{"ts":"2026-10-17T06:28:45Z","id":"buzzhog-nqu4","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-d19s 에서 펼쳤다 — scim_enabled 후속: form PUT가 SCIM을 끄는 문제, \"true 무시\" 테스트 보강"}
+{"ts":"2026-10-17T06:28:45Z","id":"buzzhog-d19s","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-nqu4 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T06:28:50Z","id":"buzzhog-nqu4.pa1","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
