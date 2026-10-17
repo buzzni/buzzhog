@@ -57,11 +57,11 @@ class TestMcpResourceScopes(SimpleTestCase):
         scopes = mcp_advertised_scopes()
         self.assertIn("openid", scopes)
         self.assertIn("notebook:read", scopes)
-        # Required only by hand-written tools (read-data-schema in
-        # tool-definitions.json) — absent if the union reads only the
-        # generated catalog.
-        self.assertIn("event_definition:read", scopes)
-        self.assertIn("property_definition:read", scopes)
+        # Required only by hand-written tools (event-definition-update and
+        # property-definition-update in tool-definitions.json) — absent if the
+        # union reads only the generated catalog.
+        self.assertIn("event_definition:write", scopes)
+        self.assertIn("property_definition:write", scopes)
         self.assertGreater(len(scopes), 50)
 
     def test_build_oauth_mcp_consent_context_success(self):

@@ -375,16 +375,6 @@ describe('Hono MCP analytics contexts', () => {
         expect(mockCaptureToolCall.mock.calls[0]![0].properties).not.toHaveProperty('$mcp_tool_description')
     })
 
-    it('prefers the served description over the catalog text, clipped', async () => {
-        // A tool can advertise a per-request description, so stamping the catalog
-        // text would record words the agent never saw.
-        const served = 'served '.repeat(200)
-        await trackToolCall('query-logs', 5, false, makeState(), undefined, undefined, served)
-
-        const properties = mockCaptureToolCall.mock.calls[0]![0].properties
-        expect(properties.$mcp_tool_description).toBe(served.slice(0, MAX_CAPTURED_DESCRIPTION_LENGTH))
-    })
-
     describe('trackToolSpan', () => {
         it.each(['posthog_ai', 'claude'])(
             'captures model output without adding native widget data for %s',

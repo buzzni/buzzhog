@@ -224,14 +224,12 @@ Available features:
 | `canvas`                 | Canvas                                                                                          |
 | `cohorts`                | [Cohorts](https://posthog.com/docs/data/cohorts)                                                |
 | `conversations`          | Conversations                                                                                   |
-| `core`                   | Core utilities (project switching, docs search)                                                 |
+| `core`                   | Core utilities (project switching)                                                              |
 | `customer_analytics`     | [Customer analytics](https://posthog.com/docs/customer-analytics)                               |
 | `dashboards`             | [Dashboards](https://posthog.com/docs/product-analytics/dashboards)                             |
 | `data_catalog`           | Data catalog                                                                                    |
-| `data_schema`            | Data schema exploration                                                                         |
 | `data_warehouse`         | [Data warehouse](https://posthog.com/docs/data-warehouse)                                       |
 | `debug`                  | Debug and diagnostic tools                                                                      |
-| `docs`                   | PostHog documentation search                                                                    |
 | `early_access_features`  | [Early access features](https://posthog.com/docs/feature-flags/early-access-feature-management) |
 | `endpoints`              | [Endpoints](https://posthog.com/docs/endpoints)                                                 |
 | `engineering_analytics`  | Engineering analytics                                                                           |
@@ -266,7 +264,6 @@ Available features:
 | `review_hog`             | ReviewHog                                                                                       |
 | `signals`                | [Signals](https://posthog.com/docs/self-driving)                                                |
 | `skills`                 | Skills                                                                                          |
-| `sql`                    | SQL query execution                                                                             |
 | `stamphog`               | Stamphog                                                                                        |
 | `streamlit_apps`         | Streamlit apps                                                                                  |
 | `subscriptions`          | Subscriptions                                                                                   |

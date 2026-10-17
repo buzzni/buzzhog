@@ -11,12 +11,11 @@ from products.posthog_ai.scripts.schema_columns import schema_columns
 REPO_ROOT = Path(__file__).resolve().parents[5]
 REFERENCES = Path(__file__).resolve().parents[3] / "skills" / "querying-posthog-data" / "references"
 
-# Every doc that teaches the `execute-sql` schema-discovery path. The guidelines file is copied
-# verbatim into the MCP bundle and the section file is spliced into the `execute-sql` tool
-# description, so a wrong field name here reaches every agent that reads one of them.
+# Every doc that teaches schema discovery over `system.information_schema`. The guidelines file
+# is copied verbatim into the MCP bundle, so a wrong field name here reaches every agent that
+# reads one of them.
 SCHEMA_DISCOVERY_DOCS = (
     REFERENCES / "guidelines.md",
-    REPO_ROOT / "services" / "mcp" / "src" / "templates" / "sections" / "schema-discovery.md",
     REPO_ROOT / "products" / "customer_analytics" / "skills" / "SKILL.md",
 )
 

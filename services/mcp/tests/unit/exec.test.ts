@@ -1961,6 +1961,9 @@ describe('exec tool', () => {
         it.each([
             ['self-driving-inbox-get', 'inbox-reports-list'],
             ['experiment-get-all', 'experiment-list'],
+            ['execute-sql', 'typed query tool'],
+            ['read-data-schema', 'No tool on this PostHog server lists event definitions'],
+            ['docs-search', 'posthog.com/docs'],
         ])('throws redirect when calling deprecated %s', async (deprecated, replacement) => {
             const exec = createExec()
             await expect(exec.handler(mockContext, { command: `call ${deprecated} {}` })).rejects.toThrow(

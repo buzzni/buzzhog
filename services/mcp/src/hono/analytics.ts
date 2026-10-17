@@ -18,7 +18,7 @@ import type { RequestProperties } from '@/lib/request-properties'
 import { resolveScopePreset } from '@/lib/scope-preset'
 import { isPrivateScoutTrialTool } from '@/lib/tool-privacy'
 import type { SkillInvocation } from '@/tools/exec-learn'
-import { MAX_CAPTURED_DESCRIPTION_LENGTH, getToolCategory, getToolDescription } from '@/tools/toolDefinitions'
+import { getToolCategory, getToolDescription } from '@/tools/toolDefinitions'
 import { APP_DATA_META_KEY } from '@/ui-apps/types'
 
 import { buildMCPSessionAnalyticsProperties, getEffectiveMCPClientIdentity } from './mcp-context'
@@ -159,8 +159,7 @@ export async function trackToolCall(
     isError: boolean,
     state: ResolvedState,
     extraProperties?: Record<string, unknown>,
-    analyticsMeta?: ToolCallAnalyticsMeta,
-    servedDescription?: string
+    analyticsMeta?: ToolCallAnalyticsMeta
 ): Promise<void> {
     // Operator tokens are ordinary tokens, but comparison details must stay out of scout-readable analytics.
     if (isPrivateScoutTrialTool(toolName) || isPrivateScoutTrialTool(extraProperties?.$mcp_exec_target_tool)) {
@@ -186,13 +185,9 @@ export async function trackToolCall(
         }
         // The description the agent saw when it picked this tool, clipped. Powers the
         // tool-detail Descriptions table and description-vs-intent fit in MCP
-        // analytics. Callers pass servedDescription when the advertised text differs
-        // from the catalog; otherwise the catalog text is what was served. Inner exec
-        // calls reach here with the resolved inner tool name, so the fallback lands on
-        // the inner tool's own description.
-        const toolDescription = servedDescription
-            ? servedDescription.slice(0, MAX_CAPTURED_DESCRIPTION_LENGTH)
-            : getToolDescription(toolName)
+        // analytics. Inner exec calls reach here with the resolved inner tool name, so
+        // this lands on the inner tool's own description.
+        const toolDescription = getToolDescription(toolName)
 
         // Emits `$mcp_tool_call` (+ `$mcp_is_error`). The SDK maps `toolName` →
         // `$mcp_tool_name`, `durationMs` → `$mcp_duration_ms`, `isError` →
