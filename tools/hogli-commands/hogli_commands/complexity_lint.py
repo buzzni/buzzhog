@@ -34,12 +34,12 @@ WARN_AT: int = _LIMITS["production"]
 # without hurting maintainability.
 TEST_WARN_AT: int = _LIMITS["test"]
 
-# The complexity-linted trees: the posthog, ee, products, and frontend folders.
+# The complexity-linted trees: the posthog, products, and frontend folders.
 # Python exclusions (products/desktop, generated grammar) come from pyproject's
 # ruff excludes (force-exclude honors them for explicitly passed files); the
 # TypeScript ones live in bin/lint-complexity.mjs.
-PYTHON_SCOPE = ("posthog/*.py", "ee/*.py", "products/*.py")
-TYPESCRIPT_SCOPE = ("frontend/*.ts", "frontend/*.tsx", "ee/*.ts", "ee/*.tsx", "products/*.ts", "products/*.tsx")
+PYTHON_SCOPE = ("posthog/*.py", "products/*.py")
+TYPESCRIPT_SCOPE = ("frontend/*.ts", "frontend/*.tsx", "products/*.ts", "products/*.tsx")
 
 _C901_MESSAGE = re.compile(r"`(?P<name>.+)` is too complex \((?P<complexity>\d+) > \d+\)")
 

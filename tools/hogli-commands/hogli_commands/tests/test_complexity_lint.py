@@ -114,7 +114,7 @@ class TestComplexityLint:
     @pytest.mark.usefixtures("repo")
     @patch("hogli_commands.complexity_lint._python_findings", return_value=[])
     def test_only_scoped_files_are_checked(self, mock_findings: MagicMock) -> None:
-        # Explicit paths outside posthog/ee/products (or deleted ones) must not reach ruff.
+        # Explicit paths outside posthog/products (or deleted ones) must not reach ruff.
         # manage.py exists but sits outside PYTHON_SCOPE, so it exercises the scope filter
         # rather than the earlier is_file() check.
         result = runner.invoke(
