@@ -13,8 +13,10 @@ import { getIdentityProviderConfigForDomain, isSecureURL, verifiedDomainsLogic }
 describe('verifiedDomainsLogic', () => {
     let logic: ReturnType<typeof verifiedDomainsLogic.build>
     let userlogic: ReturnType<typeof userLogic.build>
+    let patchRequests: { id: string; body: unknown }[]
 
     beforeEach(() => {
+        patchRequests = []
         useAvailableFeatures([AvailableFeature.SSO_ENFORCEMENT, AvailableFeature.SAML])
         useMocks({
             get: {
@@ -27,25 +29,6 @@ describe('verifiedDomainsLogic', () => {
                             id: 'config_will_be_deleted',
                             config_scope: null,
                             organization_domain_ids: ['id_will_be_deleted'],
-                        },
-                    ],
-                },
-                '/api/organizations/:organization/identity_provider_configs/:id/scim/logs/': {
-                    count: 1,
-                    next: null,
-                    previous: null,
-                    results: [
-                        {
-                            id: 'log-id',
-                            request_method: 'GET',
-                            request_path: '/scim/v2/config/Users',
-                            request_headers: {},
-                            request_body: null,
-                            response_status: 200,
-                            response_body: null,
-                            identity_provider: 'okta',
-                            duration_ms: 12,
-                            created_at: '2026-08-01T00:00:00Z',
                         },
                     ],
                 },
@@ -90,6 +73,10 @@ describe('verifiedDomainsLogic', () => {
                 },
             },
             patch: {
+                '/api/organizations/:organization/identity_provider_configs/:id/': async ({ request, params }) => {
+                    patchRequests.push({ id: params.id as string, body: await request.json() })
+                    return [200, { id: params.id, has_scim: false, scim_enabled: false }]
+                },
                 '/api/organizations/:organization/domains/:id/': {
                     id: '8db3b0c2-a0ab-490a-9037-14f3358a81bc',
                     domain: 'my.posthog.com',
@@ -202,7 +189,7 @@ describe('verifiedDomainsLogic', () => {
             expect(logic.values).toMatchSnapshot()
         })
 
-        it.each(['setConfigureSAMLModalId', 'setConfigureSCIMModalId', 'setConfigureIdJagModalId'] as const)(
+        it.each(['setConfigureSAMLModalId', 'setConfigureIdJagModalId'] as const)(
             'creates and links an IdP config when %s opens',
             async (openModal) => {
                 await expectLogic(logic).toFinishAllListeners()
@@ -216,13 +203,16 @@ describe('verifiedDomainsLogic', () => {
             }
         )
 
-        it('loads SCIM logs by identity provider config', async () => {
+        it('disables SCIM by sending scim_enabled false for the config', async () => {
             await expectLogic(logic).toFinishAllListeners()
 
-            logic.actions.setScimConfigLogsModalId('config-id')
-            await expectLogic(logic).toFinishAllListeners()
+            await expectLogic(logic, () => {
+                logic.actions.disableScim('scim-config-id')
+            })
+                .toDispatchActions(['disableScimSuccess'])
+                .toMatchValues({ disablingScimLoading: false })
 
-            expect(logic.values.scimLogs?.results[0].request_path).toBe('/scim/v2/config/Users')
+            expect(patchRequests).toEqual([{ id: 'scim-config-id', body: { scim_enabled: false } }])
         })
 
         it('creates domain correctly', async () => {
