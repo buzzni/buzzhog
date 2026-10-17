@@ -17,6 +17,33 @@ import {
 } from "./flag-audience";
 import type { Schemas } from "./generated";
 
+/**
+ * The experiment fields the preview shapers read. The experiments API is off
+ * in this backend, so the typed client has no experiment schema; this keeps
+ * the shapers compiling until the route returns.
+ */
+export interface ExperimentRecord {
+  id?: number;
+  name: string;
+  description?: string | null;
+  status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  created_at?: string | null;
+  feature_flag_key?: string | null;
+  conclusion?: string | null;
+  conclusion_comment?: string | null;
+  parameters?: unknown;
+  metrics?: unknown[] | null;
+  metrics_secondary?: unknown[] | null;
+  saved_metrics?: Array<{
+    name?: string | null;
+    query?: unknown;
+    metadata?: unknown;
+    saved_metric?: unknown;
+  }> | null;
+}
+
 export interface EvidenceDetailField {
   label: string;
   value: string;
@@ -372,7 +399,7 @@ export function shapeFlagPreview(
 }
 
 export function shapeExperimentPreview(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
 ): EvidencePreview {
   let detail: string | undefined;
   let status: EvidencePreview["status"];
@@ -539,7 +566,7 @@ function metricUuid(metric: QueryRecord, fallback: string): string {
 }
 
 function orderedMetricDefinitions(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
   metricType: "primary" | "secondary",
 ): ExperimentMetricDefinition[] {
   const inlineMetrics = ((metricType === "primary"
@@ -602,7 +629,7 @@ function orderedMetricDefinitions(
 }
 
 export function experimentMetricQueries(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
   metricType: "primary" | "secondary",
 ): unknown[] {
   return orderedMetricDefinitions(experiment, metricType).map(
@@ -876,7 +903,7 @@ export function shapeExperimentExposureChart(
 }
 
 export function shapeExperimentResults(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
   exposuresResponse: Schemas.ExperimentExposureQueryResponse | null,
   primaryResults: ExperimentMetricQueryResult[],
   secondaryResults: ExperimentMetricQueryResult[],

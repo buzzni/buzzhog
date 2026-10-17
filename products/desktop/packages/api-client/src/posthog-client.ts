@@ -97,8 +97,6 @@ import {
   decorateFlagPreview,
   decorateSurveyPreview,
   type EvidencePreview,
-  type ExperimentMetricQueryResult,
-  experimentMetricQueries,
   formatDay,
   gridRows,
   hogqlEscape,
@@ -109,9 +107,6 @@ import {
   shapeErrorIssuePreview,
   shapeEvaluationPreview,
   shapeEventDefinitionPreview,
-  shapeExperimentExposureChart,
-  shapeExperimentPreview,
-  shapeExperimentResults,
   shapeFlagPreview,
   shapeInboxReportPreview,
   shapePersonPreview,
@@ -7945,83 +7940,10 @@ export class PostHogAPIClient {
           gridRows(volume),
         );
       }
-      case "experiment": {
-        if (numericId === null) return null;
-        const experiment = await this.api.get(
-          "/api/projects/{project_id}/experiments/{id}/",
-          { path: { project_id: projectId, id: numericId } },
-        );
-        const preview = shapeExperimentPreview(experiment);
-        const primaryQueries = experimentMetricQueries(experiment, "primary");
-        const secondaryQueries = experimentMetricQueries(
-          experiment,
-          "secondary",
-        );
-        if (!experiment.start_date) {
-          return {
-            ...preview,
-            experimentResults: shapeExperimentResults(experiment, null, [], []),
-          };
-        }
-
-        const runMetricQuery = async (
-          metric: unknown,
-        ): Promise<ExperimentMetricQueryResult> => {
-          if (!metric || typeof metric !== "object") {
-            return { response: null };
-          }
-          try {
-            const response = await this.runQuery(
-              {
-                kind: "ExperimentQuery",
-                metric,
-                experiment_id: numericId,
-              },
-              { refresh: false },
-            );
-            return {
-              response: response as Schemas.ExperimentQueryResponse,
-            };
-          } catch {
-            return { response: null };
-          }
-        };
-
-        const exposureQuery = experiment.feature_flag
-          ? this.runQuery(
-              {
-                kind: "ExperimentExposureQuery",
-                experiment_id: numericId,
-                experiment_name: experiment.name,
-                exposure_criteria: experiment.exposure_criteria,
-                feature_flag: experiment.feature_flag,
-                start_date: experiment.start_date,
-                end_date: experiment.end_date,
-                holdout: experiment.holdout,
-              },
-              { refresh: false },
-            ).catch(() => null)
-          : Promise.resolve(null);
-        const [exposureResponse, primaryResults, secondaryResults] =
-          await Promise.all([
-            exposureQuery,
-            Promise.all(primaryQueries.map(runMetricQuery)),
-            Promise.all(secondaryQueries.map(runMetricQuery)),
-          ]);
-
-        const experimentExposureResponse =
-          exposureResponse as Schemas.ExperimentExposureQueryResponse | null;
-        return {
-          ...preview,
-          experimentResults: shapeExperimentResults(
-            experiment,
-            experimentExposureResponse,
-            primaryResults,
-            secondaryResults,
-          ),
-          chart: shapeExperimentExposureChart(experimentExposureResponse),
-        };
-      }
+      case "experiment":
+        // The experiments API is off in this backend, so there is nothing to
+        // fetch. The shapers stay for when the route returns.
+        return null;
       case "error": {
         // The issue's identity plus its 30-day activity: total events, users
         // affected, and a daily-occurrence spark answering "still firing?".
