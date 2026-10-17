@@ -336,11 +336,7 @@ class TestSnobBackendTestSelectionShadow(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (
-                "compat_targets_set",
-                "posthog/clickhouse ee/clickhouse",
-                ["ee/clickhouse/test_g.py", "posthog/clickhouse/test_b.py"],
-            ),
+            ("compat_targets_set", "posthog/clickhouse", ["posthog/clickhouse/test_b.py"]),
             ("no_compat_targets", "", []),
         ]
     )
@@ -350,7 +346,6 @@ class TestSnobBackendTestSelectionShadow(unittest.TestCase):
         selection = _load_selection_module()
 
         selected = [
-            "ee/clickhouse/test_g.py",
             "posthog/clickhouse/test_b.py",
             "posthog/dags/test_e.py",
             "posthog/models/test_a.py",
@@ -364,8 +359,8 @@ class TestSnobBackendTestSelectionShadow(unittest.TestCase):
         self.assertEqual(
             by_segment,
             {
-                "core": ["ee/clickhouse/test_g.py", "posthog/clickhouse/test_b.py", "posthog/models/test_a.py"],
-                "poe": ["ee/clickhouse/test_g.py", "posthog/clickhouse/test_b.py"],
+                "core": ["posthog/clickhouse/test_b.py", "posthog/models/test_a.py"],
+                "poe": ["posthog/clickhouse/test_b.py"],
                 "temporal": ["posthog/temporal/tests/test_c.py"],
                 "compat": expected_compat,
             },
