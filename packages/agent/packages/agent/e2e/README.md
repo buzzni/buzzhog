@@ -79,7 +79,7 @@ default, so it costs nothing until explicitly enabled; the codex arm self-skips 
 the native binary isn't on the runner.
 
 ```bash
-# from packages/agent — reads the local dev API key from the posthog repo, runs both arms
+# from packages/agent, with POSTHOG_CODE_E2E_GATEWAY_PERSONAL_API_KEY set — runs both arms
 bash e2e/run-e2e.sh
 
 # just one adapter (matches the (codex) / (claude) marker in every title)
