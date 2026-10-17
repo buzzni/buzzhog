@@ -545,3 +545,8 @@
 {"ts":"2026-10-17T06:02:13Z","id":"buzzhog-rbya","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-dket 로 펼쳤다 (이슈 2건)"}
 {"ts":"2026-10-17T06:02:20Z","id":"buzzhog-dket.f2u","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
 {"ts":"2026-10-17T06:02:21Z","id":"buzzhog-dket.ujz","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T06:04:13Z","id":"buzzhog-v47p","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"pulse 죽은 프롬프트 코드 정리"}
+{"ts":"2026-10-17T06:04:13Z","id":"buzzhog-v47p.zz2","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"issue: 프롬프트 죽은 코드와 sanitize 주석 제거"}
+{"ts":"2026-10-17T06:04:13Z","id":"buzzhog-v47p","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-o7if 에서 펼쳤다 — pulse SYNTHESIZE_PROMPT·_get_managed_prompt 테스트 전용 죽은 코드, annotations.py의 sanitize 경계 주석 (LLM 클라이언트 재도입 시 처리)"}
+{"ts":"2026-10-17T06:04:13Z","id":"buzzhog-o7if","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-v47p 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T06:04:20Z","id":"buzzhog-v47p.zz2","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
