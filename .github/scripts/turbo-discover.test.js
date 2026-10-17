@@ -19,7 +19,7 @@ const path = require('node:path')
 const { DJANGO_SEGMENTS, getIsolatedProducts, loadJsonTargets } = require('./turbo-discover')
 
 const REPO_ROOT = path.join(__dirname, '..', '..')
-const WORKFLOWS = ['.github/workflows/ci-backend.yml', '.depot/workflows/ci-backend.yml']
+const WORKFLOWS = ['.depot/workflows/ci-backend.yml']
 
 // pytest takes `./posthog/queries/` and `posthog` for the same directory, and
 // --ignore drops the trailing slash. DJANGO_SEGMENTS stores prefixes, so every
@@ -49,7 +49,7 @@ function matchAll(text, pattern) {
 // the person-on-events leg adds its own ignores on top of the shared ones. The
 // compat leg reads its targets from an env var, so it has no literal to pick up.
 function parseCoreStep(text) {
-    const step = section(text, 'full_targets="posthog ee/"', '--junitxml=junit-core.xml')
+    const step = section(text, 'full_targets="posthog"', '--junitxml=junit-core.xml')
     const targets = matchAll(step, /full_targets="([^"]*)"/g).filter((value) => !value.startsWith('$'))
     assert.equal(targets.length, 2, 'expected a Core and a person-on-events full_targets assignment')
     const [core, poe] = targets.map((value) => value.trim().split(/\s+/))
