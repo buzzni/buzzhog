@@ -38,27 +38,9 @@ The gateway supports two authentication methods:
 
 ### Local development key
 
-When running via phrocs, a personal API key with the `llm_gateway:read` scope is **automatically provisioned** on startup.
-The key is deterministic and survives database resets:
-
-```text
-phx_dev_local_test_api_key_1234567890abcdef
-```
-
-You can use this key directly to make requests to the gateway locally.
-It is also available as `settings.DEV_API_KEY` in Django.
-
-In local dev (`DEBUG=True`), the gateway client defaults to `http://localhost:3308` and this key,
-so `get_llm_client(product=..., team_id=...)` works out of the box without setting any environment variables.
-
-You can also provision the key manually:
-
-```bash
-python manage.py setup_local_api_key --add-scopes llm_gateway:read
-```
-
-`--add-scopes` merges into existing scopes without removing any.
-`--scopes` replaces all scopes on the key.
+Create a personal API key with the `llm_gateway:read` scope in Settings > Personal API keys.
+Pass it to the gateway client with the `LLM_GATEWAY_API_KEY` env var.
+In local dev (`DEBUG=True`), the gateway client defaults to `http://localhost:3308`.
 
 ## Database access
 

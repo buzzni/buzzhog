@@ -60,12 +60,7 @@ class PostHogConfig(AppConfig):
         telemetry_target = get_telemetry_target()
         posthoganalytics.api_key = telemetry_target.api_key if telemetry_target else None  # ty: ignore[invalid-assignment]
         posthoganalytics.host = telemetry_target.host if telemetry_target else None  # ty: ignore[invalid-assignment]
-        # Fall back to DEV_API_KEY in debug so feature flags work locally without manual env setup.
-        # DEV_API_KEY lives in ee/settings.py — getattr returns None in OSS mode.
-        posthoganalytics.personal_api_key = os.environ.get(
-            "POSTHOG_PERSONAL_API_KEY",
-            getattr(settings, "DEV_API_KEY", None) if settings.DEBUG else None,
-        )
+        posthoganalytics.personal_api_key = os.environ.get("POSTHOG_PERSONAL_API_KEY")  # ty: ignore[invalid-assignment]
         posthoganalytics.poll_interval = 90  # ty: ignore[invalid-assignment]
         posthoganalytics.enable_exception_autocapture = True  # ty: ignore[invalid-assignment]
         posthoganalytics.log_captured_exceptions = True  # ty: ignore[invalid-assignment]
