@@ -16,7 +16,7 @@ uv run uvicorn llm_gateway.main:app --reload
 
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer phx_dev_local_test_api_key_1234567890abcdef" \
+  -H "Authorization: Bearer $LLM_GATEWAY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-4.1-mini",
@@ -39,8 +39,8 @@ The gateway supports two authentication methods:
 ### Local development key
 
 Create a personal API key with the `llm_gateway:read` scope in Settings > Personal API keys.
-Pass it to the gateway client with the `LLM_GATEWAY_API_KEY` env var.
-In local dev (`DEBUG=True`), the gateway client defaults to `http://localhost:3308`.
+To call the local gateway from Django, set `LLM_GATEWAY_URL=http://localhost:3308` and put the key in `LLM_GATEWAY_API_KEY`, for example in `.env.local`.
+Both are empty by default, also in local dev, and the gateway client raises `GatewayNotConfiguredError` until both are set.
 
 ## Database access
 
