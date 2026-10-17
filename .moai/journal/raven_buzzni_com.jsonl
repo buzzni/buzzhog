@@ -771,3 +771,8 @@
 {"ts":"2026-10-17T11:36:34Z","id":"buzzhog-r0gt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: e1b0086f51c on milestone/buzzhog-tfjd; 87h + review done; 4b4 left in first column (waits on dket.g58, products/desktop); worktree removed. Note: services/llm-gateway README edited (docs only) while that service is under the code freeze."}
 {"ts":"2026-10-17T11:36:35Z","id":"buzzhog-r0gt.87h","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (medium — dead code removal; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T11:36:35Z","id":"buzzhog-4p0h","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent aeaa0a96529a136f5 (sonnet medium)"}
+{"ts":"2026-10-17T11:36:51Z","id":"buzzhog-xc6m","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"MCP 예시 정리 남은 것"}
+{"ts":"2026-10-17T11:36:51Z","id":"buzzhog-xc6m.eyy","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"issue 예시·설명·문서의 지운 도구 언급 정리"}
+{"ts":"2026-10-17T11:36:51Z","id":"buzzhog-xc6m","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-4p0h 에서 펼쳤다 — MCP 프롬프트 예시 정리 남은 것: survey-stats 비게이트 예시, render-ui Status/Results 예시 중복, create-feature-flag 설명의 experiment-create"}
+{"ts":"2026-10-17T11:36:51Z","id":"buzzhog-4p0h","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-xc6m 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T11:36:56Z","id":"buzzhog-xc6m.eyy","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
