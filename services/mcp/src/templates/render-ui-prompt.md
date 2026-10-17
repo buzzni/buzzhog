@@ -9,9 +9,8 @@ ALWAYS run `exec` first — `render-ui` is the final presentation step, never a 
 When to render (always after exec, alongside your written answer):
 
 - Show me / pull up X → its detail tool, e.g. `render-ui({ "tool_name": "survey-get", "tool_input": { "id": "abc123" } })`
-- Status, "how is X going" → `render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })`
+- Status or results, "how is X going", "is it significant", "response rate" → the stats tool, e.g. `render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })`
 - Lists / inventory, "what do we have" → the list tool, e.g. `render-ui({ "tool_name": "surveys-get-all", "tool_input": {} })`
-- Results / stats, "is it significant", "response rate" → the results tool, e.g. `render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })`
 - Analytics queries without an inline chart → run the query with `exec` for your analysis, then render the same tool with the same validated input (not result rows), e.g. `render-ui({ "tool_name": "query-trends", "tool_input": { ... } })`
 - After a mutation (create/launch/pause/end/resolve) → the entity's detail tool, to confirm the change landed
 - Evidence mid-investigation (a recording, error issue, trace) → render it inline, e.g. `render-ui({ "tool_name": "query-error-tracking-issue", "tool_input": { "issueId": "0190-..." } })`

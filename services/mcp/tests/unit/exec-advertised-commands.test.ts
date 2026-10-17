@@ -17,8 +17,10 @@ const CATALOG = new Set(CATALOG_TOOL_NAMES)
  *  live instance of the same defect, kept as a ratchet rather than fixed here:
  *  `analysis-artifacts` and `url-patterns` name dashboard and link tools, the
  *  metric-discovery sections name the data-catalog trio, and `examples`,
- *  `retrieving-data` and `schema-workflow` name query and skill tools. `cli-rendering` names a tool as an example of one
- *  `render-ui` can render, and `cli-syntax` names one as an example of a namespaced
+ *  `retrieving-data` and `schema-workflow` name query and skill tools. `cli-rendering`
+ *  names `survey-stats` as an example of one `render-ui` can render. It is safe
+ *  ungated because the `render-ui` enum comes from the same YAML, so the tool exists
+ *  wherever `render-ui` does. `cli-syntax` names one as an example of a namespaced
  *  reference. Remove a name once its section gates the mention. */
 const UNGATED_BY_DESIGN = new Set([
     'agent-feedback',

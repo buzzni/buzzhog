@@ -66,7 +66,11 @@ tools:
             `session_ids`, `scanner_type: "summarizer"`, and a `prompt` (required), then read the summary back with
             `vision-observations-list`. The investigating-replay skill carries the exact prompt and `scanner_config` the
             Summarize button in the player uses, so pass those to land on the same summary (scanning is slow).
-            `vision-scanners-scan-session` points a saved scanner at the session instead.
+            `vision-scanners-scan-session` points a saved scanner at the session instead. If a recording is missing
+            (`found: false`) or the user asks why recordings aren't being captured, check `projects-get` for the
+            project's session recording setting, then run `query-trends` on `$pageview` broken down by
+            `$recording_status`, `$session_recording_start_reason`, `$replay_sample_rate` or
+            `$sdk_debug_recording_script_not_loaded`.
         ui_app: session-recording
         hooks: replay/sessionRecordingGetHooks
         response:
