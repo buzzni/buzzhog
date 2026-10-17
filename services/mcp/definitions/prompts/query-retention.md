@@ -1,6 +1,6 @@
 Run a retention query to analyze how many users return over time after performing an initial action. Retention insights show you how many users return during subsequent periods. They're useful for understanding user engagement and stickiness.
 
-Use 'read-data-schema' to discover available events, actions, and properties for filters.
+No tool lists events, actions, or properties, so use the names the user gave for filters, and tell the user which names you could not confirm.
 
 Examples of use cases include:
 
@@ -26,7 +26,7 @@ When using a property filter, you should:
 - **Ensure that you find both the property group and name.** Property groups should be one of the following: event, person, session, group.
 - After selecting a property, **validate that the property value accurately reflects the intended criteria**.
 - **Find the suitable operator for type** (e.g., `contains`, `is set`).
-- If the operator requires a value, use the `read-data-schema` tool to find the property values.
+- If the operator requires a value, use the value the user gave. No tool lists property values, so tell the user which values you could not confirm.
 - You set logical operators to combine multiple properties of a single series: AND or OR.
 
 Infer the property groups from the user's request. If your first guess doesn't yield any results, try to adjust the property group.

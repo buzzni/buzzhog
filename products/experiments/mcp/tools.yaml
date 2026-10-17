@@ -1019,8 +1019,8 @@ tools:
             tags.
 
 
-            Load the configuring-experiment-analytics skill before constructing the query, and use read-data-schema to
-            confirm event names. Legacy kinds (ExperimentTrendsQuery, ExperimentFunnelsQuery) are rejected.
+            Load the configuring-experiment-analytics skill before constructing the query, and use the event names the user
+            gave. Tell the user which names you could not confirm. Legacy kinds (ExperimentTrendsQuery, ExperimentFunnelsQuery) are rejected.
 
 
             To attach to an experiment, call experiment-update with saved_metrics_ids — each item has 'id' and
@@ -1408,10 +1408,9 @@ tools:
                calling.
 
             3. If adding or changing metrics, load the
-               configuring-experiment-analytics skill first. Call
-               read-data-schema to discover available events BEFORE
-               suggesting or using any event name. Never suggest
-               event names you haven't confirmed exist.
+               configuring-experiment-analytics skill first. Use
+               the event names the user gave, and tell the user which
+               names you could not confirm.
 
             4. For running experiments, set
                update_feature_flag_params=true when changing

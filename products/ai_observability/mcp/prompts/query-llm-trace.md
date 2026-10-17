@@ -93,7 +93,7 @@ For a cost or latency survey, request `detail: "summary"`. Find the events that 
 
 Only `$ai_*` properties PostHog's taxonomy defines, plus the ones first-party code writes without describing (`$ai_generation_id`, `$ai_cache_read_cost_usd`, `$ai_cache_creation_cost_usd`, `$ai_effort`) and `$session_id`, `$lib`, and `$lib_version`, reach you. Every other event property, and every person property, is withheld whichever `detail` you ask for, and its name is listed in `_redactedKeys` beside the bag. `$ai_base_url` and `$ai_request_url` arrive as the origin and path only, without the query string a provider key often sits in. A value that is not an `http` or `https` URL is withheld instead, because there is no endpoint to keep.
 
-A withheld property is unchanged in PostHog: it still works as a filter here, and you can read its value in the PostHog UI or with `execute-sql`.
+A withheld property is unchanged in PostHog: it still works as a filter here, and you can read its value in the PostHog UI.
 
 # Response size
 

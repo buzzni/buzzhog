@@ -15,7 +15,7 @@ const schema = z.object({
     tool: z
         .string()
         .describe(
-            'Name of the PostHog tool to run in the connected project, e.g. `execute-sql` or `insights-list`. The connected project runs the same tools this one does, so inspect the schema locally with `info <tool>` first.'
+            'Name of the PostHog tool to run in the connected project, e.g. `insights-list` or `query-trends`. The connected project runs the same tools this one does, so inspect the schema locally with `info <tool>` first.'
         ),
     arguments: z
         .looseObject({})
@@ -68,7 +68,7 @@ async function assertTargetApprovedAiProcessing(forwarded: Context, toolName: st
  * Run a PostHog tool against a project reached through a `posthog` connection.
  *
  * The connected project runs the same PostHog build this one does, so its tool catalog is identical
- * and no remote discovery step is needed: an agent inspects `execute-sql` locally, then names it
+ * and no remote discovery step is needed: an agent inspects `insights-list` locally, then names it
  * here. `resolveTool` is injected rather than imported so this tool can reach the whole registry
  * without the registry and this file importing each other.
  */

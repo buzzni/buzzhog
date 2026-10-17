@@ -40,11 +40,6 @@ import TOOL_SEARCH from '@/templates/sections/tool-search.md'
 import URL_PATTERNS from '@/templates/sections/url-patterns.md'
 import { type ExecLearnGuide, LEARN_COMMAND_LINE } from '@/tools/exec-learn'
 
-/** Naming a command the catalog withholds sends the agent down a path it cannot take. */
-const WHATS_NEW_WITH_DOCS_SEARCH =
-    "Check what's new with `call docs-search <json_input>` or the changelog (https://posthog.com/changelog.md)."
-const WHATS_NEW_CHANGELOG_ONLY = "Check what's new in the changelog (https://posthog.com/changelog.md)."
-
 const PROJECT_LOOKUP =
     'Call `project-get` without an ID to read the active project: its name, id, organization, timezone, person-on-events mode, test account filter default, and enabled products. Call it before you rely on one of these, for example the timezone for a date range.'
 
@@ -65,18 +60,18 @@ export interface InstructionsContext {
      *  run tool, and naming a command the catalog withholds sends the agent to a
      *  name `search` and `call` cannot resolve. */
     notebookRunEnabled?: boolean | undefined
-    /** Whether `docs-search` is advertised to this client. Gates every mention of
-     *  the tool, so the prompt never names a command `search` and `call` cannot
-     *  resolve. Carried as a field rather than derived from `tools`, which
-     *  `buildExecCommandReference` drops on purpose. */
-    docsSearchEnabled?: boolean | undefined
 }
 
-function businessKnowledgeSearchLine(execSyntax: boolean): string {
+const BUSINESS_KNOWLEDGE_WINDOW_TOOL = 'business-knowledge-document-window-retrieve'
+
+function businessKnowledgeSearchLine(execSyntax: boolean, windowEnabled: boolean): string {
     const search = execSyntax
         ? 'run `call business-knowledge-documents-search <json_input>`'
         : 'call `business-knowledge-documents-search`'
-    return `- First, ${search} with a short, broad query based on the user's topic. If \`business-knowledge-document-window-retrieve\` is also available, use it when a result needs more context.`
+    const window = windowEnabled
+        ? ` If \`${BUSINESS_KNOWLEDGE_WINDOW_TOOL}\` is also available, use it when a result needs more context.`
+        : ''
+    return `- First, ${search} with a short, broad query based on the user's topic.${window}`
 }
 
 const BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL = 'business-knowledge-repositories-search'
@@ -106,12 +101,6 @@ function notebookSqlVars(ctx: InstructionsContext): Record<string, string> {
     }
 }
 
-/** Resolve the field, falling back to the advertised tool list for callers that
- *  build a context without it (the CLI's `--agent-help`). */
-function docsSearchAvailable(ctx: InstructionsContext): boolean {
-    return ctx.docsSearchEnabled ?? ctx.tools?.some(({ name }) => name === 'docs-search') ?? false
-}
-
 function envContextSections(ctx: InstructionsContext): string[] {
     const available = (tool: string): boolean => ctx.tools?.some(({ name }) => name === tool) ?? false
     const lookups = available('project-get') ? [PROJECT_LOOKUP] : []
@@ -132,10 +121,11 @@ export class InstructionsFormatter {
         const businessKnowledgeRepoSearchEnabled = ctx.tools?.some(
             ({ name }) => name === BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL
         )
+        const businessKnowledgeWindowEnabled = ctx.tools?.some(({ name }) => name === BUSINESS_KNOWLEDGE_WINDOW_TOOL)
         return this.knowledgeFirstSectionsForCapabilities({
-            docsSearchEnabled: docsSearchAvailable(ctx),
             businessKnowledgeSearchEnabled,
             businessKnowledgeRepoSearchEnabled,
+            businessKnowledgeWindowEnabled,
             execSyntax: false,
         })
     }
@@ -144,27 +134,20 @@ export class InstructionsFormatter {
      *  mandate leads the tool description, ahead of the section that teaches the
      *  dispatcher grammar, so a bare name reads as a command and is rejected. */
     private knowledgeFirstSectionsForCapabilities(opts: {
-        docsSearchEnabled?: boolean
         businessKnowledgeSearchEnabled?: boolean
         businessKnowledgeRepoSearchEnabled?: boolean
+        businessKnowledgeWindowEnabled?: boolean
         execSyntax: boolean
     }): string[] {
-        if (!opts.docsSearchEnabled) {
+        if (!opts.businessKnowledgeSearchEnabled) {
             return []
         }
-        const businessKnowledgeLines = opts.businessKnowledgeSearchEnabled
-            ? [
-                  businessKnowledgeSearchLine(opts.execSyntax),
-                  ...(opts.businessKnowledgeRepoSearchEnabled
-                      ? [businessKnowledgeRepoSearchLine(opts.execSyntax)]
-                      : []),
-              ]
-            : []
+        const businessKnowledgeLines = [
+            businessKnowledgeSearchLine(opts.execSyntax, opts.businessKnowledgeWindowEnabled ?? false),
+            ...(opts.businessKnowledgeRepoSearchEnabled ? [businessKnowledgeRepoSearchLine(opts.execSyntax)] : []),
+        ]
         return [
             formatPrompt(BUSINESS_KNOWLEDGE_FIRST, {
-                docs_search_call: opts.execSyntax
-                    ? 'Run `call docs-search <json_input>`'
-                    : 'Call the `docs-search` tool',
                 business_knowledge_search: businessKnowledgeLines.join('\n'),
             }),
         ]
@@ -246,9 +229,9 @@ export class InstructionsFormatter {
     buildExecToolDescription(
         opts: {
             skillsEnabled?: boolean
-            docsSearchEnabled?: boolean
             businessKnowledgeSearchEnabled?: boolean
             businessKnowledgeRepoSearchEnabled?: boolean
+            businessKnowledgeWindowEnabled?: boolean
         } = {}
     ): string {
         const knowledgeSections = this.knowledgeFirstSectionsForCapabilities({ ...opts, execSyntax: true })
@@ -395,7 +378,7 @@ export class InstructionsFormatter {
             AGENT_FEEDBACK,
             EXAMPLES,
         ]
-        const renderCtx: InstructionsContext = { ...ctx, tools: undefined, docsSearchEnabled: docsSearchAvailable(ctx) }
+        const renderCtx: InstructionsContext = { ...ctx, tools: undefined }
         // Tool domains are temporarily omitted from the command reference while we
         // probe claude.ai's per-tool size cap (it silently drops oversized entries);
         // agents still discover domains at runtime via the `search` command, and
@@ -427,7 +410,6 @@ export class InstructionsFormatter {
             tool_domains: ctx.tools ? renderToolDomains(ctx.tools) : '',
             query_tools: ctx.queryTools ? buildQueryToolsBlock(ctx.queryTools) : '',
             extra_commands: opts.extraCommands ?? '',
-            whats_new_check: docsSearchAvailable(ctx) ? WHATS_NEW_WITH_DOCS_SEARCH : WHATS_NEW_CHANGELOG_ONLY,
         }
         const body = sections
             .map((s) => s.trim())

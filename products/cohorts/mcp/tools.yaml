@@ -64,9 +64,8 @@ tools:
             person_id, actor_id, id, or distinct_id column in the query".
 
 
-            ALWAYS validate the query before saving it: run a HogQLQuery through the 'execute-sql' tool, and an
-            ActorsQuery through its matching 'query-*-actors' tool (e.g. 'query-trends-actors',
-            'query-lifecycle-actors'). Only pass a 'query' that returned successfully — this catches column-name and
+            ALWAYS validate an ActorsQuery through its matching 'query-*-actors' tool (e.g. 'query-trends-actors',
+            'query-lifecycle-actors') before saving it. Only pass a 'query' that returned successfully — this catches column-name and
             syntax errors before they fail cohort population.
 
 
@@ -154,9 +153,8 @@ tools:
             the server runs the query and inserts every newly matched person (existing members are skipped), with no row
             limit. The query must expose the person id under one of these column names, checked in order: 'person_id',
             'actor_id', 'id', or 'distinct_id' (selecting from the 'events' or 'persons' tables resolves the actor
-            automatically). Validate the query before saving it — run a HogQLQuery through 'execute-sql' and an
-            ActorsQuery through its matching 'query-*-actors' tool (e.g. 'query-trends-actors') — and only save one that
-            returned successfully. Prefer this over 'cohorts-add-persons-to-static-cohort-partial-update' for anything
+            automatically). Validate an ActorsQuery through its matching 'query-*-actors' tool (e.g.
+            'query-trends-actors') before saving it, and only save one that returned successfully. Prefer this over 'cohorts-add-persons-to-static-cohort-partial-update' for anything
             beyond a handful (~20) of people.
         exclude_params:
             - groups

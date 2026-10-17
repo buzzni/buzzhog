@@ -30,8 +30,6 @@ Performance hints:
 - Leave `compareFilter` off unless the user asks for period-over-period — enabling it roughly doubles query cost.
 - `limit` is capped at 200 by the wrapper. Prefer 10–25 unless the user explicitly asks for more.
 
-Use `read-data-schema` to validate property names/values when needed.
-
 # Reading the results
 
 Each row in `results` is a positional array. The `columns` array in the response names each position, so read the cells by column name, not by a fixed index. The optional bounce rate and average time columns shift the positions after them.
@@ -57,4 +55,4 @@ Top 20 pages by bounce rate, last 7 days:
 
 # Out of scope
 
-`conversionGoal` is supported as an input on this tool. Goal-funnel breakdowns (`WebGoalsQuery`), web vitals, and external clicks aren't exposed as separate query modes — fall back to `execute-sql` for those.
+`conversionGoal` is supported as an input on this tool. Goal-funnel breakdowns (`WebGoalsQuery`), web vitals, and external clicks aren't exposed as separate query modes.

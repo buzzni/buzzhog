@@ -1,8 +1,8 @@
 Run a trends query to analyze metrics over time. Trends insights visualize events over time using time series. They're useful for finding patterns in historical data.
 
-Use this tool for native trends with supported aggregations, series, breakdowns, formulas, and period comparisons. Use `execute-sql` for record inspection or custom SQL calculations. When both tools preserve the requested calculation and output, prefer this tool for a new query, including simple aggregates. Keep valid existing queries when they fit the task.
+Use this tool for native trends with supported aggregations, series, breakdowns, formulas, and period comparisons. When another method preserves the requested calculation and output, prefer this tool for a new query, including simple aggregates. Keep valid existing queries when they fit the task.
 
-Use 'read-data-schema' to discover available events, actions, and properties for filters and breakdowns.
+No tool lists events, actions, or properties, so use the names the user gave for filters and breakdowns, and tell the user which names you could not confirm.
 
 The trends insights have the following features:
 
@@ -64,7 +64,7 @@ When using a property filter, you should:
 - **Ensure that you find both the property group and name.** Property groups should be one of the following: event, person, session, group.
 - After selecting a property, **validate that the property value accurately reflects the intended criteria**.
 - **Find the suitable operator for type** (e.g., `contains`, `is set`).
-- If the operator requires a value, use the `read-data-schema` tool to find the property values.
+- If the operator requires a value, use the value the user gave. No tool lists property values, so tell the user which values you could not confirm.
 - `properties` is a flat list of filters, combined with AND. There is no group object and no OR operator here.
 
 Infer the property groups from the user's request. If your first guess doesn't yield any results, try to adjust the property group.
