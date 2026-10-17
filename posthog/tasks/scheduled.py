@@ -940,35 +940,34 @@ def setup_periodic_tasks(sender: Celery, **kwargs: Any) -> None:
         name="clean up old logs alert events",
     )
 
-    if settings.EE_AVAILABLE:
-        sender.add_periodic_task(
-            crontab(minute="10", hour="*/12"),
-            find_flags_with_enriched_analytics.s(),
-            name="find feature flags with enriched analytics",
-        )
+    sender.add_periodic_task(
+        crontab(minute="10", hour="*/12"),
+        find_flags_with_enriched_analytics.s(),
+        name="find feature flags with enriched analytics",
+    )
 
-        sender.add_periodic_task(
-            crontab(hour="0", minute="7"),
-            delete_expired_exported_assets.s(),
-            name="delete expired exported assets",
-        )
+    sender.add_periodic_task(
+        crontab(hour="0", minute="7"),
+        delete_expired_exported_assets.s(),
+        name="delete expired exported assets",
+    )
 
-        # Hourly rather than daily: until this runs, a dead video export still reads as in progress
-        # to whoever is waiting on it.
-        sender.add_periodic_task(
-            crontab(minute="33"),
-            fail_stuck_video_exports.s(),
-            name="fail stuck video exports",
-        )
+    # Hourly rather than daily: until this runs, a dead video export still reads as in progress
+    # to whoever is waiting on it.
+    sender.add_periodic_task(
+        crontab(minute="33"),
+        fail_stuck_video_exports.s(),
+        name="fail stuck video exports",
+    )
 
-        # Daily cleanup of expired onboarding delegation invites. `pre_delete` re-enables
-        # the delegator's onboarding, so a missed sweep strands delegators on the "waiting
-        # for teammate" screen forever.
-        sender.add_periodic_task(
-            crontab(hour="1", minute="9"),
-            delete_expired_delegation_invites.s(),
-            name="delete expired delegation invites",
-        )
+    # Daily cleanup of expired onboarding delegation invites. `pre_delete` re-enables
+    # the delegator's onboarding, so a missed sweep strands delegators on the "waiting
+    # for teammate" screen forever.
+    sender.add_periodic_task(
+        crontab(hour="1", minute="9"),
+        delete_expired_delegation_invites.s(),
+        name="delete expired delegation invites",
+    )
 
     # Check integrations to refresh every minute
     add_periodic_task_with_expiry(
