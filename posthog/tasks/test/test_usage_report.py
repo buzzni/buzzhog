@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils.timezone import now
 
 import structlog
@@ -39,7 +39,7 @@ from posthog.clickhouse.client.connection import ClickHouseUser
 from posthog.clickhouse.logs.logs32 import TABLE_NAME as LOGS_LOCAL_TABLE
 from posthog.clickhouse.query_tagging import tag_queries
 from posthog.hogql_queries.events_query_runner import EventsQueryRunner
-from posthog.models import Organization, Project, Team
+from posthog.models import Organization, Project, Team, User
 from posthog.models.app_metrics2.sql import TRUNCATE_APP_METRICS2_TABLE_SQL
 from posthog.models.event.util import create_event
 from posthog.models.group.util import create_group
@@ -60,6 +60,7 @@ from posthog.tasks.usage_report import (
     _get_team_report,
     _get_teams_for_usage_reports,
     _get_teams_with_ai_credits_for_products,
+    _usage_report_user,
     apply_usage_counter_metadata,
     capture_event,
     capture_report,
@@ -102,6 +103,38 @@ from products.warehouse_sources.backend.facade.types import ExternalDataSourceTy
 ErrorTrackingIssue = apps.get_model("error_tracking", "ErrorTrackingIssue")
 
 logger = structlog.get_logger(__name__)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {},
+        {"POSTHOG_TELEMETRY_USAGE_REPORTS": True},
+        {"POSTHOG_TELEMETRY_HOST": "https://telemetry.example.com", "POSTHOG_TELEMETRY_API_KEY": "phc_test_key"},
+    ],
+)
+def test_usage_reports_are_not_built_unless_turned_on_with_a_collector(overrides: dict) -> None:
+    with override_settings(**overrides), patch("posthog.tasks.usage_report.get_instance_metadata") as metadata:
+        send_all_org_usage_reports()
+    metadata.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "include_pii, anonymize_data, expected_keys",
+    [
+        (False, False, {"id", "distinct_id"}),
+        (True, True, {"id", "distinct_id"}),
+        (True, False, {"id", "distinct_id", "first_name", "email"}),
+    ],
+)
+def test_usage_report_names_users_only_when_personal_data_is_turned_on(
+    include_pii: bool, anonymize_data: bool, expected_keys: set[str]
+) -> None:
+    user = User(
+        id=1, distinct_id="user-1", first_name="Example", email="user@example.com", anonymize_data=anonymize_data
+    )
+    with override_settings(POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII=include_pii):
+        assert set(_usage_report_user(user)) == expected_keys
 
 
 def test_usage_report_parent_task_acks_early_while_capture_task_acks_late() -> None:

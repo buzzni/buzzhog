@@ -811,39 +811,23 @@ class TestBuildSandboxConfig(BaseTest):
 class TestGetOtelLogsConfig(SimpleTestCase):
     @parameterized.expand(
         [
-            ("dev_or_self_hosted", False, None, "https://example.ngrok.io/i/v1/logs", "phc_local"),
-            (
-                "cloud_us",
-                True,
-                "US",
-                "https://us.i.posthog.com/i/v1/logs",
-                "sTMFPsFhdP1Ssg",
-            ),
-            (
-                "cloud_eu",
-                True,
-                "EU",
-                "https://eu.i.posthog.com/i/v1/logs",
-                "phc_dZ4GK1LRjhB97XozMSkEwPXx7OVANaJEwLErkY1phUF",
-            ),
-            (
-                "cloud_unknown_region_defaults_to_us",
-                True,
-                None,
-                "https://us.i.posthog.com/i/v1/logs",
-                "sTMFPsFhdP1Ssg",
-            ),
+            ("dev_or_self_hosted", False, True, "https://example.ngrok.io/i/v1/logs", "phc_local"),
+            ("cloud_with_collector", True, True, "https://telemetry.example.com/i/v1/logs", "phc_test_telemetry"),
+            ("cloud_without_collector", True, False, "https://example.ngrok.io/i/v1/logs", "phc_local"),
         ]
     )
-    def test_endpoint_and_token(self, _name, is_cloud, region, expected_endpoint, expected_token):
+    def test_endpoint_and_token(self, _name, is_cloud, has_collector, expected_endpoint, expected_token):
         from products.streamlit_apps.backend.logic import app_runtime
 
-        # Patch the bound names inside app_runtime, NOT the original module —
+        # Patch the bound name inside app_runtime, NOT the original module —
         # `from posthog.cloud_utils import is_cloud` copies the reference into
         # app_runtime's namespace, so patching the source has no effect.
         with (
             patch.object(app_runtime, "is_cloud", return_value=is_cloud),
-            patch.object(app_runtime, "get_instance_region", return_value=region),
+            override_settings(
+                POSTHOG_TELEMETRY_HOST="https://telemetry.example.com" if has_collector else "",
+                POSTHOG_TELEMETRY_API_KEY="phc_test_telemetry",
+            ),
         ):
             endpoint, token = app_runtime._get_otel_logs_config("https://example.ngrok.io")
 

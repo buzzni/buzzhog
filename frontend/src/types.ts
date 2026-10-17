@@ -1067,7 +1067,6 @@ export interface ToolbarParams {
     toolbarVersion?: ToolbarVersion
     instrument?: boolean
     distinctId?: string
-    userEmail?: string
     dataAttributes?: string[]
     toolbarFlagsKey?: string
     productTourId?: string

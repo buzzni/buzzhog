@@ -346,5 +346,5 @@ Case names and `--eval` filters stay the same.
 
 `SandboxedPublicEval` sets `no_send_logs=False` and reports results to both Braintrust and PostHog.
 `SandboxedPrivateEval` sets `no_send_logs=True` and uploads results to neither service; local logs are still written.
-PostHog result uploads follow `no_send_logs` independently of `OPT_OUT_CAPTURE`, which still applies to ordinary SDK and trace clients.
+PostHog result uploads also need the telemetry collector set by `POSTHOG_TELEMETRY_HOST` and `POSTHOG_TELEMETRY_API_KEY`, and `OPT_OUT_CAPTURE` turns them off.
 See [evaluation result reporting](../../../docs/internal/ai-offline-evaluation-reporting.md) for capture settings and scope.

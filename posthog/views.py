@@ -236,7 +236,7 @@ def preflight_check(request: HttpRequest) -> JsonResponse:
         response = {
             **response,
             "available_timezones": _traced("preflight.available_timezones", get_available_timezones_with_offsets),
-            "opt_out_capture": os.environ.get("OPT_OUT_CAPTURE", False),
+            "opt_out_capture": settings.OPT_OUT_CAPTURE,
             "licensed_users_available": None,
             "openai_available": bool(os.environ.get("OPENAI_API_KEY")),
             # Max runs on Anthropic, so it needs its own signal — otherwise self-hosted instances

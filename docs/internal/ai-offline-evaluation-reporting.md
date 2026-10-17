@@ -13,8 +13,10 @@ Evaluation result uploads to Braintrust and PostHog share the `no_send_logs` set
 
 The harness creates one dedicated result client at startup, shares it across all suites, and shuts it down after the invocation.
 Each suite waits for queued PostHog uploads in worker threads so other suites can keep running.
-This client permits `$ai_evaluation` reporting independently of `TEST` and `OPT_OUT_CAPTURE`, so those settings do not separate the two result destinations.
-Ordinary PostHog SDK clients and trace clients retain their existing `TEST` and `OPT_OUT_CAPTURE` guards.
+This client reports `$ai_evaluation` events under `TEST` too, so `TEST` does not separate the two result destinations.
+It sends only to the telemetry collector that `POSTHOG_TELEMETRY_HOST` and `POSTHOG_TELEMETRY_API_KEY` name.
+Without a collector, or with `OPT_OUT_CAPTURE` on, PostHog receives no results and the harness reports no PostHog link.
+Ordinary PostHog SDK clients and trace clients also keep their `TEST` guard.
 
 ## Result contents and scope
 

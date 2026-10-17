@@ -1359,18 +1359,18 @@ class TestBuildFlagProvider(TestCase):
     def test_explicit_env_team_id_wins_over_self_capture(self):
         assert _build_flag_provider()._resolve_team_id() == 5
 
+    @parameterized.expand([("self_capture", True), ("self_hosted", False)])
     @patch.dict(os.environ, {}, clear=False)
-    @override_settings(SELF_CAPTURE=True, E2E_TESTING=False)
-    def test_self_capture_routes_to_dogfood_first_team(self):
+    def test_non_cloud_routes_to_dogfood_first_team(self, _name: str, self_capture: bool) -> None:
         os.environ.pop("POSTHOG_SELF_TEAM_ID", None)
         organization = Organization.objects.create(name="Org")
         first_team = Team.objects.create(organization=organization, name="First")
 
-        assert _build_flag_provider()._resolve_team_id() == first_team.id
+        with override_settings(SELF_CAPTURE=self_capture, E2E_TESTING=False, CLOUD_DEPLOYMENT=None):
+            assert _build_flag_provider()._resolve_team_id() == first_team.id
 
     @parameterized.expand(
         [
-            (None, 2),
             ("US", 2),
             ("EU", EU_CROSS_REGION_MIRROR_CACHE_KEY),
         ]

@@ -182,17 +182,12 @@ export function directToolbarUrl(
     options?: BuildToolbarParamsOptions & {
         token?: string
         dataAttributes?: string[]
-        userEmail?: string
-        distinctId?: string
     }
 ): string {
     const params: Record<string, unknown> = {
         action: 'ph_authorize',
         token: options?.token,
         toolbarVersion: 'toolbar',
-        instrument: true,
-        userEmail: options?.userEmail,
-        distinctId: options?.distinctId,
         ...buildToolbarParams(options),
         dataAttributes: options?.dataAttributes,
     }
@@ -456,7 +451,6 @@ export interface authorizedUrlListLogicMeta {
         urlsKeyed: (authorizedUrls: string[], suggestions: any[]) => KeyedAppUrl[]
         launchUrl: (
             currentTeam: TeamPublicType | TeamType | null,
-            user: UserType | null,
             actionId: number | null,
             experimentId: ExperimentIdType | null,
             productTourId: string | null,
@@ -675,9 +669,6 @@ export const authorizedUrlListLogic = kea<authorizedUrlListLogicType>([
                 action: 'ph_authorize',
                 token: values.currentTeam?.api_token,
                 toolbarVersion: 'toolbar',
-                instrument: true,
-                userEmail: values.user?.email,
-                distinctId: values.user?.distinct_id,
                 ...buildToolbarParams({
                     ...(props.actionId ? { actionId: props.actionId } : {}),
                     ...(props.experimentId ? { experimentId: props.experimentId } : {}),
@@ -726,17 +717,9 @@ export const authorizedUrlListLogic = kea<authorizedUrlListLogicType>([
             },
         ],
         launchUrl: [
-            (s, p) => [
-                s.currentTeam,
-                s.user,
-                p.actionId,
-                p.experimentId,
-                p.productTourId,
-                p.userIntent ?? (() => undefined),
-            ],
+            (s, p) => [s.currentTeam, p.actionId, p.experimentId, p.productTourId, p.userIntent ?? (() => undefined)],
             (
                 currentTeam: null | import('~/types').TeamPublicType | import('~/types').TeamType,
-                user: null | import('~/types').UserType,
                 actionId: number | null,
                 experimentId: ExperimentIdType | null,
                 productTourId: string | null,
@@ -746,8 +729,6 @@ export const authorizedUrlListLogic = kea<authorizedUrlListLogicType>([
                     const commonOptions = {
                         token: currentTeam?.api_token,
                         dataAttributes: currentTeam?.data_attributes,
-                        userEmail: user?.email,
-                        distinctId: user?.distinct_id,
                     }
                     if (experimentId) {
                         return directToolbarUrl(url, { ...commonOptions, experimentId })
