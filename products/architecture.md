@@ -89,7 +89,7 @@ The genuine exception is a product with essentially no Django-side logic (a thin
 
 ### Wiring couplings
 
-Core sometimes needs behavior from a product, not data: query runners it dispatches on, Temporal workflows it registers, Max tools it offers.
+Core sometimes needs behavior from a product, not data: query runners it dispatches on, Temporal workflows it registers, Celery tasks it dispatches.
 These cross the boundary as classes — allowed only under all three rules:
 
 1. **Approved interface.**
@@ -98,7 +98,7 @@ These cross the boundary as classes — allowed only under all three rules:
    Extending the list is a core PR: define the base and validate at the registration point.
    DRF viewsets are not part of this channel: they live in `presentation/`, register through `routes.py`, and never pass through the facade (a facade must not import DRF, and not its own `presentation/`; the `facade must not import presentation or DRF` import-linter contract enforces both, with the existing violations grandfathered in its TODO list) — their soundness is governed by the presentation rules above.
 2. **Designated location.**
-   The implementation lives in the product's wiring location — `backend/hogql_queries/`, `backend/max_tools.py`, `backend/temporal/`, `backend/tasks/` (a flat `backend/tasks.py` also qualifies).
+   The implementation lives in the product's wiring location — `backend/hogql_queries/`, `backend/temporal/`, `backend/tasks/` (a flat `backend/tasks.py` also qualifies).
    An isolated product keeps a wiring location in its `backend:contract-check` inputs while a test outside the product can execute what lives there, so such a change still re-runs the full suite.
    The full suite matters only while such a test exists.
    For `backend/hogql_queries/` that is measured.
@@ -109,7 +109,7 @@ These cross the boundary as classes — allowed only under all three rules:
    A location with several subtrees may be watched one subtree at a time.
    `product_analytics` watches `backend/hogql_queries/trends/` alone, because trends is the only subtree an outside test still drives, so its funnels, retention, lifecycle, paths and stickiness runners change without re-running the suite.
    The lint reads coverage per location rather than per subtree, so it cannot hold that scope; the repo invariant `test_product_analytics_drives_only_the_watched_subtree` does, and it fails when a line names code outside the watched subtree.
-   The other locations stay in the inputs by presence until their channel (Celery task names, Temporal workflow names, Max tool names) is read the same way.
+   The other locations stay in the inputs by presence until their channel (Celery task names, Temporal workflow names) is read the same way.
 3. **Validated registration.**
    Registration points check `issubclass(cls, Base)` and reject anything else.
    Import linters (tach, import-linter) see only the import graph; _what an object is_ can only be checked at runtime, at the door.
@@ -269,7 +269,7 @@ myproduct/
 
 ### Which locations are fixed, and which are yours
 
-Only the paths the tooling is pointed at have fixed names: `facade/`, `presentation/`, `tasks/`, `routes.py`, `webhook_consumers.py`, and the wiring locations (`hogql_queries/`, `max_tools.py`, `temporal/`) — see [Wiring couplings](#wiring-couplings).
+Only the paths the tooling is pointed at have fixed names: `facade/`, `presentation/`, `tasks/`, `routes.py`, `webhook_consumers.py`, and the wiring locations (`hogql_queries/`, `temporal/`) — see [Wiring couplings](#wiring-couplings).
 They are the narrowed `backend:contract-check` inputs, and two import-linter contracts hold the HTTP surface inside them by shape: `routes.py` may only import `presentation/`, and `presentation/` may only import `facade/`.
 Core reaches a product's views only through `routes.py`, so the chain core → routes → presentation → facade is three import edges, and a view anywhere else simply cannot be routed.
 `hogli product:lint` holds the same two rules by reading the imports directly, because import-linter cannot see a module under a directory without `__init__.py`.
@@ -341,7 +341,7 @@ If input and output shapes are identical, reuse the same dataclass.
 
 Each product exposes a facade via the `backend/facade/` package — the only place core and other products may import from (tach enforces this).
 `api.py` holds the data capabilities: functions that accept and return contracts.
-Capability submodules (`queries.py`, `temporal.py`, `max_tools.py`, `tasks.py`, …) exist only to re-export wiring implementations — see [Wiring couplings](#wiring-couplings) — and contain no logic of their own.
+Capability submodules (`queries.py`, `temporal.py`, `tasks.py`, …) exist only to re-export wiring implementations — see [Wiring couplings](#wiring-couplings) — and contain no logic of their own.
 
 ### Responsibilities
 
@@ -581,7 +581,7 @@ Turbo uses file-based inputs to determine cache validity. The key distinction:
 
 - `backend/facade/contracts.py` — frozen dataclasses (enums can live here too)
 - `backend/facade/enums.py` — optional, for exported enums/constants/shared types when contracts.py grows
-- the product's wiring locations (`backend/hogql_queries/`, `backend/max_tools.py`, `backend/temporal/`, `backend/tasks/`) — implementations core registers and drives (see [Wiring couplings](#wiring-couplings)); `backend/hogql_queries/` may leave the list once the crossings baseline records no outside test driving it, the others stay by presence
+- the product's wiring locations (`backend/hogql_queries/`, `backend/temporal/`, `backend/tasks/`) — implementations core registers and drives (see [Wiring couplings](#wiring-couplings)); `backend/hogql_queries/` may leave the list once the crossings baseline records no outside test driving it, the others stay by presence
 
 **Implementation inputs** (used by `backend:test`):
 

@@ -1130,7 +1130,6 @@ expose = [
     "backend\\.experiment_service.*",
     "backend\\.hogql_queries.*",
     "backend\\.llm_metric_templates.*",
-    "backend\\.max_tools.*",
     "backend\\.metric_utils.*",
     "backend\\.models.*",
     "stats\\..*",
@@ -1301,7 +1300,7 @@ from = [
 # under posthog/tasks/alerts/, the Temporal workflows under posthog/temporal/alerts/ and
 # posthog/temporal/ai/anomaly_investigation/, and the PostHog AI product-analytics preset
 # reach the alert models, the insight evaluation, the insight lifecycle adapter, the
-# investigation episode reader and the Max tool directly. The exit is moving that pipeline
+# investigation episode reader directly. The exit is moving that pipeline
 # into the product; the block drains as it moves, and keeps backend:contract-check off
 # until it is empty.
 # backend.models has a second exit of its own: pulse, dashboards, signals, the AI entity
@@ -1319,7 +1318,6 @@ expose = [
     "backend\\.evaluation\\.validation.*",
     "backend\\.insight_alert_state_machine.*",
     "backend\\.investigation_episode.*",
-    "backend\\.max_tools.*",
     "backend\\.models.*",
 ]
 from = [
@@ -1328,8 +1326,7 @@ from = [
 
 # Legacy leaks — core (posthog), customer_analytics, reminders and signals still
 # import the Notebook ORM directly: file-system / search / reminders registries dispatch
-# on the model class, middleware returns a raw queryset, the read_data and notebook-context
-# Max tools need the instance for access-control checks, sharing re-fetches it for the
+# on the model class, middleware returns a raw queryset, sharing re-fetches it for the
 # shared-export serializer, and customer_analytics owns a CRUD-over-Notebook surface that
 # moves in its own presentation wave. Shrinks as those migrate behind the facade; keeps
 # backend:contract-check off until empty.

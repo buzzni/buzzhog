@@ -8,7 +8,6 @@
                 "backend/routes.py",
                 "backend/webhook_consumers.py",
                 "backend/hogql_queries/**",
-                "backend/max_tools.py",
                 "backend/tasks/**",
                 "backend/temporal/**",
                 "backend/models/**",
