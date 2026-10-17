@@ -5378,6 +5378,104 @@ class TestBillableTeams(TestCase):
         assert first.organization.id == org_first.id
 
 
+@time_machine.travel("2021-10-10T23:01:00Z", tick=False)
+class TestOrganizationFiltering(ClickhouseDestroyTablesMixin, APIBaseTest):
+    """Test organization_ids filtering for send_all_org_usage_reports"""
+
+    def setUp(self) -> None:
+        super().setUp()
+
+        self.org2 = Organization.objects.create(name="Org 2")
+        self.team2 = Team.objects.create(organization=self.org2)
+
+        self.org3 = Organization.objects.create(name="Org 3")
+        self.team3 = Team.objects.create(organization=self.org3)
+
+        _create_event(
+            event="$pageview",
+            team=self.team,
+            distinct_id=1,
+            timestamp="2021-10-09T12:01:01Z",
+        )
+        _create_event(
+            event="$pageview",
+            team=self.team2,
+            distinct_id=1,
+            timestamp="2021-10-09T14:01:01Z",
+        )
+        _create_event(
+            event="$pageview",
+            team=self.team3,
+            distinct_id=1,
+            timestamp="2021-10-09T16:01:01Z",
+        )
+        flush_persons_and_events()
+
+    def _run_usage_reports(self, **kwargs: Any) -> tuple[list[str], dict[str, Any]]:
+        with (
+            patch("posthog.tasks.usage_report.get_ph_client") as mock_client,
+            patch("posthog.tasks.usage_report.capture_report") as mock_capture_report,
+        ):
+            send_all_org_usage_reports(dry_run=False, **kwargs)
+
+        sent_org_ids = [call.kwargs["organization_id"] for call in mock_capture_report.delay.call_args_list]
+        complete_calls = [
+            call
+            for call in mock_client.return_value.capture.call_args_list
+            if call.kwargs.get("event") == "usage reports complete"
+        ]
+        assert len(complete_calls) == 1
+        return sent_org_ids, complete_calls[0].kwargs["properties"]
+
+    def test_filter_to_single_organization(self) -> None:
+        sent_org_ids, properties = self._run_usage_reports(organization_ids=[str(self.organization.id)])
+
+        assert sent_org_ids == [str(self.organization.id)]
+        assert properties["filtered"] is True
+        assert properties["requested_org_count"] == 1
+        assert properties["total_orgs"] == 1
+        assert properties.get("requested_missing_org_count") is None
+
+    def test_filter_to_multiple_organizations(self) -> None:
+        org_ids = [str(self.organization.id), str(self.org2.id)]
+        sent_org_ids, properties = self._run_usage_reports(organization_ids=org_ids)
+
+        assert sorted(sent_org_ids) == sorted(org_ids)
+        assert properties["filtered"] is True
+        assert properties["requested_org_count"] == 2
+        assert properties["total_orgs"] == 2
+        assert properties.get("requested_missing_org_count") is None
+
+    def test_filter_with_missing_organization(self) -> None:
+        sent_org_ids, properties = self._run_usage_reports(organization_ids=[str(uuid4())])
+
+        assert sent_org_ids == []
+        assert properties["filtered"] is True
+        assert properties["requested_org_count"] == 1
+        assert properties["requested_missing_org_count"] == 1
+        assert properties["total_orgs"] == 0
+
+    def test_filter_with_mix_of_found_and_missing(self) -> None:
+        org_ids = [str(self.organization.id), str(uuid4()), str(self.org2.id), str(uuid4())]
+        sent_org_ids, properties = self._run_usage_reports(organization_ids=org_ids)
+
+        assert set(sent_org_ids) == {str(self.organization.id), str(self.org2.id)}
+        assert len(sent_org_ids) == 2
+        assert properties["filtered"] is True
+        assert properties["requested_org_count"] == 4
+        assert properties["requested_missing_org_count"] == 2
+        assert properties["total_orgs"] == 2
+
+    def test_no_filter_processes_all_organizations(self) -> None:
+        sent_org_ids, properties = self._run_usage_reports()
+
+        assert sorted(sent_org_ids) == sorted(str(org.id) for org in (self.organization, self.org2, self.org3))
+        assert properties["filtered"] is False
+        assert properties.get("requested_org_count") is None
+        assert properties.get("requested_missing_org_count") is None
+        assert properties["total_orgs"] == 3
+
+
 class TestCalendarAlignedQuerySplitting(SimpleTestCase):
     @patch("posthog.tasks.usage_report.sync_execute")
     def test_uses_midnight_boundaries(self, mock_sync_execute: MagicMock) -> None:
