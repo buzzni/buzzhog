@@ -1,4 +1,3 @@
-ee/models/license.py
 posthog/api/advanced_activity_logs/viewset.py
 posthog/api/organization.py
 posthog/celery.py

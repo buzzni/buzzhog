@@ -52,7 +52,7 @@ REPO_ROOT = Path(__file__).parent.parent.resolve()
 DURATIONS_PATH = REPO_ROOT / ".test_durations"
 HIGH_FANOUT_PATH = Path(__file__).parent / "testmon_high_fanout_files.txt"
 
-LOCAL_ROOTS = ("posthog", "ee", "products", "common", "dags")
+LOCAL_ROOTS = ("posthog", "products", "common", "dags")
 HTTP_METHODS = {"delete", "get", "head", "options", "patch", "post", "put"}
 API_CLIENT_IMPORTS = {
     "django.test.Client",
@@ -81,6 +81,7 @@ FULL_RUN_PATTERNS = (
     ".test_quarantine.json",
     # CI / Docker infrastructure
     ".github/workflows/ci-backend.yml",
+    ".depot/workflows/ci-backend.yml",
     # A new path in the events_json list has to run on the PR that adds it.
     ".github/new-events-schema-targets.txt",
     ".github/clickhouse-versions.json",
@@ -285,12 +286,11 @@ def _django_app_for_path(path: str) -> str | None:
 
     For products: products/<name>/backend/
     For posthog: posthog/<subpackage>/
-    For ee: ee/<subpackage>/
     """
     parts = PurePosixPath(path).parts
     if parts[0] == "products" and len(parts) >= 3:
         return str(PurePosixPath(*parts[:3]))
-    if parts[0] in ("posthog", "ee") and len(parts) >= 2:
+    if parts[0] == "posthog" and len(parts) >= 2:
         return str(PurePosixPath(*parts[:2]))
     return None
 
@@ -623,10 +623,7 @@ def estimate_duration(test_files: list[str], durations: dict[str, float]) -> flo
 
 
 _TEMPORAL_PREFIXES = ("posthog/temporal/", "products/signals/backend/emission/")
-_POE_PREFIXES = (
-    "posthog/clickhouse/",
-    "ee/clickhouse/",
-)
+_POE_PREFIXES = ("posthog/clickhouse/",)
 _CORE_IGNORED_PREFIXES = ("posthog/dags/", "common/hogvm/python/test/", "posthog/test/repo_invariants/")
 
 
@@ -644,7 +641,7 @@ def segments_for_test_file(path: str) -> frozenset[str]:
         return frozenset()
     if path.startswith(_POE_PREFIXES) or path == "posthog/api/test/dashboards/test_dashboard.py":
         return frozenset({"core", "poe"})
-    if path.startswith(("posthog/", "ee/")):
+    if path.startswith("posthog/"):
         return frozenset({"core"})
     return frozenset()
 

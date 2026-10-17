@@ -38,7 +38,7 @@ test('the file map collapses to a product graph: importers outside products/ and
             'posthog/settings/web.py',
             'products/conftest.py',
         ],
-        'products/lonely/backend/api.py': ['ee/api/wrapper.py'],
+        'products/lonely/backend/api.py': ['posthog/api/wrapper.py'],
         'posthog/models/team.py': ['products/data_modeling/backend/logic/models.py'],
         'products/__init__.py': ['products/data_modeling/backend/apps.py'],
     }
@@ -136,12 +136,12 @@ test('the import scan finds a product that imports the lib and ignores mentions 
 test('the import scan reports the core files importing a lib, which is what forces Django to run', () => {
     const root = writeTree({
         'posthog/models/thing.py': 'import os\n',
-        'ee/billing/thing.py': 'from owners_yaml.resolver import OwnersResolver\n',
+        'common/billing/thing.py': 'from owners_yaml.resolver import OwnersResolver\n',
         'common/util/thing.py': 'x = "owners_yaml"\n',
     })
     try {
-        const dirs = ['posthog', 'ee', 'common'].map((d) => path.join(root, d))
-        assert.deepEqual(coreFilesImportingModule('owners_yaml', dirs), [path.join(root, 'ee/billing/thing.py')])
+        const dirs = ['posthog', 'common'].map((d) => path.join(root, d))
+        assert.deepEqual(coreFilesImportingModule('owners_yaml', dirs), [path.join(root, 'common/billing/thing.py')])
         assert.deepEqual(coreFilesImportingModule('missing_module', dirs), [])
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
