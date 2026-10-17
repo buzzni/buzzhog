@@ -2,13 +2,18 @@ import { expectLogic } from 'kea-test-utils'
 
 import { userLogic } from 'scenes/userLogic'
 
-import { ConfigScopeEnumApi } from '~/generated/core/api.schemas'
+import { ConfigScopeEnumApi, DomainScopeEnumApi, IdentityProviderConfigApi } from '~/generated/core/api.schemas'
 import { useAvailableFeatures } from '~/mocks/features'
 import { useMocks } from '~/mocks/jest'
 import { initKeaTests } from '~/test/init'
 import { AvailableFeature } from '~/types'
 
-import { getIdentityProviderConfigForDomain, isSecureURL, verifiedDomainsLogic } from './verifiedDomainsLogic'
+import {
+    getEnabledScimConfigForDomain,
+    getIdentityProviderConfigForDomain,
+    isSecureURL,
+    verifiedDomainsLogic,
+} from './verifiedDomainsLogic'
 
 describe('verifiedDomainsLogic', () => {
     let logic: ReturnType<typeof verifiedDomainsLogic.build>
@@ -179,6 +184,48 @@ describe('verifiedDomainsLogic', () => {
             expect(getIdentityProviderConfigForDomain(configs, 'other-domain', ConfigScopeEnumApi.Xaa)?.id).toBe(
                 'other-domain-config'
             )
+        })
+
+        const scimConfig = (id: string, overrides: Partial<IdentityProviderConfigApi>): IdentityProviderConfigApi => ({
+            id,
+            config_scope: ConfigScopeEnumApi.Scim,
+            organization_domain_ids: [],
+            created_at: '2024-01-01',
+            updated_at: '2024-01-01',
+            saml_relay_state: 'relay-state',
+            has_saml: false,
+            has_oidc: false,
+            has_oidc_client_secret: false,
+            has_scim: false,
+            scim_base_url: null,
+            scim_bearer_token: null,
+            has_id_jag: false,
+            ...overrides,
+        })
+
+        it.each([
+            {
+                case: 'a linked unscoped config with a token behind a linked SCIM config without one',
+                configs: [
+                    scimConfig('linked-scim-without-token', { organization_domain_ids: ['domain-id'] }),
+                    scimConfig('linked-unscoped-with-token', {
+                        config_scope: null,
+                        organization_domain_ids: ['domain-id'],
+                        has_scim: true,
+                    }),
+                ],
+                expected: 'linked-unscoped-with-token',
+            },
+            {
+                case: 'an all-domains config when no linked config has a token',
+                configs: [
+                    scimConfig('linked-scim-without-token', { organization_domain_ids: ['domain-id'] }),
+                    scimConfig('all-domains-with-token', { domain_scope: DomainScopeEnumApi.All, has_scim: true }),
+                ],
+                expected: 'all-domains-with-token',
+            },
+        ])('finds the SCIM config to disable: $case', ({ configs, expected }) => {
+            expect(getEnabledScimConfigForDomain(configs, 'domain-id')?.id).toBe(expected)
         })
     })
 

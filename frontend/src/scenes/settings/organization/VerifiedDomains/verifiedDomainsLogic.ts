@@ -8,6 +8,7 @@ import { SECURE_URL_REGEX } from 'lib/constants'
 import { lemonToast } from 'lib/lemon-ui/LemonToast/LemonToast'
 import { bindModalToUrl } from 'lib/logic/bindModalToUrl'
 import { organizationLogic } from 'scenes/organizationLogic'
+import { identityProviderConfigsLogic } from 'scenes/settings/organization/IdentityProviderConfig/identityProviderConfigsLogic'
 import { userLogic } from 'scenes/userLogic'
 
 import {
@@ -41,15 +42,12 @@ export function getEnabledScimConfigForDomain(
     configs: IdentityProviderConfigApi[],
     domainId: string
 ): IdentityProviderConfigApi | undefined {
-    const linkedConfig = getIdentityProviderConfigForDomain(configs, domainId, ConfigScopeEnumApi.Scim)
-    if (linkedConfig?.has_scim) {
-        return linkedConfig
-    }
-    return configs.find(
-        (config) =>
-            config.has_scim &&
-            config.domain_scope === DomainScopeEnumApi.All &&
-            (config.config_scope === ConfigScopeEnumApi.Scim || config.config_scope == null)
+    const scimConfigs = configs.filter(
+        (config) => config.has_scim && (config.config_scope === ConfigScopeEnumApi.Scim || config.config_scope == null)
+    )
+    return (
+        scimConfigs.find((config) => config.organization_domain_ids?.includes(domainId)) ??
+        scimConfigs.find((config) => config.domain_scope === DomainScopeEnumApi.All)
     )
 }
 
@@ -692,6 +690,8 @@ export const verifiedDomainsLogic = kea<verifiedDomainsLogicType>([
                     })
                     lemonToast.success('SCIM disabled.')
                     actions.loadIdentityProviderConfigs()
+                    // The SCIM settings section reads its own copy of the configs, so it keeps the old status unless it reloads too.
+                    identityProviderConfigsLogic.findMounted()?.actions.loadIdentityProviderConfigs()
                     return false
                 },
             },

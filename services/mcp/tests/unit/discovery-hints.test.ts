@@ -58,10 +58,10 @@ describe('getDiscoveryHint', () => {
         expect(getDiscoveryHint({ toolName, handlerResult: { results: [] } })?.text).toContain(skillName)
     })
 
-    it('cross-sells subscriptions and dashboards after insight creation', () => {
+    it('points at dashboards, and not at the removed subscription tools, after insight creation', () => {
         const hint = getDiscoveryHint({ toolName: 'insight-create', handlerResult: { id: 1, short_id: 'abc' } })
 
-        expect(hint?.text).toContain('managing-subscriptions')
+        expect(hint?.text).not.toContain('managing-subscriptions')
         expect(hint?.text).toContain('building-a-dashboard')
     })
 
