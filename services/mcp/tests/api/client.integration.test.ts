@@ -334,25 +334,6 @@ describe('API Client Integration Tests', { concurrent: false }, () => {
             }
         })
 
-        it.skip('should execute SQL insight query', async () => {
-            const result = await client.insights({ projectId: testProjectId }).sqlInsight({ query: 'SELECT 1 as test' })
-
-            if (!result.success) {
-                console.error('Failed to execute SQL insight:', (result as any).error)
-            }
-
-            expect(result.success).toBe(true)
-
-            if (result.success) {
-                expect(result.data).toHaveProperty('columns')
-                expect(result.data).toHaveProperty('results')
-                if ('columns' in result.data && 'results' in result.data) {
-                    expect(Array.isArray(result.data.columns)).toBe(true)
-                    expect(Array.isArray(result.data.results)).toBe(true)
-                }
-            }
-        })
-
         it('should create, get, update, and delete an insight', async () => {
             const createResult = await client.insights({ projectId: testProjectId }).create({
                 data: {

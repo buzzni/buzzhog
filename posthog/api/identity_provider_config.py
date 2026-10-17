@@ -156,8 +156,8 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
                 "help_text": "SAML IdP X.509 signing certificate (PEM).",
             },
             "scim_enabled": {
-                "read_only": True,
-                "help_text": "Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so it cannot be set.",
+                "required": False,
+                "help_text": "Whether SCIM provisioning is enabled. This build has no SCIM provisioning, so true is ignored and false clears the stored bearer token.",
             },
             "id_jag_issuer_url": {
                 "required": False,
@@ -320,6 +320,7 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
         self._merge_oidc_client_secret(validated_data)
         organization_domains = validated_data.pop("organization_domains", [])
         validated_data.pop("scim_bearer_token", None)
+        validated_data.pop("scim_enabled", None)
 
         instance: IdentityProviderConfig = super().create(validated_data)
         self._sync_organization_domains(instance, organization_domains)
@@ -330,6 +331,10 @@ class IdentityProviderConfigSerializer(serializers.ModelSerializer):
         self._merge_oidc_client_secret(validated_data)
         organization_domains = validated_data.pop("organization_domains", None)
         validated_data.pop("scim_bearer_token", None)
+        if validated_data.get("scim_enabled") is False:
+            validated_data["scim_bearer_token"] = None
+        else:
+            validated_data.pop("scim_enabled", None)
 
         instance = super().update(instance, validated_data)
         if organization_domains is not None:

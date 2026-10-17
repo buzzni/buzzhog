@@ -224,14 +224,12 @@ Available features:
 | `canvas`                 | Canvas                                                                                          |
 | `cohorts`                | [Cohorts](https://posthog.com/docs/data/cohorts)                                                |
 | `conversations`          | Conversations                                                                                   |
-| `core`                   | Core utilities (project switching, docs search)                                                 |
+| `core`                   | Core utilities (project switching)                                                              |
 | `customer_analytics`     | [Customer analytics](https://posthog.com/docs/customer-analytics)                               |
 | `dashboards`             | [Dashboards](https://posthog.com/docs/product-analytics/dashboards)                             |
 | `data_catalog`           | Data catalog                                                                                    |
-| `data_schema`            | Data schema exploration                                                                         |
 | `data_warehouse`         | [Data warehouse](https://posthog.com/docs/data-warehouse)                                       |
 | `debug`                  | Debug and diagnostic tools                                                                      |
-| `docs`                   | PostHog documentation search                                                                    |
 | `early_access_features`  | [Early access features](https://posthog.com/docs/feature-flags/early-access-feature-management) |
 | `endpoints`              | [Endpoints](https://posthog.com/docs/endpoints)                                                 |
 | `engineering_analytics`  | Engineering analytics                                                                           |
@@ -266,7 +264,6 @@ Available features:
 | `review_hog`             | ReviewHog                                                                                       |
 | `signals`                | [Signals](https://posthog.com/docs/self-driving)                                                |
 | `skills`                 | Skills                                                                                          |
-| `sql`                    | SQL query execution                                                                             |
 | `stamphog`               | Stamphog                                                                                        |
 | `streamlit_apps`         | Streamlit apps                                                                                  |
 | `subscriptions`          | Subscriptions                                                                                   |
@@ -329,7 +326,7 @@ Other clients keep the full inline command reference.
 For finer-grained control you can allowlist specific tools by name using the `tools` query parameter. Only the exact tool names listed will be exposed, regardless of their feature category.
 
 ```text
-https://mcp.posthog.com/mcp?tools=dashboard-get,feature-flag-get-all,execute-sql
+https://mcp.posthog.com/mcp?tools=dashboard-get,feature-flag-get-all,insight-get
 ```
 
 When `features` and `tools` are both provided they are combined as a **union** — a tool is included if it matches a feature category **or** is in the tools list. This lets you select a feature group and add a handful of individual tools on top:

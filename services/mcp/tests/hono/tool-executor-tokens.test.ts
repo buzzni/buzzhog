@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockTrackToolCall, mockTrackExecuteSqlGeneration } = vi.hoisted(() => ({
+const { mockTrackToolCall } = vi.hoisted(() => ({
     mockTrackToolCall: vi.fn(),
-    mockTrackExecuteSqlGeneration: vi.fn(),
 }))
 
 vi.mock('@/hono/analytics', () => ({
     trackToolCall: mockTrackToolCall,
-    trackExecuteSqlGeneration: mockTrackExecuteSqlGeneration,
     trackToolSpan: vi.fn(),
 }))
 
@@ -64,48 +62,12 @@ describe('ToolExecutor token estimates', () => {
 
     beforeEach(async () => {
         mockTrackToolCall.mockClear()
-        mockTrackExecuteSqlGeneration.mockClear()
         catalog = new ToolCatalog()
         await catalog.warmup()
         executor = new ToolExecutor(catalog, new InstructionsBuilder(''))
     })
 
     describe('direct tool calls', () => {
-        it('emits the execute-sql generation with the validated args', async () => {
-            vi.spyOn(catalog, 'getToolByName').mockReturnValue({
-                name: 'execute-sql',
-                build() {
-                    return this.base
-                },
-                base: {
-                    schema: z.object({ query: z.string() }),
-                    handler: vi.fn().mockResolvedValue('ok'),
-                },
-            } as any)
-
-            await executor.handleToolCall(
-                { name: 'execute-sql', arguments: { query: 'SELECT 1' } },
-                makeToolExecutorState([{ name: 'execute-sql' }])
-            )
-
-            expect(mockTrackExecuteSqlGeneration).toHaveBeenCalledTimes(1)
-            const [toolName, args, , meta] = mockTrackExecuteSqlGeneration.mock.calls[0]!
-            expect(toolName).toBe('execute-sql')
-            expect(args).toEqual({ query: 'SELECT 1' })
-            expect(meta.isError).toBe(false)
-        })
-
-        it('does not emit a generation for other tools', async () => {
-            vi.spyOn(catalog, 'getToolByName').mockReturnValue(makeFakeTool('my-tool') as any)
-
-            await executor.handleToolCall(
-                { name: 'my-tool', arguments: {} },
-                makeToolExecutorState([{ name: 'my-tool' }])
-            )
-
-            expect(mockTrackExecuteSqlGeneration).not.toHaveBeenCalled()
-        })
-
         it('measures output tokens from the returned text, not the re-serialized payload', async () => {
             const handlerResult = {
                 rows: [
@@ -178,9 +140,7 @@ describe('ToolExecutor token estimates', () => {
 
     describe('exec wrapper event', () => {
         it('measures output tokens from the text returned by exec', async () => {
-            const tools = catalog
-                .getFilteredTools({ scopes: ['*'] })
-                .filter((tool) => tool.name === 'execute-sql' || tool.name === 'organization-get')
+            const tools = catalog.getFilteredTools({ scopes: ['*'] }).filter((tool) => tool.name === 'organization-get')
 
             const response = (await executor.handleToolCall(
                 { name: 'exec', arguments: { command: 'tools' } },
@@ -200,18 +160,18 @@ describe('ToolExecutor token estimates', () => {
             const tools = catalog
                 .getPreBuiltEntries()
                 .map((entry) => toolFromPreBuilt(catalog.getToolByName(entry.name)!, entry))
-            const target = tools.find((t) => t.name === 'docs-search')! as any
+            const target = tools.find((t) => t.name === 'cohorts-list')! as any
             target.handler = vi.fn(async () => 'inner-ok')
             const state = makeToolExecutorState(tools as any, { useSingleExec: true })
 
             await executor.handleToolCall(
-                { name: 'exec', arguments: { command: 'call docs-search {"query":"hi"}' } },
+                { name: 'exec', arguments: { command: 'call cohorts-list {"search":"hi"}' } },
                 state
             )
 
             // The canonical event is attributed to the real inner tool — the same standard
             // property the SDK emits for direct calls — never the `exec` dispatcher.
-            const innerCall = mockTrackToolCall.mock.calls.find((call) => call[0] === 'docs-search')!
+            const innerCall = mockTrackToolCall.mock.calls.find((call) => call[0] === 'cohorts-list')!
             expect(innerCall).toBeTruthy()
             expect(innerCall[2]).toBe(false)
             expect(mockTrackToolCall.mock.calls.some((call) => call[0] === 'exec')).toBe(false)

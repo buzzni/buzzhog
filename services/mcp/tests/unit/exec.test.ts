@@ -10,7 +10,7 @@ import { buildQueryToolsBlock, buildToolDomainsCompact } from '@/lib/instruction
 import { InstructionsFormatter } from '@/lib/instructions-formatter'
 import { formatResponse } from '@/lib/response'
 import { SessionManager } from '@/lib/SessionManager'
-import { OrganizationSetActiveSchema, ReadDataSchemaSchema } from '@/schema/tool-inputs'
+import { OrganizationSetActiveSchema } from '@/schema/tool-inputs'
 import { getToolsFromContext } from '@/tools'
 import { normalizeParamAliases } from '@/tools/cast-helpers'
 import {
@@ -1248,7 +1248,6 @@ describe('exec tool', () => {
         })
 
         it.each([
-            ['read-data-schema folding its own aliases', ReadDataSchemaSchema, '{"event":"$pageview"}'],
             ['a union schema that normalizes with a transform', OrganizationSetActiveSchema, '{"id":"abc"}'],
             [
                 'a root transform that renames a key',
@@ -1960,15 +1959,11 @@ describe('exec tool', () => {
 
     describe('deprecated tool redirects', () => {
         it.each([
-            ['read-data-warehouse-schema', 'execute-sql'],
-            ['entity-search', 'execute-sql'],
-            ['event-definitions-list', 'read-data-schema'],
-            ['properties-list', 'read-data-schema'],
-            ['property-definitions', 'read-data-schema'],
-            ['query-generate-hogql-from-question', 'execute-sql'],
-            ['query-run', 'execute-sql'],
             ['self-driving-inbox-get', 'inbox-reports-list'],
             ['experiment-get-all', 'experiment-list'],
+            ['execute-sql', 'typed query tool'],
+            ['read-data-schema', 'No tool on this PostHog server lists event definitions'],
+            ['docs-search', 'posthog.com/docs'],
         ])('throws redirect when calling deprecated %s', async (deprecated, replacement) => {
             const exec = createExec()
             await expect(exec.handler(mockContext, { command: `call ${deprecated} {}` })).rejects.toThrow(
@@ -1987,24 +1982,6 @@ describe('exec tool', () => {
             const queryTrends = makeMockTool({ name: 'query-trends', description: 'Run a trends query' })
             const exec = createExec([queryTrends])
             await expect(exec.handler(mockContext, { command: 'call query-run {}' })).rejects.toThrow(/query-trends/)
-        })
-
-        // The entity-search redirect must only steer at `system.information_schema.metrics`
-        // when the governed-metrics tool is actually registered — otherwise flag-off orgs
-        // get pointed at a catalog table they can't query.
-        it('adds governed-metrics steering to the entity-search redirect only when data-catalog-metric-run is registered', async () => {
-            const withCatalog = createExec([makeMockTool({ name: 'data-catalog-metric-run' })])
-            await expect(withCatalog.handler(mockContext, { command: 'call entity-search {}' })).rejects.toThrow(
-                /system\.information_schema\.metrics/
-            )
-
-            const withoutCatalog = createExec([makeMockTool()])
-            await expect(withoutCatalog.handler(mockContext, { command: 'call entity-search {}' })).rejects.toThrow(
-                /was removed/
-            )
-            await expect(withoutCatalog.handler(mockContext, { command: 'call entity-search {}' })).rejects.not.toThrow(
-                /system\.information_schema\.metrics/
-            )
         })
     })
 

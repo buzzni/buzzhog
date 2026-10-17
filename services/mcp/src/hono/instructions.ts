@@ -6,14 +6,9 @@ import { isPostHogCodeConsumer } from '@/lib/client-detection'
 import type { QueryToolInfo } from '@/lib/instructions'
 import { type InstructionsContext, InstructionsFormatter } from '@/lib/instructions-formatter'
 import { isChatGptAppConnection } from '@/lib/oauth-constants'
-import { formatPrompt } from '@/lib/utils'
 import { RENDER_UI_RESOURCE_URI } from '@/resources/ui-apps.generated'
 import { ProjectSkillCatalog } from '@/skills/project-skill-catalog'
 import type { SkillCatalog } from '@/skills/skill-catalog'
-import EXECUTE_SQL_PROMPT from '@/templates/execute-sql-prompt.md'
-import CATALOG_TRUST_DISCOVERY from '@/templates/sections/catalog-trust-discovery.md'
-import METRIC_DISCOVERY from '@/templates/sections/metric-discovery.md'
-import SCHEMA_DISCOVERY from '@/templates/sections/schema-discovery.md'
 import { EXEC_TOOL_ANNOTATIONS } from '@/tools/exec'
 import { ExecLearnCatalog } from '@/tools/exec-learn'
 import {
@@ -201,16 +196,6 @@ export class InstructionsBuilder {
 
     getGuidelines(): string {
         return this.guidelines
-    }
-
-    formatExecuteSqlDescription(): string {
-        // Metric discovery leads the splice so catalog-first routing still precedes
-        // raw schema discovery, without displacing the tool's own intro line.
-        const schemaDiscovery = `${METRIC_DISCOVERY.trim()}\n\n${SCHEMA_DISCOVERY.trim()}\n\n${CATALOG_TRUST_DISCOVERY.trim()}`
-        return formatPrompt(EXECUTE_SQL_PROMPT, {
-            guidelines: this.guidelines.trim(),
-            schema_discovery: schemaDiscovery,
-        })
     }
 
     private getExecLearnCapabilities(state: ResolvedState): { guidesEnabled: boolean; skillsEnabled: boolean } {

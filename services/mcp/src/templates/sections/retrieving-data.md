@@ -3,14 +3,10 @@
 Choose the query method from the requested result and calculation rules, after any metric-routing rules above. Reuse a matching approved metric or saved query when it defines the requested measure.
 
 - Default to typed runners for new product analytics and dashboard insights whenever their schemas support the requested calculation: event counts, unique users, property sums, breakdowns, time series, funnels, retention, stickiness, paths, and lifecycle. Preserve PostHog's standard calculation rules rather than approximating them with SQL.
-- Use `execute-sql` for record inspection, custom calculations, joins, existing SQL, or requests for SQL. It also supports entity search through `system.*` tables.
-- When both methods fit a new event-analytics query, use the typed runner. SQL familiarity or a SQL example is not a reason to choose SQL.
 
-SQL discovery can inform the events, properties, and filters for a later typed query; typed tools cannot accept SQL result rows as input. Reassess the method when the task changes, regardless of the previous tool call. Save supported dashboard analyses as native query nodes rather than equivalent `HogQLQuery` nodes. Both methods support visualizations; a chart request or missing inline UI does not justify switching to SQL.
+Reassess the method when the task changes, regardless of the previous tool call. Save supported dashboard analyses as native query nodes rather than equivalent `HogQLQuery` nodes. A chart request or missing inline UI does not justify switching methods.
 
-Read the selected tool's description and schema when they are not already in context. You do not need to inspect every alternative before using SQL.
-
-{entity_schema_discovery}
+Read the selected tool's description and schema when they are not already in context.
 
 #### Available insight query tools
 
