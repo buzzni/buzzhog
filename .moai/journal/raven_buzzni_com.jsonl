@@ -622,3 +622,9 @@
 {"ts":"2026-10-17T07:59:29Z","id":"buzzhog-pk6n.gn3","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/opus-5.5 (high — server telemetry rewiring; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T07:59:29Z","id":"buzzhog-pk6n.8k4","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (subagent of the opus worker — browser posthog-js and toolbar)"}
 {"ts":"2026-10-17T07:59:29Z","id":"buzzhog-xkxt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a1027c98a4fc7995a (sonnet high)"}
+{"ts":"2026-10-17T08:00:40Z","id":"buzzhog-m4ht","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"FOSS 주기 작업 4개 EE_AVAILABLE 밖으로"}
+{"ts":"2026-10-17T08:00:40Z","id":"buzzhog-m4ht.4wz","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"4개 작업을 EE_AVAILABLE 블록 밖으로 옮기고 beat 스케줄 테스트 추가"}
+{"ts":"2026-10-17T08:00:40Z","id":"buzzhog-m4ht","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-xkxt 에서 펼쳤다 — EE_AVAILABLE에 묶인 FOSS 주기 작업 풀기 (만료 export 삭제·멈춘 영상 export·위임 초대 정리)"}
+{"ts":"2026-10-17T08:00:40Z","id":"buzzhog-xkxt","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-m4ht 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T08:00:40Z","id":"buzzhog-dket.gij","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"review — OpenAPI 재생성과 호출부 정리 전체"}
+{"ts":"2026-10-17T08:00:47Z","id":"buzzhog-m4ht.4wz","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
