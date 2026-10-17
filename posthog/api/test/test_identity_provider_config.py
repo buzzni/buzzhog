@@ -365,6 +365,13 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
 
     def test_scim_enabled_can_only_be_turned_off(self):
         self._make_admin()
+        response = self.client.post(
+            "/api/organizations/@current/identity_provider_configs/",
+            {"config_scope": "saml", "scim_enabled": True},
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(response.json()["scim_enabled"])
+
         config = IdentityProviderConfig.objects.create(
             organization=self.organization,
             name="Legacy SCIM provider",
@@ -395,30 +402,31 @@ class TestIdentityProviderConfigAPI(APIBaseTest):
         config.refresh_from_db()
         self.assertFalse(config.scim_enabled)
 
-    def test_scim_enabled_ignored_on_create_and_form_put_keeps_scim(self):
+    def test_form_put_keeps_the_fields_it_omits(self):
         self._make_admin()
-        self._enable_features(AvailableFeature.SAML)
-        response = self.client.post(
-            "/api/organizations/@current/identity_provider_configs/",
-            {"config_scope": "saml", "scim_enabled": True},
+        domain = OrganizationDomain.objects.create(
+            organization=self.organization, domain="example.com", verified_at=timezone.now()
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertFalse(response.json()["scim_enabled"])
-
         config = IdentityProviderConfig.objects.create(
             organization=self.organization,
             name="Legacy SCIM provider",
             config_scope="saml",
+            domain_scope="selected",
             scim_enabled=True,
             scim_bearer_token="hashed-example-token",
         )
+        LinkedIdentityProviderConfig.objects.create(identity_provider_config=config, organization_domain=domain)
+
         response = self.client.put(
             f"/api/organizations/@current/identity_provider_configs/{config.id}/",
-            {"name": "Renamed", "config_scope": "saml"},
+            {"name": "Renamed", "config_scope": "saml", "id_jag_allowed_clients[0]": "example-client"},
             format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["organization_domain_ids"], [str(domain.id)])
         config.refresh_from_db()
+        self.assertEqual(config.name, "Renamed")
+        self.assertEqual(config.id_jag_allowed_clients, ["example-client"])
         self.assertTrue(config.scim_enabled)
         self.assertEqual(config.scim_bearer_token, "hashed-example-token")
 
