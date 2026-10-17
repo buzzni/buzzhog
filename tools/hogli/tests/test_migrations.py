@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from parameterized import parameterized
@@ -14,7 +16,7 @@ class TestPathTraversalValidation:
         [
             # Valid cases - standard PostHog apps
             ("posthog", "0001_initial"),
-            ("ee", "0952_add_sync_test_branch_two"),
+            ("access_control", "0952_add_sync_test_branch_two"),
             ("rbac", "0123_some_migration_name"),
             # Valid cases - product apps
             ("web_analytics", "0001_initial"),
@@ -110,7 +112,7 @@ class TestIsValidMigrationPath:
         [
             # Valid cases
             ("posthog", "0001_initial", True),
-            ("ee", "0952_add_feature", True),
+            ("access_control", "0952_add_feature", True),
             # Invalid cases - path traversal
             ("../etc", "0001_passwd", False),
             ("posthog", "../../../etc/passwd", False),
@@ -208,3 +210,22 @@ class TestSharedMigrationUtils:
         # Invalid inputs should return False (not raise)
         assert cache_migration_file("../etc", "0001_passwd", Path("/fake")) is False
         assert cache_migration_file("posthog", "bad", Path("/fake")) is False
+
+
+class TestManagedApps:
+    @pytest.fixture(autouse=True)
+    def _tmp(self, tmp_path: Path) -> None:
+        self._tmp_path = tmp_path
+
+    @parameterized.expand([("ee_absent", False), ("ee_present", True)])
+    def test_ee_is_managed_only_while_its_migrations_exist(self, _name: str, ee_present: bool) -> None:
+        from common.migration_utils import get_managed_app_names, get_managed_app_paths
+
+        base_dir = self._tmp_path
+        (base_dir / "products" / "access_control" / "backend" / "migrations").mkdir(parents=True)
+        if ee_present:
+            (base_dir / "ee" / "migrations").mkdir(parents=True)
+
+        expected = {"posthog", "rbac", "access_control"} | ({"ee"} if ee_present else set())
+        assert get_managed_app_names(base_dir) == expected
+        assert set(get_managed_app_paths(base_dir)) == expected

@@ -27,7 +27,7 @@ MIGRATION_NAME_PATTERN = re.compile(r"^(\d{4})_[a-zA-Z0-9_]+$")
 
 # Pattern to validate app names (valid Python package names)
 # Must start with letter, then letters/numbers/underscores
-# Examples: "posthog", "ee", "web_analytics"
+# Examples: "posthog", "rbac", "web_analytics"
 APP_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 
 
@@ -39,7 +39,7 @@ def validate_migration_path_components(app: str, name: str) -> None:
     files outside the cache directory.
 
     Args:
-        app: The Django app label (e.g., "posthog", "ee")
+        app: The Django app label (e.g., "posthog", "rbac")
         name: The migration name without .py extension (e.g., "0001_initial")
 
     Raises:
@@ -137,7 +137,19 @@ def cache_migration_file(app: str, name: str, source_path: Path) -> bool:
 
 # Core PostHog apps that have migrations we manage
 # These are always included; product apps are discovered dynamically
-CORE_MANAGED_APPS = frozenset({"posthog", "ee", "rbac"})
+CORE_MANAGED_APPS = frozenset({"posthog", "rbac"})
+
+# Optional apps are managed only while their migrations directory exists.
+# This fork has no ee package, but a dev database migrated before ee was removed
+# still has ee rows in django_migrations. If ee were managed without its files,
+# every ee row would show as orphaned and migrations:sync/down could not roll them back.
+OPTIONAL_MANAGED_APP_DIRS: dict[str, Path] = {"ee": Path("ee") / "migrations"}
+
+
+def _present_optional_app_paths(base_dir: Path) -> dict[str, Path]:
+    return {
+        app: base_dir / rel_dir for app, rel_dir in OPTIONAL_MANAGED_APP_DIRS.items() if (base_dir / rel_dir).is_dir()
+    }
 
 
 def discover_product_apps(base_dir: Path) -> set[str]:
@@ -161,7 +173,7 @@ def discover_product_apps(base_dir: Path) -> set[str]:
 
 
 def get_managed_app_names(base_dir: Path) -> set[str]:
-    """Get all managed app names (core + product apps).
+    """Get all managed app names (core + present optional + product apps).
 
     Args:
         base_dir: The repository root directory
@@ -169,7 +181,7 @@ def get_managed_app_names(base_dir: Path) -> set[str]:
     Returns:
         Set of app names we manage migrations for
     """
-    return set(CORE_MANAGED_APPS) | discover_product_apps(base_dir)
+    return set(CORE_MANAGED_APPS) | set(_present_optional_app_paths(base_dir)) | discover_product_apps(base_dir)
 
 
 def get_managed_app_paths(base_dir: Path) -> dict[str, Path]:
@@ -183,8 +195,8 @@ def get_managed_app_paths(base_dir: Path) -> dict[str, Path]:
     """
     apps = {
         "posthog": base_dir / "posthog" / "migrations",
-        "ee": base_dir / "ee" / "migrations",
         "rbac": base_dir / "posthog" / "rbac" / "migrations",
+        **_present_optional_app_paths(base_dir),
     }
 
     # Add product apps using the shared discovery function
