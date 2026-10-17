@@ -298,7 +298,7 @@ An account detail route keeps a prepared return snapshot until the detail Back l
 **Build the URL via the canonical helpers, never hand-build the path:**
 
 - Frontend: `urls.customerAnalyticsAccount(accountId, tab?)` (in the product manifest). Used by the notebook→Accounts breadcrumb.
-- Backend: `build_account_deeplink(account_id, tab=None)` in `backend/account_urls.py` — the single source of truth for the Python side, returning `/customer_analytics/accounts/<id>[/<tab>]`. Used by the usage-spike notification (`backend/services/usage_spike_notifications.py`, `tab='usage'`) and by the agent's entity-search results (`ee/hogai/context/entity_search/context.py`), so when Max/MCP references an account it found, the link opens that account rather than the list.
+- Backend: `build_account_deeplink(account_id, tab=None)` in `backend/account_urls.py` — the single source of truth for the Python side, returning `/customer_analytics/accounts/<id>[/<tab>]`. Used by the usage-spike notification (`backend/logic/usage_spike_notifications.py`, `tab='usage'`), and exported through the product facade (`backend/facade/api.py`) for callers in other products.
 
 Anywhere we know the account, prefer a deep-link over the bare list. The notification path is routed through `buildNotificationSourcePath` in `sidePanelNotificationsLogic.tsx`, which has **no** `customer_analytics` entry in `SOURCE_TYPE_TO_PATH` precisely so the precise `source_url` deep-link wins instead of a static accounts-list path. The notification `source_url` is project-relative — the notifications side panel adds the project prefix on navigation.
 
@@ -343,7 +343,7 @@ The available-columns picker defaults to an "All columns" category that searches
 
 The Accounts list exposes one contextual tool, `open_account`, so Max can show an account on screen.
 
-1. The tool result is `{ account_id, account_name, external_id, tab }`, or `{ error }`. No backend tool for `open_account` exists in this repository, so the callback only runs when the host provides one.
+1. The tool result is `{ account_id, account_name, external_id, tab }`, or `{ error }`. This repository has no backend implementation of `open_account`, so the callback runs only when a Max backend outside this repository calls the tool.
 2. `AccountsMaxTools.tsx` registers it with `useMaxTool({ identifier: 'open_account', callback })`; the callback calls `accountsLogic.openAccount(accountId, externalId, name, tab)`.
 3. `accountsLogic.openAccount`:
    - **Reveal** — if the account isn't in the current results (checks the bound data node's rows by name-cell `id`), it clears the excluding filters and searches by `external_id`/name so the row will render. This avoids a silent no-op when Max references an account that's filtered out.

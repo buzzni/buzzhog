@@ -229,6 +229,10 @@ Usually not a bug — see [How a response actually gets stored](#how-a-response-
 - **It compounds with popup placement.** `appearance.position: middle_center`, a large `maxWidth`, and a non-zero `surveyPopupDelaySeconds` mean the popup materializes seconds after the trigger under a cursor that's still moving, and the next click lands on an answer. Consecutive auto-submitting questions let someone click through most of a survey without reading it.
 - **Diagnose with shown→sent latency,** then confirm from the replay (`sessionRecordingUrl` on `survey sent`). A cluster of sub-10-second completions on a multi-question survey is the signature; genuine respondents take longer and leave text behind. Fix is to uncheck the setting — **not** to move the question, since the behavior follows the question wherever it sits.
 
+### "Responses show as zero in the UI but raw events exist"
+
+- **An edit replaced the question IDs.** Answers are stored under `$survey_response_<questionId>`. When a survey update sends `questions` without each question's `id`, the pre-save hook (`ensure_question_ids` in `products/surveys/backend/models.py`) gives that question a new UUID. Responses keyed by the old UUID then no longer join to the question. The raw events are intact; only the definition changed. Find the edit with `?scope=Survey&item_id=<sid>` in the activity log. Fix: PATCH the `questions` array back to the original IDs, which you can recover from the `$survey_response_<uuid>` keys on the response events, and restore any question `type` or `scale` the same edit changed.
+
 ### "Cohort count shows 0 but the cohort is populated"
 
 - Cosmetic UI bug, does **not** affect targeting. Confirm the real count via `static_cohort_people`. NOTE: this is _not_ a simple one-line bug — the normal `insert_cohort_from_query` path does recompute count via `count_cohort_members`; the `count=0` display only appears on certain failure paths. Do not promise a quick fix without reproducing the specific path.
