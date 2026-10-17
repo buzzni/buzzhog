@@ -10,9 +10,10 @@ import structlog
 
 from posthog.models import Team, UploadedMedia, User
 from posthog.models.uploaded_media import MEDIA_PURPOSE_DESKTOP_FEEDBACK, sniff_image_content_type
-from posthog.ph_client import PH_EU_API_KEY, PH_US_API_KEY, get_client
+from posthog.ph_client import get_client
 from posthog.storage import object_storage
 from posthog.storage.object_storage import ObjectStorageError
+from posthog.telemetry import get_telemetry_target
 from posthog.utils import absolute_uri, get_instance_region
 
 FEEDBACK_SURVEY_ID = "019ee235-2e3b-0000-64b3-5f2efa487452"
@@ -35,9 +36,13 @@ class DesktopFeedbackUnavailable(Exception):
 
 
 def _feedback_media_team() -> Team:
-    media_api_key = PH_EU_API_KEY if get_instance_region() == "EU" else PH_US_API_KEY
+    # Attachments live beside the feedback event, in the collector's project, so they work only when
+    # that collector is this instance.
+    target = get_telemetry_target()
+    if target is None:
+        raise DesktopFeedbackUnavailable("Feedback attachments are unavailable on this PostHog instance")
     try:
-        return Team.objects.get(api_token=media_api_key)
+        return Team.objects.get(api_token=target.api_key)
     except Team.DoesNotExist as error:
         raise DesktopFeedbackUnavailable("Feedback attachments are unavailable on this PostHog instance") from error
 

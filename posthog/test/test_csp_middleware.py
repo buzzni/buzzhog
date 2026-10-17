@@ -60,7 +60,11 @@ def _admits(sources: list[str], url: str) -> bool:
 
 
 # Tests run as a self-hosted install, which never enforces. LOCAL enforces without turning on DEBUG.
-@override_settings(CLOUD_DEPLOYMENT="LOCAL")
+@override_settings(
+    CLOUD_DEPLOYMENT="LOCAL",
+    POSTHOG_TELEMETRY_HOST="https://telemetry.example.com",
+    POSTHOG_TELEMETRY_API_KEY="phc_test_key",
+)
 class TestCSPMiddleware(APIBaseTest):
     def test_replay_player_frame_carries_its_own_policy_and_reports_nothing(self):
         # The frame exists so a recorded page stops being judged against the app policy. If the
@@ -214,7 +218,7 @@ class TestCSPMiddleware(APIBaseTest):
         # Reporting API, which drops violations raised in about:blank and srcdoc frames.
         assert "report-to" not in policy
         _, report_endpoint = next(part for part in policy.split("; ") if part.startswith("report-uri ")).split()
-        assert report_endpoint.startswith("https://us.i.posthog.com/report/")
+        assert report_endpoint.startswith("https://telemetry.example.com/report/")
         assert f"distinct_id={self.user.distinct_id}" in report_endpoint
         # An enforced violation is a page that broke for someone, so dropping reports hides breakages.
         assert "sample_rate" not in report_endpoint
@@ -227,10 +231,10 @@ class TestCSPMiddleware(APIBaseTest):
         self.client.logout()
         response = self.client.get("/login")
         policy = response["Content-Security-Policy"]
-        assert "report-uri https://us.i.posthog.com/report/" in policy
+        assert "report-uri https://telemetry.example.com/report/" in policy
         assert "distinct_id" not in policy
         header = response["Reporting-Endpoints"]
-        assert 'default="https://us.i.posthog.com/report/' in header
+        assert 'default="https://telemetry.example.com/report/' in header
         assert "distinct_id" not in header
 
     @parameterized.expand(
@@ -271,7 +275,7 @@ class TestCSPMiddleware(APIBaseTest):
         policy = response["Content-Security-Policy"]
         assert "report-uri https://posthog.example.com/report/" in policy
         header = response["Reporting-Endpoints"]
-        assert "us.i.posthog.com" not in header
+        assert "telemetry.example.com" not in header
         assert f"distinct_id={self.user.distinct_id}" in header
 
     @parameterized.expand(
@@ -293,7 +297,7 @@ class TestCSPMiddleware(APIBaseTest):
         assert "report-to" not in policy
 
         if expects_reporting:
-            assert "report-uri https://us.i.posthog.com/report/" in policy
+            assert "report-uri https://telemetry.example.com/report/" in policy
             # Sampling would silently drop violations.
             assert "sample_rate" not in policy
             # Without it every admin report arrives under a freshly minted id, so one staff session
@@ -367,6 +371,10 @@ class TestCSPMiddleware(APIBaseTest):
         wildcards = {"https://*.posthog.com", "https://*.i.posthog.com"}
         if not regions:
             assert wildcards <= set(script_src)
+            # posthog-js sends to the collector and loads its extensions from it, so without these the
+            # browser telemetry the operator turned on fails with no error shown.
+            assert "https://telemetry.example.com" in script_src
+            assert "https://telemetry.example.com" in connect_src
             assert "https://*.posthog.com" in style_src
             assert "https://*.posthog.com" in font_src
             # An operator's endpoint keeps the version they configured.
@@ -379,7 +387,7 @@ class TestCSPMiddleware(APIBaseTest):
         assert report_version == ["4"]
         # The app cannot start without its bundle host.
         assert overrides["JS_URL"] in script_src
-        assert "https://internal-cf.posthog.com/array/sTMFPsFhdP1Ssg/config.js" in script_src
+        assert "https://telemetry.example.com/array/phc_test_key/config.js" in script_src
         assert f"https://live.{region}.posthog.com" in connect_src
         assert f"https://webhooks.{region}.posthog.com" in connect_src
         assert f"https://{region}.i.posthog.com/decide/" in connect_src
@@ -391,8 +399,8 @@ class TestCSPMiddleware(APIBaseTest):
         assert not any(other_region in (urlsplit(source).hostname or "").split(".") for source in connect_src)
         # The app loads its stylesheets and fonts from the bundle host, and the toolbar loads its own from
         # /static/. Without either source the page renders unstyled, and the user sees no error.
-        assert {overrides["JS_URL"], "https://internal-cf.posthog.com/static/"} <= set(style_src)
-        assert {overrides["JS_URL"], "https://internal-cf.posthog.com/static/"} <= set(font_src)
+        assert {overrides["JS_URL"], "https://telemetry.example.com/static/"} <= set(style_src)
+        assert {overrides["JS_URL"], "https://telemetry.example.com/static/"} <= set(font_src)
         # The swap must remove the wildcard alone. Inline styles, data: fonts and Google Fonts still load.
         assert {"'self'", "'unsafe-inline'", "https://fonts.googleapis.com"} <= set(style_src)
         assert {"'self'", "data:", "https://fonts.gstatic.com"} <= set(font_src)
@@ -454,7 +462,7 @@ class TestCSPMiddleware(APIBaseTest):
         # `https:` admits every host and the wildcard every PostHog host, so with either one a miss never reports.
         assert not {"https:", "https://*.posthog.com"} & img_src
         # Without these, every page load reports its own bundle or the toolbar, and a real miss is lost.
-        assert {_US_BUNDLE, "https://internal-cf.posthog.com/static/"} <= img_src
+        assert {_US_BUNDLE, "https://telemetry.example.com/static/"} <= img_src
         # The swap must remove those two sources alone, or every image the others admit reports as a miss.
         assert {"'self'", "data:", "blob:", "https://posthog.com", "https://www.gravatar.com"} <= img_src
 

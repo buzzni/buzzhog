@@ -8,7 +8,6 @@ from django.db import transaction
 from django.utils.timezone import now
 
 import structlog
-import posthoganalytics
 
 from posthog.async_migrations.definition import AsyncMigrationOperation
 from posthog.celery import app
@@ -19,6 +18,7 @@ from posthog.email import is_email_available
 from posthog.models.async_migration import AsyncMigration, AsyncMigrationError, MigrationStatus
 from posthog.models.instance_setting import get_instance_setting
 from posthog.models.user import User
+from posthog.ph_client import get_client
 from posthog.settings import (
     ASYNC_MIGRATIONS_DEFAULT_TIMEOUT_SECONDS,
     CLICKHOUSE_ALLOW_PER_SHARD_EXECUTION,
@@ -33,13 +33,18 @@ SLEEP_TIME_SECONDS = 20 if not TEST else 1
 
 
 def send_analytics_to_posthog(event, data):
-    posthoganalytics.project_api_key = "sTMFPsFhdP1Ssg"  # ty: ignore[invalid-assignment]
+    client = get_client()
+    if client is None or client.disabled:
+        return
     user = User.objects.filter(is_active=True).first()
     groups = {"instance": settings.SITE_URL}
     if user and user.current_organization:
         data["organization_name"] = user.current_organization.name
         groups["organization"] = str(user.current_organization.id)
-    posthoganalytics.capture(distinct_id=get_machine_id(), event=event, properties=data, groups=groups)
+    try:
+        client.capture(distinct_id=get_machine_id(), event=event, properties=data, groups=groups)
+    finally:
+        client.shutdown()
 
 
 def execute_op(op: AsyncMigrationOperation, uuid: str, rollback: bool = False):

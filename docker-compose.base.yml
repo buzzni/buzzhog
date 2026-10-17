@@ -369,6 +369,14 @@ services:
             # the main posthog DB, so both point there.
             PERSONS_DB_WRITER_URL: 'postgres://posthog:posthog@db:5432/posthog'
             PERSONS_DB_READER_URL: 'postgres://posthog:posthog@db:5432/posthog'
+            # Telemetry goes only to a collector named here, and only from services that receive
+            # these. Every Django service (web, worker, migrate, temporal-django-worker) takes this
+            # anchor, so one opt-out covers them all.
+            OPT_OUT_CAPTURE: ${OPT_OUT_CAPTURE:-false}
+            POSTHOG_TELEMETRY_HOST: ${POSTHOG_TELEMETRY_HOST:-}
+            POSTHOG_TELEMETRY_API_KEY: ${POSTHOG_TELEMETRY_API_KEY:-}
+            POSTHOG_TELEMETRY_USAGE_REPORTS: ${POSTHOG_TELEMETRY_USAGE_REPORTS:-false}
+            POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII: ${POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII:-false}
 
     web:
         <<: *worker

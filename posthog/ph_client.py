@@ -1,4 +1,3 @@
-import os
 import atexit
 import threading
 from collections.abc import Iterator, Mapping
@@ -14,13 +13,8 @@ import posthoganalytics
 
 from posthog.clickhouse.query_tagging import get_query_tags
 from posthog.cloud_utils import is_cloud
+from posthog.telemetry import get_telemetry_target
 from posthog.utils import get_instance_region
-
-PH_US_API_KEY = "sTMFPsFhdP1Ssg"
-PH_US_HOST = "https://us.i.posthog.com"
-
-PH_EU_API_KEY = "phc_dZ4GK1LRjhB97XozMSkEwPXx7OVANaJEwLErkY1phUF"
-PH_EU_HOST = "https://eu.i.posthog.com"
 
 logger = structlog.get_logger(__name__)
 
@@ -212,23 +206,21 @@ def ph_background_capture() -> ScopedCapture:
 
 
 def get_client(region: str = "US", **kwargs: Any):
+    """A dedicated client to this instance's telemetry collector, or None for an unknown region.
+
+    Without a collector (see `posthog.telemetry`) the client has no key, so the SDK keeps it disabled and it
+    sends nothing whatever `disabled` the caller passes. Callers still get a client and need no None check.
+    """
     from posthoganalytics import Posthog
 
-    api_key = None
-    host = None
-    if region == "EU":
-        api_key = PH_EU_API_KEY
-        host = PH_EU_HOST
-    elif region == "US":
-        api_key = PH_US_API_KEY
-        host = PH_US_HOST
-    else:
-        return
+    if region not in ("US", "EU"):
+        return None
+    target = get_telemetry_target()
 
     # A fresh client does not inherit the module-level `disabled` flag that apps.py sets
-    # under TEST, so without this a test that runs in cloud mode captures to the real
-    # project. Callers can still pass `disabled` explicitly to override.
-    kwargs.setdefault("disabled", bool(settings.TEST or os.environ.get("OPT_OUT_CAPTURE", False)))
+    # under TEST, so without this a test that configures a collector captures to it for
+    # real. Callers can still pass `disabled` explicitly to override.
+    kwargs.setdefault("disabled", bool(settings.TEST or target is None))
     before_send = kwargs.get("before_send")
 
     def capture_filter(message: dict[str, Any]) -> dict[str, Any] | None:
@@ -240,8 +232,8 @@ def get_client(region: str = "US", **kwargs: Any):
         kwargs["before_send"] = capture_filter
 
     return Posthog(
-        api_key,
-        host=host,
+        target.api_key if target else "",
+        host=target.host if target else None,
         super_properties={"region": region},
         _use_ai_lane=True,
         _enable_multimodal_capture=True,

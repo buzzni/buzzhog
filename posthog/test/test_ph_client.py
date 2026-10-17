@@ -9,6 +9,8 @@ from parameterized import parameterized
 from posthog.clickhouse.query_tagging import tags_context
 from posthog.ph_client import ScopedCapture, filter_scout_experiment_capture, get_client, ph_scoped_capture
 
+_COLLECTOR = {"POSTHOG_TELEMETRY_HOST": "https://telemetry.example.com", "POSTHOG_TELEMETRY_API_KEY": "phc_test_key"}
+
 
 class TestAILaneOptIn(SimpleTestCase):
     def test_get_client_opts_into_ai_lane(self):
@@ -25,11 +27,13 @@ class TestAILaneOptIn(SimpleTestCase):
         self.assertTrue(client._enable_multimodal_capture)
 
 
+@override_settings(**_COLLECTOR)
 class TestPrivateScoutCapture(SimpleTestCase):
     def test_module_filter_matches_deployment_setting(self) -> None:
         with patch.multiple(
             posthoganalytics,
             default_client=None,
+            api_key="phc_test_key",
             disabled=False,
             send=False,
             enable_local_evaluation=False,
@@ -87,6 +91,7 @@ class TestPrivateScoutCapture(SimpleTestCase):
             client.shutdown()
 
 
+@override_settings(**_COLLECTOR)
 class TestScopedCaptureFlush(SimpleTestCase):
     def test_flush_waits_indefinitely_rather_than_taking_the_default_budget(self):
         # The SDK's default is a 10 second budget, and on expiry it logs and returns with items still
@@ -138,10 +143,23 @@ class TestGetClientTestGuard(SimpleTestCase):
         assert client is not None
         self.assertTrue(client.disabled)
 
-    def test_explicit_disabled_wins(self) -> None:
-        client = get_client(disabled=False)
+    @parameterized.expand(
+        [
+            ("collector", _COLLECTOR, False, "https://telemetry.example.com"),
+            ("no_collector", {}, True, None),
+            ("key_without_host", {"POSTHOG_TELEMETRY_API_KEY": "phc_test_key"}, True, None),
+            ("opted_out", {**_COLLECTOR, "OPT_OUT_CAPTURE": True}, True, None),
+        ]
+    )
+    def test_explicit_disabled_sends_only_to_a_configured_collector(
+        self, _name: str, overrides: dict, disabled: bool, host: str | None
+    ) -> None:
+        with override_settings(**overrides):
+            client = get_client(disabled=False)
         assert client is not None
-        self.assertFalse(client.disabled)
+        self.assertEqual(client.disabled, disabled)
+        if host:
+            self.assertEqual(client.host, host)
 
     def test_unknown_region_returns_nothing(self) -> None:
         self.assertIsNone(get_client(region="MARS"))

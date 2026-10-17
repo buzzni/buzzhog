@@ -32,11 +32,10 @@ config:
             marker: 'op://'
             wrap: [op, run, --env-file, '{file}', --]
     telemetry:
-        # Write-only project token for PostHog's internal hogli project.
-        # It cannot read data; safe to commit. Standalone hogli users get a blank
-        # default and telemetry stays disabled unless they set their own key.
-        api_key: phc_JYFXrbqdzueOYb0wFUTnCglFKZuC4xRXBW790ewdcvn
-        host: https://us.i.posthog.com
+        # Blank, so hogli sends nothing. Set POSTHOG_TELEMETRY_HOST and POSTHOG_TELEMETRY_API_KEY
+        # to send hogli events to your own collector.
+        api_key: ''
+        host: ''
 
 metadata:
     devbox:

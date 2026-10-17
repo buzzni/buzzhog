@@ -16,8 +16,7 @@ from django.utils import timezone
 import structlog
 
 from posthog.cloud_utils import is_cloud
-from posthog.ph_client import PH_EU_API_KEY, PH_EU_HOST, PH_US_API_KEY, PH_US_HOST
-from posthog.utils import get_instance_region
+from posthog.telemetry import get_telemetry_target
 
 from products.streamlit_apps.backend.facade.contracts import AppRuntimeConcurrencyError, AppRuntimeError
 from products.streamlit_apps.backend.logic.oauth import create_sandbox_bridge_token, get_streamlit_oauth_app
@@ -97,14 +96,12 @@ def _get_sandbox_callback_url() -> str:
 def _get_otel_logs_config(callback_url: str) -> tuple[str, str]:
     """Return (endpoint, token) for sandbox proxy OTEL log export.
 
-    Mirrors posthog.ph_client.get_regional_ph_client. On cloud, logs ship to
-    PH-on-PH; in dev/self-hosted they ship back via the callback URL.
+    On cloud, logs ship to the telemetry collector when one is set; otherwise, and
+    in dev/self-hosted, they ship back via the callback URL.
     """
-    if is_cloud():
-        region = get_instance_region()
-        if region == "EU":
-            return f"{PH_EU_HOST}/i/v1/logs", PH_EU_API_KEY
-        return f"{PH_US_HOST}/i/v1/logs", PH_US_API_KEY
+    target = get_telemetry_target()
+    if is_cloud() and target is not None:
+        return f"{target.host}/i/v1/logs", target.api_key
 
     # phc_local is the dev token that maps to team_id=1 in capture-logs.
     return f"{callback_url.rstrip('/')}/i/v1/logs", "phc_local"
