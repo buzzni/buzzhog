@@ -1,3 +1,5 @@
+from typing import Any
+
 from unittest.mock import MagicMock
 
 from django.test import SimpleTestCase
@@ -6,6 +8,12 @@ from parameterized import parameterized
 
 from posthog.celery import app
 from posthog.tasks.scheduled import instance_spread_minute, setup_periodic_tasks
+from posthog.tasks.tasks import (
+    delete_expired_delegation_invites,
+    delete_expired_exported_assets,
+    fail_stuck_video_exports,
+    find_flags_with_enriched_analytics,
+)
 from posthog.tasks.team_llm_gateway_quota import reconcile_llm_gateway_quota_projection
 
 
@@ -49,6 +57,24 @@ class TestLLMGatewayQuotaReconcileScheduling(SimpleTestCase):
         schedule, signature = calls[0].args
         self.assertEqual(schedule.minute, {7, 22, 37, 52})
         self.assertEqual(signature.task, reconcile_llm_gateway_quota_projection.name)
+
+
+class TestFossTaskScheduling(SimpleTestCase):
+    @parameterized.expand(
+        [
+            ("find feature flags with enriched analytics", find_flags_with_enriched_analytics),
+            ("delete expired exported assets", delete_expired_exported_assets),
+            ("fail stuck video exports", fail_stuck_video_exports),
+            ("delete expired delegation invites", delete_expired_delegation_invites),
+        ]
+    )
+    def test_task_is_scheduled_without_ee(self, name: str, task: Any) -> None:
+        sender = MagicMock()
+        with self.settings(EE_AVAILABLE=False):
+            setup_periodic_tasks(sender)
+        calls = [call for call in sender.add_periodic_task.call_args_list if call.kwargs.get("name") == name]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].args[1].task, task.name)
 
 
 class TestInstanceSpreadMinute(SimpleTestCase):
