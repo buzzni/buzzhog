@@ -712,3 +712,10 @@
 {"ts":"2026-10-17T09:26:29Z","id":"buzzhog-pk6n","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: 269b935b8f6 (review fix 500924b38f5) on milestone/buzzhog-tfjd; l8z and zzb done; epic done; worktree removed."}
 {"ts":"2026-10-17T09:26:30Z","id":"buzzhog-pk6n.l8z","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (medium — wiki only; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T09:26:30Z","id":"buzzhog-iuzh","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a95827f28eaf5a4f9 (sonnet high)"}
+{"ts":"2026-10-17T09:26:54Z","id":"buzzhog-zyjo","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"지운 MCP 도구 언급 정리"}
+{"ts":"2026-10-17T09:26:54Z","id":"buzzhog-zyjo.h1s","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"프롬프트·템플릿·도구 설명·스키마 설명에서 지운 도구 언급 정리"}
+{"ts":"2026-10-17T09:26:54Z","id":"buzzhog-zyjo.0xv","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"테스트·평가·주석·핸드북 문서 정리와 experiment-get 예시 교체"}
+{"ts":"2026-10-17T09:26:54Z","id":"buzzhog-zyjo","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-iuzh 에서 펼쳤다 — MCP 서버 프롬프트·템플릿·평가·도구 설명에서 지운 execute-sql·read-data-schema·docs-search 언급 정리"}
+{"ts":"2026-10-17T09:26:54Z","id":"buzzhog-iuzh","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-zyjo 로 펼쳤다 (이슈 2건)"}
+{"ts":"2026-10-17T09:27:05Z","id":"buzzhog-zyjo.h1s","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-17T09:27:05Z","id":"buzzhog-zyjo.0xv","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
