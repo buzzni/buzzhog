@@ -103,14 +103,12 @@ def test_resolve_module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, module_
     assert check_dagster_paths.resolve_module(module_name) == Path(expected)
 
 
-def test_find_dag_files_includes_ee_billing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_find_dag_files_includes_posthog_and_product_dags(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     write_file(tmp_path, "posthog/dags/posthog_job.py")
     write_file(tmp_path, "products/growth/dags/growth_job.py")
-    write_file(tmp_path, "ee/billing/dags/billing_job.py")
     monkeypatch.setattr(check_dagster_paths, "REPO_ROOT", tmp_path)
 
     assert sorted(path.relative_to(tmp_path).as_posix() for path in check_dagster_paths.find_dag_files()) == [
-        "ee/billing/dags/billing_job.py",
         "posthog/dags/posthog_job.py",
         "products/growth/dags/growth_job.py",
     ]
@@ -140,29 +138,3 @@ def test_main_reports_only_uncovered_modules(
     assert "posthog.schema  →  posthog/schema.py" in output
     assert "imported by posthog/dags/example.py" in output
     assert "posthog.utils" not in output
-
-
-def test_main_reports_missing_dependency_from_ee_billing_dags(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    write_file(
-        tmp_path,
-        "posthog/dags/locations/billing.py",
-        "from ee.billing.dags.customer_archetype import job\n",
-    )
-    ee_billing_dag = write_file(
-        tmp_path,
-        "ee/billing/dags/customer_archetype.py",
-        "from posthog.llm.gateway_client import get_llm_client\n",
-    )
-    write_file(tmp_path, "posthog/llm/gateway_client.py")
-    monkeypatch.setattr(check_dagster_paths, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(check_dagster_paths, "find_dag_files", lambda: [ee_billing_dag])
-    monkeypatch.setattr(check_dagster_paths, "load_filter_patterns", lambda: ["ee/billing/**"])
-
-    result = check_dagster_paths.main()
-    output = capsys.readouterr().out
-
-    assert result == 1
-    assert "posthog.llm.gateway_client  →  posthog/llm/gateway_client.py" in output
-    assert "imported by ee/billing/dags/customer_archetype.py" in output

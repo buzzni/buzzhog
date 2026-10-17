@@ -2,8 +2,8 @@
 
 Self-contained: no network, no live box. ``write_override`` only touches
 ``backend.write_file``, so a recording fake backend is enough to assert the
-generated compose override turns the admin portal on — without it, ee/urls.py
-registers no /admin route and the SPA rewrites /admin to /project/1/admin.
+generated compose override turns the admin portal on — without it, an installed
+ee app registers no /admin route and the SPA rewrites /admin to /project/1/admin.
 
     cd tools/hogbox-preview && python -m unittest discover tests
 """

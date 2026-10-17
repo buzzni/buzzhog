@@ -231,7 +231,7 @@ Usually not a bug — see [How a response actually gets stored](#how-a-response-
 
 ### "Responses show as zero in the UI but raw events exist"
 
-- **Max AI corrupted the survey definition.** Max's `edit_survey` tool (`products/surveys/backend/max_tools.py`) has two failure modes: (a) on reorder/edit it rebuilds each question from `QUESTION_TYPE_MAP` (`nps`→scale 10, `csat`→scale 5, etc.), so picking the wrong semantic type silently changes a question's scale; (b) the `id` field expects 1-indexed labels (`"1"`,`"2"`) — passing a real UUID falls through and a _fresh_ UUID is generated, so responses keyed by `$survey_response_<old_uuid>` no longer join to the question. Raw events are intact; only the definition is wrong. Fix: PATCH the `questions` array back to the original UUIDs (recoverable from the response events) and restore the question type. Tell the customer to edit question _text_ via the UI, and avoid asking Max to reorder questions on a survey with historical responses until the tool guards UUIDs.
+- **An edit replaced the question IDs.** Answers are stored under `$survey_response_<questionId>`. When a survey update sends `questions` without each question's `id`, the pre-save hook (`ensure_question_ids` in `products/surveys/backend/models.py`) gives that question a new UUID. Responses keyed by the old UUID then no longer join to the question. The raw events are intact; only the definition changed. Find the edit with `?scope=Survey&item_id=<sid>` in the activity log. Fix: PATCH the `questions` array back to the original IDs, which you can recover from the `$survey_response_<uuid>` keys on the response events, and restore any question `type` or `scale` the same edit changed.
 
 ### "Cohort count shows 0 but the cohort is populated"
 

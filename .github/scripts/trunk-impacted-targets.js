@@ -2021,7 +2021,7 @@ function computeTargets(changedFiles, context) {
             targets.add(lane)
         }
 
-        if (top === 'posthog' || top === 'clickhouse-udfs' || (top === 'ee' && segments[1] !== 'frontend')) {
+        if (top === 'posthog' || top === 'clickhouse-udfs') {
             allPyProducts()
             continue
         }
@@ -2030,7 +2030,7 @@ function computeTargets(changedFiles, context) {
         if (file.startsWith(`${AGENT_WORKSPACE_DIR}/`) && addDesktopLanes(targets, context)) {
             continue
         }
-        if (top === 'frontend' || (top === 'ee' && segments[1] === 'frontend') || top === 'packages') {
+        if (top === 'frontend' || top === 'packages') {
             allFeProducts()
             continue
         }

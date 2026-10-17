@@ -25,7 +25,6 @@ rules:
           include:
               - 'common/**/*.py'
               - 'dags/**/*.py'
-              - 'ee/**/*.py'
               - 'posthog/**/*.py'
               - 'products/**/*.py'
           exclude:

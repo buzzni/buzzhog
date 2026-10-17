@@ -83,7 +83,6 @@ rules:
       paths:
           include:
               - dags/**/*.py
-              - ee/**/*.py
               - posthog/**/*.py
               - products/**/*.py
           exclude:

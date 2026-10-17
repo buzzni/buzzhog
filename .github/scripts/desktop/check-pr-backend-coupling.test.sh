@@ -67,7 +67,7 @@ assert_result() {
 register_pr 1 "[]" products/desktop/apps/foo.ts products/desktop/README.md
 assert_result "desktop-only PR passes" 1 0 "No desktop/backend coupling detected."
 
-register_pr 2 "[]" posthog/models.py ee/billing/models.py
+register_pr 2 "[]" posthog/models.py posthog/api/team.py
 assert_result "backend-only PR is out of scope" 2 0 "No products/desktop changes"
 
 register_pr 3 "[]" products/desktop/apps/foo.ts posthog/models.py
@@ -103,8 +103,6 @@ posthog/api/insight.py|yes
 posthog/README.md|no
 rust/capture/src/main.rs|yes
 rust/capture/README.md|no
-ee/billing/models.py|yes
-ee/frontend/exports.ts|no
 common/hogql_parser/parser.cpp|yes
 products/llm_analytics/backend/api.py|yes
 frontend/src/products.json|yes

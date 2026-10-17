@@ -8,7 +8,7 @@ hogbox or a droplet. Swapping the layer changes the backend, not this file.
 
 Recipe (mount-over-image — the default, ~minutes per PR):
   - Run the ready-made published image (``ghcr.io/posthog/posthog:master``) and
-    bind-mount the PR's backend source (``posthog``/``ee``/``products``) over the
+    bind-mount the PR's backend source (``posthog``/``products``) over the
     image's ``/code``. The image is the prod Dockerfile: it runs from
     ``WORKDIR /code`` via ``./bin/docker-server`` with the frontend baked at
     ``/code/frontend/dist``. Mounting the source swaps the BACKEND code live — no
@@ -261,6 +261,9 @@ class PostHogPreviewStack:
     # and a PR that changes a proto runs against its own stubs.
     MOUNTS = [
         ("posthog", "/code/posthog"),
+        # The checkout has no ee/, so compose creates an empty ./ee on the box and mounts it
+        # over the image's /code/ee. This hides the image's ee app. Without the mask,
+        # posthog/settings imports the image's ee.apps and ee.settings into this repository's code.
         ("ee", "/code/ee"),
         ("products", "/code/products"),
         ("packages/personhog-proto/personhog", "/code/personhog"),
@@ -541,9 +544,12 @@ class PostHogPreviewStack:
             # companion settings change that reads this from the env; it's an
             # inert no-op on an image that predates it.
             "      - USE_LOCAL_SETUP=1",
-            # ee/urls.py registers /admin/* only when ADMIN_PORTAL_ENABLED is true,
-            # and ee/settings.py defaults it to DEMO or DEBUG — both false here. So
-            # without this, Django has no /admin route at all: the request falls
+            # An installed ee app registers /admin/* from ee/urls.py only when
+            # ADMIN_PORTAL_ENABLED is true, and upstream's ee/settings.py defaults it
+            # to DEMO or DEBUG, both false here. This repository has no ee/, and
+            # MOUNTS masks the image's /code/ee, so this variable has no effect until
+            # an ee app with that route exists. Without the route, Django has no
+            # /admin route at all: the request falls
             # through to the SPA, which prefixes any path it doesn't know with the
             # project id, and /admin lands on /project/1/admin. A box reaches admin
             # only over the tailnet (hogland's box-front is an internal NLB behind
