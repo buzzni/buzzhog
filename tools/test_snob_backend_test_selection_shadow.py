@@ -305,6 +305,7 @@ class TestSnobBackendTestSelectionShadow(unittest.TestCase):
             ("hogvm", "common/hogvm/python/execute.py"),
             ("personhog_stubs", "packages/personhog-proto/personhog/types/v1/person_pb2.py"),
             ("product_manifest", "products/surveys/manifest.tsx"),
+            ("backend_workflow", ".depot/workflows/ci-backend.yml"),
         ]
     )
     def test_non_python_legacy_inputs_signal_full_run(self, _name: str, path: str) -> None:

@@ -373,7 +373,7 @@ const productToModule = (product) => product.replace(/-/g, '_')
 const moduleToProduct = (module) => module.replace(/_/g, '-')
 
 // The product that owns a file path from the map, or null for a file outside
-// products/ (posthog, ee, common, tools) and for the loose files directly under
+// products/ (posthog, common, tools) and for the loose files directly under
 // products/ (conftest.py, __init__.py).
 function productOfFile(file) {
     if (!file.startsWith(PRODUCTS_DIR)) {
@@ -389,7 +389,7 @@ function productOfFile(file) {
 // product that owns a file in the map is a key, with or without cross-product
 // imports, so a reader can tell "no importers" from "not walked".
 //
-// Files outside products/ (posthog, ee, common) are dropped on both sides
+// Files outside products/ (posthog, common) are dropped on both sides
 // deliberately. See tachDependents for why routing through them would be
 // wrong, not just inconvenient. Test files stay in: a test that imports
 // another product's facade depends on that product as much as production
@@ -1720,7 +1720,7 @@ if (legacyChanged) {
         } else {
             products = [...new Set([...products, ...schemaProducts])].sort()
         }
-        // Core (posthog/, ee/, etc.) imports schema heavily; always run Django on schema changes.
+        // Core (posthog/, etc.) imports schema heavily; always run Django on schema changes.
         runLegacy = true
         runLegacyReason = 'schema'
     }

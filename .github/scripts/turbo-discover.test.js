@@ -3,8 +3,7 @@
 // Pins turbo-discover's DJANGO_SEGMENTS table to the Django pytest invocations
 // in ci-backend.yml. The table sizes the shards each segment gets, so a segment
 // listing paths the workflow no longer runs (or missing ones it does) budgets
-// wall time for a run that never happens. Both workflow copies are read: the
-// Depot mirror runs the same matrix and drifts on its own.
+// wall time for a run that never happens. Only the Depot copy exists in this fork.
 //
 // Reads the workflow rather than a fixture on purpose — the workflow is the one
 // side that can drift, and there is nothing else to compare the table against.
