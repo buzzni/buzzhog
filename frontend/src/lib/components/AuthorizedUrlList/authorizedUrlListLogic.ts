@@ -451,7 +451,6 @@ export interface authorizedUrlListLogicMeta {
         urlsKeyed: (authorizedUrls: string[], suggestions: any[]) => KeyedAppUrl[]
         launchUrl: (
             currentTeam: TeamPublicType | TeamType | null,
-            user: UserType | null,
             actionId: number | null,
             experimentId: ExperimentIdType | null,
             productTourId: string | null,

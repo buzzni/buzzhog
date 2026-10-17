@@ -1247,7 +1247,7 @@ def send_ai_observability_usage_reports(
         at: ISO format date to run the report for (defaults to previous day)
         organization_ids: Optional list of specific organization IDs to report on
     """
-    if get_ph_client() is None and not dry_run:
+    if get_usage_reports_target() is None and not dry_run:
         logger.info(
             "AI observability usage reports are off, set POSTHOG_TELEMETRY_USAGE_REPORTS and the telemetry collector"
         )

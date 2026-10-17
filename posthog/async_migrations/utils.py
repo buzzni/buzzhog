@@ -34,14 +34,17 @@ SLEEP_TIME_SECONDS = 20 if not TEST else 1
 
 def send_analytics_to_posthog(event, data):
     client = get_client()
-    if client is None or client.disabled:
+    if client is None:
         return
-    user = User.objects.filter(is_active=True).first()
-    groups = {"instance": settings.SITE_URL}
-    if user and user.current_organization:
-        data["organization_name"] = user.current_organization.name
-        groups["organization"] = str(user.current_organization.id)
+    # A disabled client still starts its consumer thread, so it needs the shutdown as well.
     try:
+        if client.disabled:
+            return
+        user = User.objects.filter(is_active=True).first()
+        groups = {"instance": settings.SITE_URL}
+        if user and user.current_organization:
+            data["organization_name"] = user.current_organization.name
+            groups["organization"] = str(user.current_organization.id)
         client.capture(distinct_id=get_machine_id(), event=event, properties=data, groups=groups)
     finally:
         client.shutdown()

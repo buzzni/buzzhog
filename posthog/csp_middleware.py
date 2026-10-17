@@ -313,11 +313,16 @@ class CSPMiddleware:
                 resource_url = "https://*.dev.posthog.dev"
 
             connect_debug_url = "ws://localhost:8234" if settings.DEBUG or settings.TEST else ""
+            # The hosts swapped in below belong to PostHog Cloud, so self-hosted installs, E2E
+            # runs and the dev environment keep the wildcards. A load from a PostHog host that is not
+            # listed there therefore fails only in production.
+            narrowed = is_cloud() and resource_url == "https://*.posthog.com" and not settings.E2E_TESTING
             # posthog-js sends to the telemetry collector and loads its extensions, the toolbar's
             # stylesheet and fonts from there. The collector can be any host the operator names.
+            # The narrowed policy names collector paths instead, because the bare origin admits every project's config script.
             telemetry_target = get_telemetry_target()
             telemetry_host_origin = telemetry_origin()
-            telemetry_source = f" {telemetry_host_origin}" if telemetry_host_origin else ""
+            telemetry_source = f" {telemetry_host_origin}" if telemetry_host_origin and not narrowed else ""
             object_storage_source = object_storage_upload_source()
             # The image exporter renders replay exports in the bare /exporter document, and a frame of
             # that render calls eval. 'report-sample' puts the first 40 characters of the evaluated
@@ -426,10 +431,6 @@ class CSPMiddleware:
                 # looks the same as a report from an app page that the browser blocks in a frame.
                 csp_parts.remove(frame_ancestors)
 
-            # The hosts below belong to PostHog Cloud, so self-hosted installs, E2E
-            # runs and the dev environment keep the wildcards. A load from a PostHog host that is not
-            # listed here therefore fails only in production.
-            narrowed = is_cloud() and resource_url == "https://*.posthog.com" and not settings.E2E_TESTING
             shadows: dict[str, list[str]] = {}
             if narrowed:
                 bundle = [bundle_origin] if bundle_origin else []

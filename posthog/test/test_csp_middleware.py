@@ -388,6 +388,9 @@ class TestCSPMiddleware(APIBaseTest):
         # The app cannot start without its bundle host.
         assert overrides["JS_URL"] in script_src
         assert "https://telemetry.example.com/array/phc_test_key/config.js" in script_src
+        # The bare collector origin would admit every project's config script, which the named paths exist to refuse.
+        assert "https://telemetry.example.com" not in {*script_src, *style_src, *font_src}
+        assert "https://telemetry.example.com" in connect_src
         assert f"https://live.{region}.posthog.com" in connect_src
         assert f"https://webhooks.{region}.posthog.com" in connect_src
         assert f"https://{region}.i.posthog.com/decide/" in connect_src
@@ -663,7 +666,11 @@ class TestViewManagedCsp(SimpleTestCase):
             ("no_policy", "/", None, True),
         ]
     )
-    @override_settings(CLOUD_DEPLOYMENT="US")
+    @override_settings(
+        CLOUD_DEPLOYMENT="US",
+        POSTHOG_TELEMETRY_HOST="https://telemetry.example.com",
+        POSTHOG_TELEMETRY_API_KEY="phc_test_key",
+    )
     def test_html_response_with_view_managed_csp(
         self, _name: str, path: str, policy: str | None, expects_reporting: bool
     ) -> None:

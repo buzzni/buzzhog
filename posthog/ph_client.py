@@ -18,6 +18,8 @@ from posthog.utils import get_instance_region
 
 logger = structlog.get_logger(__name__)
 
+_NO_COLLECTOR_API_KEY = "phc_no_telemetry_collector"
+
 
 def filter_scout_experiment_capture(message: dict[str, Any]) -> dict[str, Any] | None:
     if get_query_tags().is_scout_experiment is True:
@@ -208,8 +210,8 @@ def ph_background_capture() -> ScopedCapture:
 def get_client(region: str = "US", **kwargs: Any):
     """A dedicated client to this instance's telemetry collector, or None for an unknown region.
 
-    Without a collector (see `posthog.telemetry`) the client has no key, so the SDK keeps it disabled and it
-    sends nothing whatever `disabled` the caller passes. Callers still get a client and need no None check.
+    Without a collector (see `posthog.telemetry`) the client is disabled whatever `disabled` the caller
+    passes, so it sends nothing. Callers still get a client and need no None check.
     """
     from posthoganalytics import Posthog
 
@@ -217,10 +219,13 @@ def get_client(region: str = "US", **kwargs: Any):
         return None
     target = get_telemetry_target()
 
-    # A fresh client does not inherit the module-level `disabled` flag that apps.py sets
-    # under TEST, so without this a test that configures a collector captures to it for
-    # real. Callers can still pass `disabled` explicitly to override.
-    kwargs.setdefault("disabled", bool(settings.TEST or target is None))
+    if target is None:
+        kwargs["disabled"] = True
+    else:
+        # A fresh client does not inherit the module-level `disabled` flag that apps.py sets
+        # under TEST, so without this a test that configures a collector captures to it for
+        # real. Callers can still pass `disabled` explicitly to override.
+        kwargs.setdefault("disabled", bool(settings.TEST))
     before_send = kwargs.get("before_send")
 
     def capture_filter(message: dict[str, Any]) -> dict[str, Any] | None:
@@ -232,7 +237,9 @@ def get_client(region: str = "US", **kwargs: Any):
         kwargs["before_send"] = capture_filter
 
     return Posthog(
-        target.api_key if target else "",
+        # The SDK logs an error for every client built with an empty key, and callers build one per
+        # capture. The client is disabled without a collector, so the placeholder never reaches a request.
+        target.api_key if target else _NO_COLLECTOR_API_KEY,
         host=target.host if target else None,
         super_properties={"region": region},
         _use_ai_lane=True,

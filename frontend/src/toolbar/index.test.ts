@@ -257,6 +257,11 @@ describe('Toolbar flag loading', () => {
                 if (collector) {
                     expect(posthog.set_config).toHaveBeenCalledWith({ remote_config_refresh_interval_ms: 300000 })
                 } else {
+                    expect(posthog.init).toHaveBeenCalledWith(
+                        'fake_token',
+                        expect.objectContaining({ api_host: window.location.origin, advanced_disable_flags: true }),
+                        'ph_toolbar_internal'
+                    )
                     expect(posthog.set_config).not.toHaveBeenCalledWith({ remote_config_refresh_interval_ms: 300000 })
                 }
             } finally {

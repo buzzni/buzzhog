@@ -226,6 +226,9 @@ export function loadPostHogJS(): void {
         })
     } else {
         posthog.init('fake_token', {
+            // posthog-js defaults to a PostHog Cloud host, and calls such as getEarlyAccessFeatures and
+            // getSurveys request it even while capture is opted out. The page origin keeps those requests here.
+            api_host: window.location.origin,
             autocapture: false,
             // Pages without a project key only need `posthog` calls to be safe no-ops. Without this,
             // init() fetches remote config and flags for the placeholder token from PostHog Cloud

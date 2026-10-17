@@ -12,6 +12,7 @@ import pytest
 from unittest.mock import patch
 
 from django.conf import settings
+from django.test import override_settings
 
 from posthoganalytics import Posthog
 
@@ -232,10 +233,10 @@ def test_case_filter_narrows_eval_cases(tmp_path: Path, monkeypatch: pytest.Monk
     assert [case.input["name"] for case in run._build_eval_cases()] == ["c2"]
 
 
-@pytest.mark.parametrize("opt_out_capture", ["", "1"])
+@pytest.mark.parametrize("opt_out_capture", [False, True])
 @pytest.mark.parametrize("no_send_logs", [False, True])
 def test_run_routes_through_the_engine(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, opt_out_capture: str, no_send_logs: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, opt_out_capture: bool, no_send_logs: bool
 ) -> None:
     async def task(case: BaseEvalCase, ctx: EvalContext) -> dict[str, Any]:
         raise AssertionError("the engine is stubbed, so the task must not run")
@@ -263,13 +264,17 @@ def test_run_routes_through_the_engine(
             )
         ],
     )
-    monkeypatch.setenv("OPT_OUT_CAPTURE", opt_out_capture)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     engine = _StubEngine(canned)
     reporter = _StubReporter()
 
     with (
+        override_settings(
+            POSTHOG_TELEMETRY_HOST="https://telemetry.example.com",
+            POSTHOG_TELEMETRY_API_KEY="phc_test_key",
+            OPT_OUT_CAPTURE=opt_out_capture,
+        ),
         patch(
             "posthoganalytics.Posthog", side_effect=partial(Posthog, sync_mode=True, enable_local_evaluation=False)
         ) as create_client,
@@ -301,7 +306,7 @@ def test_run_routes_through_the_engine(
         assert ctx.posthog_evaluation_client is not None
         assert ctx.posthog_evaluation_client.capture(event="$ai_evaluation", distinct_id="after-shutdown") is None
 
-    if no_send_logs:
+    if no_send_logs or opt_out_capture:
         batch_post.assert_not_called()
         assert reporter.posthog_urls == []
     else:

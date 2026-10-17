@@ -148,6 +148,7 @@ class TestGetClientTestGuard(SimpleTestCase):
             ("collector", _COLLECTOR, False, "https://telemetry.example.com"),
             ("no_collector", {}, True, None),
             ("key_without_host", {"POSTHOG_TELEMETRY_API_KEY": "phc_test_key"}, True, None),
+            ("host_without_scheme", {**_COLLECTOR, "POSTHOG_TELEMETRY_HOST": "telemetry.example.com"}, True, None),
             ("opted_out", {**_COLLECTOR, "OPT_OUT_CAPTURE": True}, True, None),
         ]
     )
