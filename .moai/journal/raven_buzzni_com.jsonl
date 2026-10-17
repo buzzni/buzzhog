@@ -587,3 +587,8 @@
 {"ts":"2026-10-17T06:30:43Z","id":"buzzhog-75s4.6yo","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — tooling/docs ee cleanup; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T06:30:43Z","id":"buzzhog-75s4.akt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"model: anthropic/sonnet-5.5 (high — tooling/docs ee cleanup; review opus-5.5 xhigh)"}
 {"ts":"2026-10-17T06:30:43Z","id":"buzzhog-l49r","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a453ae409820d7133 (opus medium — must reconcile with the ee extension-point decision)"}
+{"ts":"2026-10-17T06:35:30Z","id":"buzzhog-kxsw","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"개발 DB의 ee 마이그레이션 기록 견디기"}
+{"ts":"2026-10-17T06:35:30Z","id":"buzzhog-kxsw.fn2","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"ee 마이그레이션 폴더가 없으면 관리 앱에서 뺀다"}
+{"ts":"2026-10-17T06:35:30Z","id":"buzzhog-kxsw","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-l49r 에서 펼쳤다 — common/migration_utils CORE_MANAGED_APPS 의 ee 앱 정리 (migrate.py, tools/hogli/tests/test_migrations.py 고정 데이터 포함) — ee 제거 전에 migrate한 개발 DB에서 migrations:sync/down 실패"}
+{"ts":"2026-10-17T06:35:30Z","id":"buzzhog-l49r","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-kxsw 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-17T06:35:39Z","id":"buzzhog-kxsw.fn2","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
