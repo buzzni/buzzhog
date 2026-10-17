@@ -19,7 +19,7 @@ Different tools use different names for the same concept:
 - **Product** — a self-contained feature area under `products/<name>/`. This is the unit of isolation, ownership, and selective testing.
 - **Django app** — the backend implementation of a product (`products/<name>/backend/`). Registered in `INSTALLED_APPS` via `AppConfig`.
 - **Turbo package** — the build/test unit defined by `package.json`. One product = one Turbo package.
-- **tach module** — the import boundary node in `tach.toml`. Maps 1:1 to a product (core code like `posthog` and `ee` are also tach modules).
+- **tach module** — the import boundary node in `tach.toml`. Maps 1:1 to a product (core code under `posthog` is also a tach module).
 
 This document uses **"product"** when talking about boundaries and architecture, and **"Django app"** only for Django-specific mechanics (models, migrations, `apps.py`).
 
@@ -537,7 +537,7 @@ def process_artifact(artifact: Artifact) -> None:
 
 ### What tach enforces
 
-Global `[[interfaces]]` blocks in `tach.toml` control which paths inside a product other modules can import. All modules — including core (`posthog`, `ee`) — sit in a single `modules` layer, so interface enforcement applies everywhere. tach will reject any import that doesn't go through the declared `expose` patterns.
+Global `[[interfaces]]` blocks in `tach.toml` control which paths inside a product other modules can import. All modules — including core (`posthog`) — sit in a single `modules` layer, so interface enforcement applies everywhere. tach will reject any import that doesn't go through the declared `expose` patterns.
 
 Products with legacy interface leaks (where core still imports internals directly) get explicit blocks in `tach.toml` and have `backend:contract-check` removed so CI doesn't treat them as safely isolated. Run `hogli product:lint` to see which products have leaks.
 

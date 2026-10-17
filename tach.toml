@@ -1297,14 +1297,13 @@ from = [
 ]
 
 # Legacy leaks — core still runs the insight-alert pipeline itself: the alert check tasks
-# under posthog/tasks/alerts/, the Temporal workflows under posthog/temporal/alerts/ and
-# posthog/temporal/ai/anomaly_investigation/, and the PostHog AI product-analytics preset
-# reach the alert models, the insight evaluation, the insight lifecycle adapter, the
-# investigation episode reader directly. The exit is moving that pipeline
-# into the product; the block drains as it moves, and keeps backend:contract-check off
-# until it is empty.
-# backend.models has a second exit of its own: pulse, dashboards, signals, the AI entity
-# search and posthog/models/organization.py import it from production code outside core, so
+# under posthog/tasks/alerts/ and the Temporal workflows under posthog/temporal/alerts/ and
+# posthog/temporal/ai/anomaly_investigation/ reach the alert models, the insight evaluation,
+# the insight lifecycle adapter and the investigation episode reader directly. The exit is
+# moving that pipeline into the product; the block drains as it moves, and keeps
+# backend:contract-check off until it is empty.
+# backend.models has a second exit of its own: pulse, dashboards, signals and
+# posthog/models/organization.py import it from production code outside core, so
 # moving the pipeline does not by itself retire that line.
 # tach interfaces have no consumer scoping, so this block opens the listed paths to every
 # module, not only to the consumers named above.

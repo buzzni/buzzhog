@@ -822,7 +822,7 @@ class IsolationChainCheck(ProductCheck):
         if facade_violations:
             detail = format_facade_imports(facade_violations)
             remedies = (
-                "move it to a wiring location (backend/hogql_queries/, backend/temporal/, "
+                "move it to a wiring location (backend/hogql_queries/, backend/temporal/, backend/tasks/ or "
                 "backend/tasks.py) if it implements a core-owned base; move it to facade/contracts.py "
                 "if it's a data/error type; or drop the turbo.json narrowing to watch everything"
             )
