@@ -13,11 +13,11 @@ Assistant: This needs analytics and visualization guidance, so I'll load both be
 Assistant: A weekly count is a governed shape, so the catalog comes first.
 [Runs `posthog:exec({"command":"call metric-list {\"limit\":100}"})`]
 Assistant: No approved metric matches, so I fall through to the query tools.
-[Runs `posthog:exec({"command":"search query-trends"})` and `posthog:exec({"command":"search read-data"})` in parallel]
-Assistant: I'll inspect both schemas.
-[Runs `posthog:exec({"command":"info query-trends"})` and `posthog:exec({"command":"info read-data-schema"})` in parallel]
-Assistant: The hinted series needs its full schema, and I need the team's events.
-[Runs `posthog:exec({"command":"schema query-trends series"})` and `posthog:exec({"command":"call read-data-schema {\"query\":{\"kind\":\"events\"}}"})` in parallel]
+[Runs `posthog:exec({"command":"search query-trends"})`]
+Assistant: I'll inspect the schema.
+[Runs `posthog:exec({"command":"info query-trends"})`]
+Assistant: The hinted series needs its full schema.
+[Runs `posthog:exec({"command":"schema query-trends series"})`]
 Assistant: I now have the inputs for the query.
 [Runs `posthog:exec({"command":"call query-trends {...}"})`]
 Assistant: [Briefly summarizes the weekly active user trend.] I'll render it so you can verify the result.
@@ -29,9 +29,9 @@ User: Create a dashboard for our key revenue metrics
 Assistant: Analytics applies. I'll load it before any other command.
 [Runs `posthog:exec({"command":"learn analytics"})`]
 Assistant: I need dashboard and query tools.
-[Runs `posthog:exec({"command":"search dashboard"})` and `posthog:exec({"command":"search execute-sql"})` in parallel]
+[Runs `posthog:exec({"command":"search dashboard"})` and `posthog:exec({"command":"search query-trends"})` in parallel]
 Assistant: I'll inspect both schemas.
-[Runs `posthog:exec({"command":"info dashboard-create"})` and `posthog:exec({"command":"info execute-sql"})` in parallel]
+[Runs `posthog:exec({"command":"info dashboard-create"})` and `posthog:exec({"command":"info query-trends"})` in parallel]
 Assistant: I have the inputs to create the dashboard.
 [Makes call commands with correct parameters]
 </example>
@@ -48,10 +48,4 @@ WRONG: Run `info feature-flag-get-all` first.
 User: Show me a trends chart of signups
 Assistant: [Runs `learn analytics visualizations`, then runs `info query-trends` and guesses the hinted series structure]
 WRONG: Run `schema query-trends series` before populating a field with a drill-down hint.
-</bad-example>
-
-<bad-example>
-User: query pageviews for the last 7 days
-Assistant: [Runs `learn analytics`, then queries the guessed `$pageview` event]
-WRONG: Confirm the event with `call read-data-schema {"query":{"kind":"events"}}` first.
 </bad-example>

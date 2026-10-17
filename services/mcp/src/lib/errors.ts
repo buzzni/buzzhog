@@ -1,6 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-import type { Schemas } from '@/api/generated'
 import { getPostHogClient } from '@/lib/posthog'
 import { getToolRecoveryHint } from '@/lib/tool-error-hints'
 import { sanitizeHeaderValue } from '@/lib/utils'
@@ -24,10 +23,19 @@ export class MCPToolError extends Error {
     }
 }
 
+export type MCPToolResultErrorType =
+    | 'validation'
+    | 'permission'
+    | 'timeout'
+    | 'memory_limit'
+    | 'rate_limited'
+    | 'api_5xx'
+    | 'internal'
+
 export class MCPToolResultError extends Error {
     constructor(
         message: string,
-        public readonly errorType: NonNullable<Schemas.MCPToolResponse['error_type']>,
+        public readonly errorType: MCPToolResultErrorType,
         public readonly errorCode?: string
     ) {
         super(message)

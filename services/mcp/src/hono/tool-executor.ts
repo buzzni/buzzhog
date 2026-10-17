@@ -45,7 +45,6 @@ import {
     type ExecCommandMeta,
     type ExecInnerCallTracker,
 } from '@/tools/exec'
-import { EXECUTE_SQL_TOOL_NAME } from '@/tools/posthogAiTools/executeSql'
 import { createRenderUiTool } from '@/tools/render-ui'
 import { skillAnalyticsProperties, skillLookupMissProperties } from '@/tools/skills/analytics'
 import { type BuiltInSkillHint, formatSkillLookupMiss, type SkillLookupMissKind } from '@/tools/skills/notFound'
@@ -53,7 +52,6 @@ import type { Context, Tool, ZodObjectAny } from '@/tools/types'
 
 import {
     getModelMissingReason,
-    trackExecuteSqlGeneration,
     trackToolCall,
     trackToolSpan,
     trackToolsList,
@@ -180,17 +178,7 @@ export class ToolExecutor {
         }
 
         const nameSet = new Set(state.allTools.map((t) => t.name))
-        const filteredTools = this.catalog.getPreBuiltEntries().filter((e) => nameSet.has(e.name))
-
-        return filteredTools.map((entry) => {
-            if (entry.name === EXECUTE_SQL_TOOL_NAME) {
-                return {
-                    ...entry,
-                    description: this.instructionsBuilder.formatExecuteSqlDescription(),
-                }
-            }
-            return entry
-        })
+        return this.catalog.getPreBuiltEntries().filter((e) => nameSet.has(e.name))
     }
 
     private findOriginalTool(toolName: string, state: ResolvedState): ListToolsResult['tools'][number] | undefined {
@@ -309,18 +297,6 @@ export class ToolExecutor {
         )
     }
 
-    // execute-sql is the one tool whose advertised description is formatted per
-    // request (the schema-discovery splice is assembled at render time) instead of served
-    // from the catalog, on both the native tools/list path and exec's `info` output.
-    // trackToolCall stamps the catalog text by default, so it needs the served text
-    // for this tool or $mcp_tool_description records words the agent never saw.
-    private servedToolDescription(toolName: string): string | undefined {
-        if (toolName === EXECUTE_SQL_TOOL_NAME) {
-            return this.instructionsBuilder.formatExecuteSqlDescription()
-        }
-        return undefined
-    }
-
     // Guarded because analytics must never break `tools/call`. The SDK only strips
     // fields whose ownership it recorded while preparing the tool list.
     private extractAnalyticsMetadata(
@@ -399,8 +375,7 @@ export class ToolExecutor {
                     ...inputShape,
                     ...errorAnalyticsProperties(classifyToolError(rejection, tool.name), rejection),
                 },
-                analyticsMeta,
-                this.servedToolDescription(tool.name)
+                analyticsMeta
             )
             return {
                 content: [{ type: 'text', text: message }],
@@ -476,19 +451,8 @@ export class ToolExecutor {
                     output_tokens: estimateResponseTokens(response),
                     ...toolResultAnalyticsProperties(response),
                 },
-                analyticsMeta,
-                this.servedToolDescription(tool.name)
+                analyticsMeta
             )
-
-            if (tool.name === EXECUTE_SQL_TOOL_NAME) {
-                void trackExecuteSqlGeneration(
-                    tool.name,
-                    validation.data,
-                    state,
-                    { durationMs: duration, isError: false },
-                    analyticsMeta
-                )
-            }
 
             void trackToolSpan(tool.name, state, {
                 durationMs: duration,
@@ -527,24 +491,10 @@ export class ToolExecutor {
                     ...errorAnalyticsProperties(classification, error),
                     ...(lookupMiss ? skillLookupMissProperties(lookupMiss.kind) : {}),
                 },
-                analyticsMeta,
-                this.servedToolDescription(tool.name)
+                analyticsMeta
             )
 
             const errorMessage = extractErrorMessage(error)
-            if (tool.name === EXECUTE_SQL_TOOL_NAME) {
-                void trackExecuteSqlGeneration(
-                    tool.name,
-                    validation.data,
-                    state,
-                    {
-                        durationMs: Date.now() - startMs,
-                        isError: true,
-                        errorMessage,
-                    },
-                    analyticsMeta
-                )
-            }
 
             void trackToolSpan(tool.name, state, {
                 durationMs: Date.now() - startMs,
@@ -580,7 +530,7 @@ export class ToolExecutor {
             skillLookupMissKind: undefined,
             resultEmpty: false,
         }
-        const resolved = this.resolveExecTool(state, execMetrics, analyticsMeta)
+        const resolved = this.resolveExecTool(state, execMetrics)
 
         const toolArgs = (params?.arguments ?? {}) as Record<string, unknown>
 
@@ -681,8 +631,7 @@ export class ToolExecutor {
                     ...(execMetrics.resultEmpty ? { mcp_result_empty: true } : {}),
                     ...toolResultAnalyticsProperties(response),
                 },
-                analyticsMeta,
-                this.servedToolDescription(execToolName())
+                analyticsMeta
             )
 
             return response
@@ -706,8 +655,7 @@ export class ToolExecutor {
                     ...errorAnalyticsProperties(classification, error),
                     ...execMetrics.commandMeta,
                 },
-                analyticsMeta,
-                this.servedToolDescription(metricTool)
+                analyticsMeta
             )
 
             const sessionUuid = await sessionUuidForError(state)
@@ -762,11 +710,7 @@ export class ToolExecutor {
         }
     }
 
-    private resolveExecTool(
-        state: ResolvedState,
-        execMetrics: ExecMetricState,
-        analyticsMeta?: ToolCallAnalyticsMeta
-    ): ResolvedTool {
+    private resolveExecTool(state: ResolvedState, execMetrics: ExecMetricState): ResolvedTool {
         const commandReference = this.instructionsBuilder.buildExecCommandReference(state)
 
         const trackInnerCall: ExecInnerCallTracker = (toolName, properties) => {
@@ -792,19 +736,6 @@ export class ToolExecutor {
             const errorMessage = properties.validation_error
                 ? properties.error_message
                 : extractErrorMessage(properties.error)
-            if (toolName === EXECUTE_SQL_TOOL_NAME && properties.input) {
-                void trackExecuteSqlGeneration(
-                    toolName,
-                    properties.input,
-                    state,
-                    {
-                        durationMs: properties.duration_ms,
-                        isError: !properties.success,
-                        errorMessage,
-                    },
-                    analyticsMeta
-                )
-            }
             void trackToolSpan(toolName, state, {
                 durationMs: properties.duration_ms,
                 isError: !properties.success,
@@ -815,20 +746,8 @@ export class ToolExecutor {
         }
         const clientContext = getEffectiveMCPClientContext(state.requestContext, state.sessionContext)
 
-        // CLI `info execute-sql` returns the tool's static description from the catalog.
-        // Override it with the same prompt tools-mode advertises, so the
-        // information_schema schema-discovery steering matches across both modes.
-        const execTools = state.allTools.map((tool) =>
-            tool.name === EXECUTE_SQL_TOOL_NAME
-                ? {
-                      ...tool,
-                      description: this.instructionsBuilder.formatExecuteSqlDescription(),
-                  }
-                : tool
-        )
-
         const execTool = createExecTool(
-            execTools,
+            state.allTools,
             state.context,
             this.instructionsBuilder.buildExecToolDescription(state),
             commandReference,

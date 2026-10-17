@@ -71,7 +71,7 @@ const API_REQUEST_TIMEOUT_MS = 2 * 60 * 1000
 // Endpoints that run analytics queries can legitimately take minutes, so they keep a
 // wide bound. It still ends a request that never answers.
 const LONG_RUNNING_API_REQUEST_TIMEOUT_MS = 10 * 60 * 1000
-const LONG_RUNNING_API_PATH = /\/(query|run_insights|mcp_tools\/execute_sql)\/$|\/(max_tools|autoresearch)\//
+const LONG_RUNNING_API_PATH = /\/(query|run_insights)\/$|\/autoresearch\//
 
 function apiRequestTimeoutMs(url: string): number {
     return LONG_RUNNING_API_PATH.test(url.split('?')[0]!) ? LONG_RUNNING_API_REQUEST_TIMEOUT_MS : API_REQUEST_TIMEOUT_MS
@@ -1434,35 +1434,6 @@ export class ApiClient {
                     method: 'POST',
                     body: JSON.stringify({ query: queryBody }),
                 })
-            },
-
-            sqlInsight: async ({ query }: { query: string }): Promise<Result<any[]>> => {
-                const requestBody = {
-                    query: query,
-                    insight_type: 'sql',
-                }
-
-                const result = await this.fetchJson<unknown[]>(
-                    `${this.baseUrl}/api/environments/${projectId}/max_tools/create_and_query_insight/`,
-                    {
-                        method: 'POST',
-                        body: JSON.stringify(requestBody),
-                    }
-                )
-
-                if (result.success) {
-                    // Ack messages don't add anything useful so let's just keep them out
-                    const filteredData = result.data.filter(
-                        (item: any) => !(item?.type === 'message' && item?.data?.type === 'ack')
-                    )
-
-                    return {
-                        success: true,
-                        data: filteredData,
-                    }
-                }
-
-                return result
             },
         }
     }

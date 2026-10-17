@@ -8,14 +8,12 @@ import {
     type ToolInfo,
 } from '@/lib/instructions'
 import { formatPrompt } from '@/lib/utils'
-import ACTIVITY_HISTORY_SQL from '@/templates/sections/activity-history-sql.md'
 import ACTIVITY_HISTORY from '@/templates/sections/activity-history.md'
 import AGENT_FEEDBACK from '@/templates/sections/agent-feedback.md'
 import ANALYSIS_ARTIFACTS from '@/templates/sections/analysis-artifacts.md'
 import BASIC_FUNCTIONALITY from '@/templates/sections/basic-functionality.md'
 import BUSINESS_KNOWLEDGE_FIRST from '@/templates/sections/business-knowledge-first.md'
 import CATALOG_TRUST_DISCOVERY from '@/templates/sections/catalog-trust-discovery.md'
-import CLI_DATA_DISCOVERY from '@/templates/sections/cli-data-discovery.md'
 import CLI_ERROR_HANDLING from '@/templates/sections/cli-error-handling.md'
 import CLI_EXAMPLES_CLAUDE from '@/templates/sections/cli-examples-claude.md'
 import CLI_EXAMPLES from '@/templates/sections/cli-examples.md'
@@ -25,7 +23,6 @@ import CLI_RENDERING from '@/templates/sections/cli-rendering.md'
 import CLI_SCHEMA_DRILLDOWN from '@/templates/sections/cli-schema-drilldown.md'
 import CLI_SYNTAX from '@/templates/sections/cli-syntax.md'
 import COMPACT_INSTRUCTIONS from '@/templates/sections/compact-instructions.md'
-import ENTITY_SCHEMA_DISCOVERY from '@/templates/sections/entity-schema-discovery.md'
 import ENV_CONTEXT from '@/templates/sections/env-context.md'
 import EXAMPLES from '@/templates/sections/examples.md'
 import EXEC_LEARN from '@/templates/sections/exec-learn.md'
@@ -50,7 +47,6 @@ const WHATS_NEW_CHANGELOG_ONLY = "Check what's new in the changelog (https://pos
 
 const PROJECT_LOOKUP =
     'Call `project-get` without an ID to read the active project: its name, id, organization, timezone, person-on-events mode, test account filter default, and enabled products. Call it before you rely on one of these, for example the timezone for a date range.'
-const GROUP_TYPES_LOOKUP = "For the project's group types, run `execute-sql` on `system.group_type_mappings`."
 
 export interface InstructionsContext {
     guidelines: string
@@ -100,9 +96,6 @@ function notebookSqlVars(ctx: InstructionsContext): Record<string, string> {
     const available = (tool: string): boolean => ctx.tools?.some(({ name }) => name === tool) ?? false
     const runAll = available('notebooks-run') ? ', or all at once with `notebooks-run`' : ''
     return {
-        throwaway_checks: available('execute-sql')
-            ? " Use `execute-sql` only for throwaway checks the notebook does not rely on, like confirming a table's columns."
-            : '',
         fix_in_place:
             available('notebooks-update-cell') && available('notebooks-delete-cell')
                 ? '- Fix a failing or wrong query in the same cell with `notebooks-update-cell`, and remove dead ends with `notebooks-delete-cell`, so the notebook keeps only the steps the conclusion rests on.'
@@ -121,10 +114,7 @@ function docsSearchAvailable(ctx: InstructionsContext): boolean {
 
 function envContextSections(ctx: InstructionsContext): string[] {
     const available = (tool: string): boolean => ctx.tools?.some(({ name }) => name === tool) ?? false
-    const lookups = [
-        ...(available('project-get') ? [PROJECT_LOOKUP] : []),
-        ...(available('execute-sql') ? [GROUP_TYPES_LOOKUP] : []),
-    ]
+    const lookups = available('project-get') ? [PROJECT_LOOKUP] : []
     return lookups.length > 0 ? [formatPrompt(ENV_CONTEXT, { env_lookups: lookups.join(' ') })] : []
 }
 
@@ -195,10 +185,7 @@ export class InstructionsFormatter {
         if (!ctx.tools?.some(({ name }) => name === 'advanced-activity-logs-list')) {
             return []
         }
-        return [
-            ACTIVITY_HISTORY,
-            ...(ctx.tools.some(({ name }) => name === 'execute-sql') ? [ACTIVITY_HISTORY_SQL] : []),
-        ]
+        return [ACTIVITY_HISTORY]
     }
 
     /** Build the system prompt for tools-mode clients (each tool registered separately). */
@@ -361,7 +348,6 @@ export class InstructionsFormatter {
                 ...(learnSection ? [learnSection] : []),
                 METRIC_DISCOVERY_COMPACT,
                 CLI_SCHEMA_DRILLDOWN,
-                CLI_DATA_DISCOVERY,
                 CLI_EXAMPLES_CLAUDE,
                 CLI_ERROR_HANDLING,
                 BASIC_FUNCTIONALITY,
@@ -394,7 +380,6 @@ export class InstructionsFormatter {
             ...(opts.learnEnabled ? [CLI_LEARN] : []),
             METRIC_DISCOVERY,
             CLI_SCHEMA_DRILLDOWN,
-            CLI_DATA_DISCOVERY,
             CLI_EXAMPLES,
             CLI_ERROR_HANDLING,
             ...(ctx.renderUiEnabled ? [CLI_RENDERING] : []),
@@ -441,7 +426,6 @@ export class InstructionsFormatter {
             available_tools: buildAvailableToolsBlock(ctx.renderUiEnabled),
             tool_domains: ctx.tools ? renderToolDomains(ctx.tools) : '',
             query_tools: ctx.queryTools ? buildQueryToolsBlock(ctx.queryTools) : '',
-            entity_schema_discovery: ENTITY_SCHEMA_DISCOVERY.trim(),
             extra_commands: opts.extraCommands ?? '',
             whats_new_check: docsSearchAvailable(ctx) ? WHATS_NEW_WITH_DOCS_SEARCH : WHATS_NEW_CHANGELOG_ONLY,
         }

@@ -140,11 +140,6 @@ describe('Tool Filtering - Features', () => {
             expectedTools: ['get-llm-total-costs-for-project'],
         },
         {
-            features: ['docs'],
-            description: 'documentation tools',
-            expectedTools: ['docs-search'],
-        },
-        {
             features: ['invalid', 'flags'],
             description: 'valid tools when mixed with invalid features',
             expectedTools: ['feature-flag-get-definition'],
@@ -389,7 +384,6 @@ describe('Tool Filtering - API Scopes', () => {
 
         // insight-query is in the hand-written TOOL_MAP and requires query:read
         expect(toolNames).toContain('insight-query')
-        expect(toolNames).toContain('execute-sql')
 
         expect(toolNames).not.toContain('dashboard-create')
     })

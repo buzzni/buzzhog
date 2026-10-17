@@ -17,14 +17,7 @@ vi.mock('@/lib/posthog', () => ({
     })),
 }))
 
-import {
-    trackExecuteSqlGeneration,
-    trackInitEvent,
-    trackSkillInvoked,
-    trackToolCall,
-    trackToolsList,
-    trackToolSpan,
-} from '@/hono/analytics'
+import { trackInitEvent, trackSkillInvoked, trackToolCall, trackToolsList, trackToolSpan } from '@/hono/analytics'
 import { MCP_EXEC_SKILLS_FEATURE_FLAG } from '@/hono/constants'
 import { InstructionsBuilder } from '@/hono/instructions'
 import type { ResolvedState } from '@/hono/request-state-resolver'
@@ -141,7 +134,6 @@ describe('Hono MCP analytics contexts', () => {
         })
         await trackInitEvent(state)
         await trackToolsList(['user-get'], state)
-        await trackExecuteSqlGeneration('execute-sql', { query: 'SELECT 1' }, state, { durationMs: 12, isError })
         await trackToolSpan('user-get', state, { input: {}, output: {}, durationMs: 12, isError })
         await trackSkillInvoked(state, { source: 'posthog', skill: 'test-skill', readKind: 'skill' })
 
@@ -165,7 +157,7 @@ describe('Hono MCP analytics contexts', () => {
                 })
             )
         }
-        expect(mockCapture).toHaveBeenCalledTimes(3)
+        expect(mockCapture).toHaveBeenCalledTimes(2)
         for (const [event] of mockCapture.mock.calls) {
             expect(event.properties.suppress_analytics).toBe(impersonated)
         }
@@ -383,68 +375,6 @@ describe('Hono MCP analytics contexts', () => {
         expect(mockCaptureToolCall.mock.calls[0]![0].properties).not.toHaveProperty('$mcp_tool_description')
     })
 
-    it('prefers the served description over the catalog text, clipped', async () => {
-        // execute-sql advertises a per-request formatted description, so stamping
-        // the catalog text would record words the agent never saw.
-        const served = 'served '.repeat(200)
-        await trackToolCall('query-logs', 5, false, makeState(), undefined, undefined, served)
-
-        const properties = mockCaptureToolCall.mock.calls[0]![0].properties
-        expect(properties.$mcp_tool_description).toBe(served.slice(0, MAX_CAPTURED_DESCRIPTION_LENGTH))
-    })
-
-    describe('trackExecuteSqlGeneration', () => {
-        it('emits an $ai_generation carrying the intent as input and the HogQL as output', async () => {
-            await trackExecuteSqlGeneration(
-                'execute-sql',
-                { query: 'SELECT count() FROM events' },
-                makeState(),
-                { durationMs: 1500, isError: false },
-                { intent: 'count yesterday signups' }
-            )
-
-            expect(mockCapture).toHaveBeenCalledTimes(1)
-            const payload = mockCapture.mock.calls[0]![0]
-            expect(payload.event).toBe('$ai_generation')
-            expect(payload.distinctId).toBe('distinct-id')
-            expect(payload.properties).toMatchObject({
-                $ai_span_name: 'execute-sql',
-                $ai_trace_id: 'session-uuid',
-                $session_id: 'session-uuid',
-                $ai_input: [{ role: 'user', content: 'count yesterday signups' }],
-                $ai_output_choices: [{ role: 'assistant', content: 'SELECT count() FROM events' }],
-                $ai_latency: 1.5,
-                $ai_is_error: false,
-                // Rides the same base MCP context as every other event, so
-                // evaluations can condition on client/session properties.
-                $mcp_client_name: 'Claude Desktop',
-            })
-        })
-
-        it('flags failed calls so evaluations can target errored SQL too', async () => {
-            await trackExecuteSqlGeneration('execute-sql', { query: 'SELECT bogus' }, makeState(), {
-                durationMs: 200,
-                isError: true,
-                errorMessage: 'Unknown table',
-            })
-
-            expect(mockCapture.mock.calls[0]![0].properties).toMatchObject({
-                $ai_is_error: true,
-                $ai_error: 'Unknown table',
-            })
-        })
-
-        it.each([
-            ['a different tool', 'query-logs', { query: 'SELECT 1' }],
-            ['a missing query', 'execute-sql', {}],
-            ['a non-string query', 'execute-sql', { query: 42 }],
-        ])('does not emit for %s', async (_case, toolName, args) => {
-            await trackExecuteSqlGeneration(toolName, args, makeState(), { durationMs: 5, isError: false })
-
-            expect(mockCapture).not.toHaveBeenCalled()
-        })
-    })
-
     describe('trackToolSpan', () => {
         it.each(['posthog_ai', 'claude'])(
             'captures model output without adding native widget data for %s',
@@ -472,27 +402,8 @@ describe('Hono MCP analytics contexts', () => {
         )
 
         it.each([
-            ['a non-execute-sql tool', 'data-catalog-metric-run', { name: 'mrr' }, true],
-            ['any other non-execute-sql tool', 'query-logs', { query: 'SELECT 1' }, true],
-            [
-                'execute-sql querying metadata',
-                'execute-sql',
-                { query: 'SELECT name FROM system.information_schema.metrics' },
-                true,
-            ],
-            ['execute-sql on plain data', 'execute-sql', { query: 'SELECT count() FROM events' }, false],
-            [
-                'execute-sql with the marker only in a string literal',
-                'execute-sql',
-                { query: "SELECT distinct_id FROM events WHERE 'information_schema' != ''" },
-                false,
-            ],
-            [
-                'execute-sql with the marker only in a comment',
-                'execute-sql',
-                { query: 'SELECT count() FROM events -- information_schema' },
-                false,
-            ],
+            ['a catalogued tool', 'data-catalog-metric-run', { name: 'mrr' }, true],
+            ['any other tool', 'query-logs', { query: 'SELECT 1' }, true],
             // A proxied vendor tool's args and result are the customer's content passing
             // through the gateway. Key-based redaction only catches credential-shaped
             // fields, so capturing the payload would put arbitrary third-party content in
@@ -520,8 +431,8 @@ describe('Hono MCP analytics contexts', () => {
             expect(payload.event).toBe('$ai_span')
             expect(payload.properties).toMatchObject({
                 $ai_span_name: 'data-catalog-metric-run',
-                // Must match the execute-sql generations' trace id, or the span
-                // detaches from the session trace evaluations are scoped to.
+                // Spans group under the MCP session uuid, so evaluations scoped to
+                // the session trace see them.
                 $ai_trace_id: 'session-uuid',
                 $session_id: 'session-uuid',
                 $ai_input_state: JSON.stringify({ name: 'mrr' }),
