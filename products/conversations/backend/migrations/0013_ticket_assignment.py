@@ -10,6 +10,7 @@ import posthog.models.utils
 class Migration(migrations.Migration):
     dependencies = [
         ("conversations", "0012_backfill_ticket_message_stats"),
+        ("access_control", "0000_rbac_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
