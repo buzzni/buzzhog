@@ -7,6 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
+        ("access_control", "0000_rbac_models"),
         ("access_control", "0001_squash_2026_09_07_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

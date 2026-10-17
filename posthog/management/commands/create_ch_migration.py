@@ -1,14 +1,16 @@
-import os
+import re
+from pathlib import Path
 
 from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 
-MIGRATION_PATH = "ee/clickhouse/migrations"
+MIGRATION_PATH = Path("posthog/clickhouse/migrations")
+MAX_MIGRATION_FILE = MIGRATION_PATH / "max_migration.txt"
 
-FILE_DEFAULT = """
-from infi.clickhouse_orm import migrations # type: ignore
-operations = []
+FILE_DEFAULT = """operations = []
 """
+
+_MIGRATION_FILE_PATTERN = re.compile(r"^(\d{4})_.+\.py$")
 
 
 # ex: python manage.py create_ch_migration <name of migration>
@@ -23,26 +25,21 @@ class Command(BaseCommand):
 
         # default to auto syntax
         if not name:
-            name = now().strftime("auto_%Y%m%d_%H%M.py")
-        else:
-            name += ".py"
+            name = now().strftime("auto_%Y%m%d_%H%M")
 
-        entries = os.listdir(MIGRATION_PATH)
+        index_label = _format_number(_next_index(MIGRATION_PATH))
+        migration_name = f"{index_label}_{name}"
+        (MIGRATION_PATH / f"{migration_name}.py").write_text(FILE_DEFAULT, encoding="utf_8")
+        MAX_MIGRATION_FILE.write_text(f"{migration_name}\n", encoding="utf_8")
 
-        idx = len(entries)
-        index_label = _format_number(idx)
-        file_name = "{}/{}_{}".format(MIGRATION_PATH, index_label, name)
-        with open(file_name, "w", encoding="utf_8") as f:
-            f.write(FILE_DEFAULT)
-        return
+
+def _next_index(migration_path: Path) -> int:
+    # Migration numbers have gaps, so counting the directory entries would reuse a number.
+    indexes = [
+        int(match.group(1)) for path in migration_path.iterdir() if (match := _MIGRATION_FILE_PATTERN.match(path.name))
+    ]
+    return max(indexes, default=-1) + 1
 
 
 def _format_number(num: int) -> str:
-    if num < 10:
-        return "000" + str(num)
-    elif num < 100:
-        return "00" + str(num)
-    elif num < 1000:
-        return "0" + str(num)
-    else:
-        return str(num)
+    return f"{num:04d}"

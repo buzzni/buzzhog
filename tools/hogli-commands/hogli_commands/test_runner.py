@@ -770,7 +770,7 @@ def _run_watch(file_path: str, extra_args: list[str]) -> None:
 
     if config.test_type == "python":
         # Use nodemon for Python, matching bin/tests behavior
-        watch_dirs = ["./posthog", "./common/hogvm/python", "./ee", "./dags", "./products"]
+        watch_dirs = ["./posthog", "./common/hogvm/python", "./dags", "./products"]
 
         # Build the inner command as a properly shell-escaped string for nodemon --exec
         inner_parts = list(config.command) + list(extra_args)

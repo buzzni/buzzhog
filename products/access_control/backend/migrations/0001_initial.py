@@ -14,6 +14,7 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("posthog", "1095_create_group_clickhouse_team"),
         ("event_definitions", "0002_schemapropertygroupproperty_is_optional_in_types"),
+        ("access_control", "0000_rbac_models"),
     ]
 
     operations = [

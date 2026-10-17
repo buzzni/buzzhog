@@ -6,37 +6,15 @@ from unittest.mock import patch
 from django.conf import settings
 from django.test import override_settings
 
-from posthog.schema import HogQLQueryModifiers, MaterializationMode, PersonsArgMaxVersion, PersonsOnEventsMode
+from posthog.schema import HogQLQueryModifiers, PersonsArgMaxVersion, PersonsOnEventsMode
 
 from posthog.hogql.modifiers import create_default_modifiers_for_team
 from posthog.hogql.query import execute_hogql_query
-from posthog.hogql.test.utils import json_dynamic_read_sql
 
 from products.cohorts.backend.models.cohort import Cohort
 
 
 class TestModifiers(BaseTest):
-    def _expected_browser_select(self, materialization_mode: MaterializationMode) -> str:
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            column = json_dynamic_read_sql("events.properties", ["$browser"])
-            source = "events_json AS events"
-            return f"SELECT {column} AS `$browser` FROM {source}"
-        elif materialization_mode == MaterializationMode.DISABLED:
-            return (
-                "SELECT replaceRegexpAll(nullIf(nullIf(JSONExtractRaw(events.properties, %(hogql_val_0)s), ''), "
-                "'null'), '^\"|\"$', '') AS `$browser` FROM events"
-            )
-        else:
-            column = "events.`mat_$browser`"
-            source = "events"
-
-        if materialization_mode == MaterializationMode.LEGACY_NULL_AS_STRING:
-            expression = f"nullIf({column}, '')"
-        else:
-            expression = f"nullIf(nullIf({column}, ''), 'null')"
-
-        return f"SELECT {expression} AS `$browser` FROM {source}"
-
     def _expected_events_person_properties_column(self) -> str:
         if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
             # Whole-blob person_properties reads are reconstructed from the JSON column; assert the
