@@ -243,7 +243,7 @@ const TOOL_CONTROL_PROPERTIES = new Set(['output_format'])
 
 /**
  * Whether a field is the wrapper a tool's whole payload sits under — the single
- * required top-level object on `query-logs`, `query-apm-spans`, `read-data-schema`
+ * required top-level object on `query-logs`, `query-apm-spans`
  * and their siblings.
  *
  * Callers flatten these: they send `{dateRange, limit}` where `{query: {dateRange,
@@ -278,7 +278,7 @@ function isPayloadWrapper(
     if (prop.type === 'object' && prop.properties) {
         return true
     }
-    // A wrapper keyed by a discriminator (`read-data-schema`'s `query`) arrives as a
+    // A wrapper keyed by a discriminator arrives as a
     // union of object variants, and gets flattened just as often.
     const variants = (prop.anyOf || prop.oneOf) as JSONSchema[] | undefined
     const nonNull = variants?.filter((variant) => variant.type !== 'null') ?? []

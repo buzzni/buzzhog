@@ -797,8 +797,8 @@ describe('RequestStateResolver MCP client contexts', () => {
     it('merges request excludeTools into catalog filter options', async () => {
         const { resolver, getFilteredTools } = makeResolverWithCatalog()
 
-        await resolver.resolve(makeProps({ excludeTools: ['docs-search'] }))
+        await resolver.resolve(makeProps({ excludeTools: ['insights-list'] }))
 
-        expect(getFilteredTools.mock.calls[0]?.[0]?.excludeTools).toEqual(expect.arrayContaining(['docs-search']))
+        expect(getFilteredTools.mock.calls[0]?.[0]?.excludeTools).toEqual(expect.arrayContaining(['insights-list']))
     })
 })

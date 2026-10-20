@@ -247,11 +247,11 @@ describe('posthog connection forwarding', () => {
             // This is the promise the tool makes: the agent passes no project id and never resolves
             // one. If the forwarded context leaked the local id, every call would hit the wrong project.
             const request = createRequestMock({ status: 200, data: { results: [[1]] } })
-            const tool = createConnectionCallTool((name) => (name === 'execute-sql' ? fakeTool(name) : undefined))
+            const tool = createConnectionCallTool((name) => (name === 'insights-list' ? fakeTool(name) : undefined))
 
             const result: any = await tool.handler(createContext(request), {
                 connection_id: '99',
-                tool: 'execute-sql',
+                tool: 'insights-list',
                 arguments: { query: 'select 1 from events limit 5' },
             })
 
@@ -272,7 +272,7 @@ describe('posthog connection forwarding', () => {
             ['a session-state tool', 'switch-project'],
         ])('refuses %s before contacting the connection', async (_case, toolName) => {
             const request = createRequestMock({ status: 200, data: {} })
-            const tool = createConnectionCallTool((name) => (name === 'execute-sql' ? fakeTool(name) : undefined))
+            const tool = createConnectionCallTool((name) => (name === 'insights-list' ? fakeTool(name) : undefined))
 
             const error = await tool
                 .handler(createContext(request), { connection_id: '99', tool: toolName, arguments: {} })
@@ -343,10 +343,10 @@ describe('posthog connection forwarding', () => {
             // Validating up front keeps a malformed call from burning a cross-region round trip and
             // coming back as an opaque 400 from the other project.
             const request = createRequestMock({ status: 200, data: {} })
-            const tool = createConnectionCallTool(() => fakeTool('execute-sql'))
+            const tool = createConnectionCallTool(() => fakeTool('insights-list'))
 
             const error: any = await tool
-                .handler(createContext(request), { connection_id: '99', tool: 'execute-sql', arguments: { q: 1 } })
+                .handler(createContext(request), { connection_id: '99', tool: 'insights-list', arguments: { q: 1 } })
                 .catch((e) => e)
 
             expect(error).toBeInstanceOf(ExecCommandError)

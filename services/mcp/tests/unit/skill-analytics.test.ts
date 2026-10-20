@@ -25,7 +25,7 @@ describe('skillAnalyticsProperties', () => {
 
     it.each([
         // Stamping a non-skill tool would put caller text on unrelated events.
-        ['a non-skill tool', 'execute-sql', { skill_name: 'conductor' }],
+        ['a non-skill tool', 'insights-list', { skill_name: 'conductor' }],
         ['skill-list, which reads no single skill', 'skill-list', { search: 'conductor' }],
         // Writes already emit `llma skill *` server-side; stamping here too would
         // give two sources that disagree.

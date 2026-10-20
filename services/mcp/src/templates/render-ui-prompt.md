@@ -1,4 +1,4 @@
-Render an interactive, explorable PostHog visualization for the user. Strongly prefer rendering whenever your answer centers on an analytics query, specific entity, or list that has a UI app — a trends or funnel result, experiment (or its results), survey (or its stats), cohort, action, error-tracking issue, session recording, trace, or workflow, plus the list view for most — so the user can see and verify it, not just read a text summary. Render in addition to your written summary, not instead of it, and not only when the user explicitly asks to "see" something.
+Render an interactive, explorable PostHog visualization for the user. Strongly prefer rendering whenever your answer centers on an analytics query, specific entity, or list that has a UI app — a trends or funnel result, survey (or its stats), cohort, action, error-tracking issue, session recording, trace, or workflow, plus the list view for most — so the user can see and verify it, not just read a text summary. Render in addition to your written summary, not instead of it, and not only when the user explicitly asks to "see" something.
 
 If the query result or harness explicitly says the user already sees an interactive view, keep your written conclusion and do not render the same result again. A UI resource on a query tool does not by itself establish that an exec call displayed the chart. Rendering is independent of query selection: keep typed runners for supported analytics, even when this separate presentation step is needed.
 
@@ -9,38 +9,38 @@ ALWAYS run `exec` first — `render-ui` is the final presentation step, never a 
 When to render (always after exec, alongside your written answer):
 
 - Show me / pull up X → its detail tool, e.g. `render-ui({ "tool_name": "survey-get", "tool_input": { "id": "abc123" } })`
-- Status, "how is X going" → `render-ui({ "tool_name": "experiment-get", "tool_input": { "id": 2 } })`
-- Lists / inventory, "what do we have" → the `*-list` tool, e.g. `render-ui({ "tool_name": "experiment-list", "tool_input": {} })`
+- Status, "how is X going" → `render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })`
+- Lists / inventory, "what do we have" → the list tool, e.g. `render-ui({ "tool_name": "surveys-get-all", "tool_input": {} })`
 - Results / stats, "is it significant", "response rate" → the results tool, e.g. `render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })`
 - Analytics queries without an inline chart → run the query with `exec` for your analysis, then render the same tool with the same validated input (not result rows), e.g. `render-ui({ "tool_name": "query-trends", "tool_input": { ... } })`
 - After a mutation (create/launch/pause/end/resolve) → the entity's detail tool, to confirm the change landed
 - Evidence mid-investigation (a recording, error issue, trace) → render it inline, e.g. `render-ui({ "tool_name": "query-error-tracking-issue", "tool_input": { "issueId": "0190-..." } })`
 
 <example>
-User: How is the "File engagement boost" experiment going?
-Assistant: [exec first: search experiment → info experiment-get → call to resolve it to id 2 and read its results]
-Assistant: <concise summary — front-runner, significance, caveats>, then renders it so the user can verify.
-[Calls render-ui({ "tool_name": "experiment-get", "tool_input": { "id": 2 } })]
+User: How is the "NPS pulse" survey going?
+Assistant: [exec first: search survey → info survey-stats → call to resolve it to id "abc123" and read its stats]
+Assistant: <concise summary — response rate, score trend, caveats>, then renders it so the user can verify.
+[Calls render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })]
 <reasoning>exec first to resolve the id and gather the numbers; render last, alongside the summary.</reasoning>
 </example>
 
 <example>
-User: What experiments are we running right now?
-Assistant: [exec first: call experiment-list to read what's running for the summary]
+User: What surveys are we running right now?
+Assistant: [exec first: call surveys-get-all to read what's running for the summary]
 Assistant: Four are running, then renders the interactive list rather than a markdown table.
-[Calls render-ui({ "tool_name": "experiment-list", "tool_input": {} })]
+[Calls render-ui({ "tool_name": "surveys-get-all", "tool_input": {} })]
 </example>
 
 <bad-example>
-User: How is the "File engagement boost" experiment going?
+User: How is the "NPS pulse" survey going?
 Assistant: [Immediately calls render-ui with a guessed id, without any exec search/info/call first]
-WRONG — render-ui is not a discovery tool. Run exec first to resolve the experiment's real id and read its results, then render — never render before exec or with a guessed input.
+WRONG — render-ui is not a discovery tool. Run exec first to resolve the survey's real id and read its stats, then render — never render before exec or with a guessed input.
 </bad-example>
 
 <bad-example>
-User: How is the "File engagement boost" experiment going?
-Assistant: [Reads the results via exec, then replies with a long text-only breakdown of every metric and never calls render-ui]
-WRONG — the answer centers on a single experiment that has a UI app (`experiment-get` is in the enum). Render it so the user can see and verify the results, then add your summary.
+User: How is the "NPS pulse" survey going?
+Assistant: [Reads the stats via exec, then replies with a long text-only breakdown of every question and never calls render-ui]
+WRONG — the answer centers on a single survey that has a UI app (`survey-stats` is in the enum). Render it so the user can see and verify the stats, then add your summary.
 </bad-example>
 
 <bad-example>

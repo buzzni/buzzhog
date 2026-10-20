@@ -84,7 +84,7 @@ describe('schema-utils', () => {
             })
 
             it('says so for a wrapper that is a union of object variants', () => {
-                // `read-data-schema` keys its shape off a `kind` discriminator.
+                // This wrapper keys its shape off a `kind` discriminator.
                 const unionQuery = {
                     anyOf: [
                         { type: 'object', properties: { kind: { const: 'events' } } },
@@ -92,7 +92,7 @@ describe('schema-utils', () => {
                     ],
                 }
 
-                expect(summarizeSchema(wrapperSchema(unionQuery), 'read-data-schema').properties.query!.hint).toContain(
+                expect(summarizeSchema(wrapperSchema(unionQuery), 'insight-query').properties.query!.hint).toContain(
                     'Every parameter goes inside it'
                 )
             })

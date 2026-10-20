@@ -1,14 +1,12 @@
 Per-page Core Web Vitals breakdown — one metric at one percentile, with pages bucketed into `good` / `needs_improvements` / `poor` bands. Mirrors the in-product **Web analytics → Web vitals** tab.
 
-# When to use this vs `query-trends` / `execute-sql`
+# When to use this vs `query-trends`
 
 Use `query-web-vitals` for **page-level** vitals questions: "which pages are slow?", "where is LCP bad?", "audit our Core Web Vitals". One call replaces a hand-written percentile query over `$web_vitals` and classifies each page against the band thresholds for you.
 
 Use `query-trends` on the `$web_vitals` event (property math on `$web_vitals_LCP_value` etc.) for a **site-wide trend over time** — this tool has no time axis; it aggregates the whole window.
 
-Reach for `execute-sql` only for shapes neither covers (e.g. per-page sample counts, device splits per page, or custom baselines).
-
-Requires the project to capture the `$web_vitals` event (`capture_performance` in posthog-js). If results come back empty, check capture with `read-data-schema` before concluding pages are fine.
+Requires the project to capture the `$web_vitals` event (`capture_performance` in posthog-js). If results come back empty, count `$web_vitals` events with `query-trends` before concluding pages are fine.
 
 # Inputs
 
@@ -29,7 +27,7 @@ Requires the project to capture the `$web_vitals` event (`capture_performance` i
 
 # Reading the result
 
-Each band lists `{path, value}` pairs. A page in `poor` at p75 on a high-traffic route is a real, citable problem even if it never changed. Percentiles on low-traffic pages wobble — corroborate a surprising result with a sample count via `execute-sql` before making strong claims. Mobile values run 2–3× desktop, so a pooled percentile can hide a mobile-only problem: when a page looks borderline, re-run with a `$device_type` filter.
+Each band lists `{path, value}` pairs. A page in `poor` at p75 on a high-traffic route is a real, citable problem even if it never changed. Percentiles on low-traffic pages wobble — avoid strong claims from a surprising result there. Mobile values run 2–3× desktop, so a pooled percentile can hide a mobile-only problem: when a page looks borderline, re-run with a `$device_type` filter.
 
 # Example
 

@@ -11,8 +11,8 @@
  * that endpoint. `ApiClient` funnels all of its traffic through one `fetch` seam, so a subclass that
  * overrides it re-routes the whole surface at once: `request`, the endpoint helpers, and anything
  * built on them. That is the translation layer this module provides, and the reason an agent can
- * call `execute-sql` on a connected EU project rather than hand-assembling
- * `POST api/projects/<id>/query/` and a HogQL envelope.
+ * call `query-trends` on a connected EU project rather than hand-assembling
+ * `POST api/projects/<id>/query/` and a query envelope.
  */
 
 import { ApiClient } from '@/api/client'

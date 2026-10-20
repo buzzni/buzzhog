@@ -18,7 +18,7 @@ Tools are opt-in: `pnpm --filter=@posthog/mcp run scaffold-yaml -- --candidates 
 
 `autoresearch-training-runs-iterations-create`, `-materialize-features`, `-artifacts-upload-create`, `-artifacts-get-create`, `-artifacts-retrieve`, `-complete-create`, `-history`.
 
-**Bring-your-own agents** — an agent that trains outside PostHog (for example on a laptop) calls `autoresearch-training-runs-create` to open a run, then the agent-facing tools above except `-materialize-features`, which writes into a PostHog sandbox; it pulls data with `execute-sql` instead. A sandbox request to open a run is refused.
+**Bring-your-own agents** — an agent that trains outside PostHog (for example on a laptop) calls `autoresearch-training-runs-create` to open a run, then the agent-facing tools above except `-materialize-features`, which writes into a PostHog sandbox; it pulls its own training data. A sandbox request to open a run is refused.
 
 **User-facing** — creating and inspecting pipelines: `autoresearch-resolve-template-create`, `-validate-create`, `-create`, `-train-create`, `-score-create`, `-list`, `-retrieve`, `-training-runs-list`, `-online-performance-retrieve` (realized metrics per model per validated date), `-suggestions-create`, `-suggestions-list` (to read the agent's response).
 

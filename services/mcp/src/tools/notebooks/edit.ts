@@ -49,7 +49,7 @@ const MarkdownEditSchema = BaseEditSchema.extend({
         .string()
         .min(1)
         .describe(
-            'Markdown text to find inside a markdown notebook. Get the current markdown with `execute-sql` from `system.notebooks.markdown`; pass the full markdown body to replace the whole notebook, or a unique markdown span to make a local edit.'
+            'Markdown text to find inside a markdown notebook. Get the current markdown from the `attrs.markdown` of the `ph-markdown-notebook` node in the `notebooks-retrieve` content; pass the full markdown body to replace the whole notebook, or a unique markdown span to make a local edit.'
         ),
     new_markdown: z
         .string()
@@ -168,7 +168,7 @@ function replaceMarkdown(currentMarkdown: string, params: MarkdownParams): strin
                 `Current markdown length: ${currentMarkdown.length} characters. ` +
                 `old_markdown length: ${params.old_markdown.length} characters. ` +
                 `old_markdown preview: ${truncateForError(params.old_markdown)}. ` +
-                'Use `execute-sql` to refresh `system.notebooks.markdown` for this short_id.'
+                'Use `notebooks-retrieve` to read the current markdown for this short_id.'
         )
     }
 

@@ -21,4 +21,4 @@ PostHog tools have lowercase kebab-case naming. Tools are organized by category:
 
 {tool_domains}
 Typical action names: list/retrieve/get/create/update/delete/query.
-Example tool names: experiment-create, feature-flag-get-all, insight-get.
+Example tool names: survey-create, feature-flag-get-all, insight-get.
