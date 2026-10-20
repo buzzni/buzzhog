@@ -97,6 +97,9 @@ import {
   decorateFlagPreview,
   decorateSurveyPreview,
   type EvidencePreview,
+  type ExperimentMetricQueryResult,
+  type ExperimentRecord,
+  experimentMetricQueries,
   formatDay,
   gridRows,
   hogqlEscape,
@@ -107,6 +110,9 @@ import {
   shapeErrorIssuePreview,
   shapeEvaluationPreview,
   shapeEventDefinitionPreview,
+  shapeExperimentExposureChart,
+  shapeExperimentPreview,
+  shapeExperimentResults,
   shapeFlagPreview,
   shapeInboxReportPreview,
   shapePersonPreview,
@@ -7815,13 +7821,6 @@ export class PostHogAPIClient {
     }
   }
 
-  /**
-   * Resolves an `evidence:<kind>/<id>` citation from an agent message to a
-   * small live summary of the object it points at. Returns null for kinds
-   * without a lookup and for ids that don't resolve, so the caller can fall
-   * back to a static reference. Query-backed kinds (hogql, insight) resolve
-   * in the UI instead, where chart shaping lives.
-   */
   /** Names of the cohorts a cohort's criteria reference, so the criteria read as prose. */
   private async resolveCohortNames(
     projectId: string,
@@ -7894,6 +7893,31 @@ export class PostHogAPIClient {
     }
   }
 
+  private async getExperimentRecord(
+    projectId: string,
+    id: number,
+  ): Promise<ExperimentRecord | null> {
+    try {
+      const urlPath = `/api/projects/${projectId}/experiments/${id}/`;
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url: new URL(`${this.api.baseUrl}${urlPath}`),
+        path: urlPath,
+      });
+      return (await response.json()) as ExperimentRecord;
+    } catch (error) {
+      if (requestErrorStatus(error) === 404) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Resolves an `evidence:<kind>/<id>` citation from an agent message to a
+   * small live summary of the object it points at. Returns null for kinds
+   * without a lookup and for ids that don't resolve, so the caller can fall
+   * back to a static reference. Query-backed kinds (hogql, insight) resolve
+   * in the UI instead, where chart shaping lives.
+   */
   async getEvidencePreview(
     kind: string,
     id: string,
@@ -7940,10 +7964,84 @@ export class PostHogAPIClient {
           gridRows(volume),
         );
       }
-      case "experiment":
-        // The experiments API is off in this backend, so there is nothing to
-        // fetch. The shapers stay for when the route returns.
-        return null;
+      case "experiment": {
+        if (numericId === null) return null;
+        // The experiments route is absent from the typed client because this
+        // repository's backend registers it only when EE is available, while
+        // PostHog Cloud serves it. Fetch it directly and treat 404 as missing.
+        const experiment = await this.getExperimentRecord(projectId, numericId);
+        if (!experiment) return null;
+        const preview = shapeExperimentPreview(experiment);
+        const primaryQueries = experimentMetricQueries(experiment, "primary");
+        const secondaryQueries = experimentMetricQueries(
+          experiment,
+          "secondary",
+        );
+        if (!experiment.start_date) {
+          return {
+            ...preview,
+            experimentResults: shapeExperimentResults(experiment, null, [], []),
+          };
+        }
+
+        const runMetricQuery = async (
+          metric: unknown,
+        ): Promise<ExperimentMetricQueryResult> => {
+          if (!metric || typeof metric !== "object") {
+            return { response: null };
+          }
+          try {
+            const response = await this.runQuery(
+              {
+                kind: "ExperimentQuery",
+                metric,
+                experiment_id: numericId,
+              },
+              { refresh: false },
+            );
+            return {
+              response: response as Schemas.ExperimentQueryResponse,
+            };
+          } catch {
+            return { response: null };
+          }
+        };
+
+        const exposureQuery = experiment.feature_flag
+          ? this.runQuery(
+              {
+                kind: "ExperimentExposureQuery",
+                experiment_id: numericId,
+                experiment_name: experiment.name,
+                exposure_criteria: experiment.exposure_criteria,
+                feature_flag: experiment.feature_flag,
+                start_date: experiment.start_date,
+                end_date: experiment.end_date,
+                holdout: experiment.holdout,
+              },
+              { refresh: false },
+            ).catch(() => null)
+          : Promise.resolve(null);
+        const [exposureResponse, primaryResults, secondaryResults] =
+          await Promise.all([
+            exposureQuery,
+            Promise.all(primaryQueries.map(runMetricQuery)),
+            Promise.all(secondaryQueries.map(runMetricQuery)),
+          ]);
+
+        const experimentExposureResponse =
+          exposureResponse as Schemas.ExperimentExposureQueryResponse | null;
+        return {
+          ...preview,
+          experimentResults: shapeExperimentResults(
+            experiment,
+            experimentExposureResponse,
+            primaryResults,
+            secondaryResults,
+          ),
+          chart: shapeExperimentExposureChart(experimentExposureResponse),
+        };
+      }
       case "error": {
         // The issue's identity plus its 30-day activity: total events, users
         // affected, and a daily-occurrence spark answering "still firing?".

@@ -18,9 +18,9 @@ import {
 import type { Schemas } from "./generated";
 
 /**
- * The experiment fields the preview shapers read. The experiments API is off
- * in this backend, so the typed client has no experiment schema; this keeps
- * the shapers compiling until the route returns.
+ * The experiment fields the preview shapers read. The typed client has no
+ * experiment schema, because this repository's backend registers the
+ * experiments route only when EE is available.
  */
 export interface ExperimentRecord {
   id?: number;
@@ -30,12 +30,17 @@ export interface ExperimentRecord {
   start_date?: string | null;
   end_date?: string | null;
   created_at?: string | null;
+  feature_flag?: unknown;
   feature_flag_key?: string | null;
+  exposure_criteria?: unknown;
+  holdout?: unknown;
   conclusion?: string | null;
   conclusion_comment?: string | null;
   parameters?: unknown;
   metrics?: unknown[] | null;
   metrics_secondary?: unknown[] | null;
+  primary_metrics_ordered_uuids?: unknown[] | null;
+  secondary_metrics_ordered_uuids?: unknown[] | null;
   saved_metrics?: Array<{
     name?: string | null;
     query?: unknown;
@@ -405,9 +410,8 @@ export function shapeExperimentPreview(
   let status: EvidencePreview["status"];
   // The API's status distinguishes paused and exposure-frozen experiments,
   // which both still have a start date and no end date, so the date range alone
-  // reads them as "Running". The generated enum is narrower than the backend's
-  // real values, so read the status as a plain string; fall back to the dates
-  // for responses without one.
+  // reads them as "Running". Fall back to the dates for responses without a
+  // status.
   const apiStatus: string | null =
     typeof experiment.status === "string" ? experiment.status : null;
   if (apiStatus === "paused" || apiStatus === "exposure_frozen") {
@@ -605,15 +609,12 @@ function orderedMetricDefinitions(
     });
   }
 
-  const experimentRecord = experiment as unknown as QueryRecord;
-  const orderKey =
+  const orderField =
     metricType === "primary"
-      ? "primary_metrics_ordered_uuids"
-      : "secondary_metrics_ordered_uuids";
-  const orderedUuids = Array.isArray(experimentRecord[orderKey])
-    ? (experimentRecord[orderKey] as unknown[]).filter(
-        (uuid): uuid is string => typeof uuid === "string",
-      )
+      ? experiment.primary_metrics_ordered_uuids
+      : experiment.secondary_metrics_ordered_uuids;
+  const orderedUuids = Array.isArray(orderField)
+    ? orderField.filter((uuid): uuid is string => typeof uuid === "string")
     : [];
   if (orderedUuids.length === 0) return definitions;
   const position = new Map(orderedUuids.map((uuid, index) => [uuid, index]));
