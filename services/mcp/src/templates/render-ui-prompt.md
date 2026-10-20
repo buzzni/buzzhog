@@ -9,7 +9,7 @@ ALWAYS run `exec` first — `render-ui` is the final presentation step, never a 
 When to render (always after exec, alongside your written answer):
 
 - Show me / pull up X → its detail tool, e.g. `render-ui({ "tool_name": "survey-get", "tool_input": { "id": "abc123" } })`
-- Status or results, "how is X going", "is it significant", "response rate" → the stats tool, e.g. `render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })`
+- Status or results, "how is X going", "is it significant", "response rate" → its stats or results tool, e.g. `render-ui({ "tool_name": "survey-stats", "tool_input": { "id": "abc123" } })`
 - Lists / inventory, "what do we have" → the list tool, e.g. `render-ui({ "tool_name": "surveys-get-all", "tool_input": {} })`
 - Analytics queries without an inline chart → run the query with `exec` for your analysis, then render the same tool with the same validated input (not result rows), e.g. `render-ui({ "tool_name": "query-trends", "tool_input": { ... } })`
 - After a mutation (create/launch/pause/end/resolve) → the entity's detail tool, to confirm the change landed
@@ -19,7 +19,7 @@ When to render (always after exec, alongside your written answer):
 User: How is the "NPS pulse" survey going?
 Assistant: [exec first: search survey → info survey-stats → call to resolve it to id "abc123" and read its stats]
 Assistant: <concise summary — response rate, score trend, caveats>, then renders it so the user can verify.
-[Calls render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })]
+[Calls render-ui({ "tool_name": "survey-stats", "tool_input": { "id": "abc123" } })]
 <reasoning>exec first to resolve the id and gather the numbers; render last, alongside the summary.</reasoning>
 </example>
 

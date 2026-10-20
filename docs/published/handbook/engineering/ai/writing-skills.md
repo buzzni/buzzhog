@@ -253,7 +253,7 @@ description: 'Everything about PostHog AI features'
 A focused skill that guides the agent through a specific workflow –
 see [`exploring-llm-traces/SKILL.md`](https://github.com/PostHog/posthog/blob/master/products/ai_observability/skills/exploring-llm-traces/SKILL.md):
 
-- Declares the exact MCP tools it relies on (`posthog:query-llm-traces-list`, `posthog:query-llm-trace`).
+- Declares the exact MCP tools it relies on, such as `posthog:query-llm-traces-list` and `posthog:query-llm-trace`.
 - Explains the `$ai_trace` / `$ai_span` / `$ai_generation` / `$ai_embedding` event hierarchy
   and how events link via `$ai_parent_id`.
 - Walks through concrete workflows (debugging a trace from a URL, cost analysis, tool-use verification)

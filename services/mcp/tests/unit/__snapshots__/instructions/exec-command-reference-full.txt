@@ -109,7 +109,7 @@ ALWAYS run `exec` first. `render-ui` is the final presentation step, never a dis
 User: How is the "NPS pulse" survey going?
 Assistant: [exec first: search/info/call to resolve it to id "abc123" and read its stats]
 Assistant: <concise summary of the stats>, then renders it so the user can verify.
-[Runs render-ui({ "tool_name": "survey-stats", "tool_input": { "survey_id": "abc123" } })]
+[Runs render-ui({ "tool_name": "survey-stats", "tool_input": { "id": "abc123" } })]
 </example>
 
 <bad-example>
