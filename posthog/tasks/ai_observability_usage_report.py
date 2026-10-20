@@ -18,24 +18,30 @@ from posthog.logging.timing import timed_log
 from posthog.models.event.new_events_schema import events_read_table, use_new_events_schema
 from posthog.models.property.util import get_property_string_expr
 from posthog.models.team.team import Team
-from posthog.ph_client import PH_US_API_KEY
 from posthog.schema_enums import AIEventType
 from posthog.tasks.report_utils import capture_event
 from posthog.tasks.utils import CeleryQueue
+from posthog.telemetry import get_usage_reports_target
 from posthog.utils import DayRange, get_instance_region, get_previous_day
 
 logger = structlog.get_logger(__name__)
 
 
 @cached(cache={})
-def get_ph_client() -> PostHogClient:
-    """Get a PostHog client instance for capturing events.
+def _usage_reports_client(host: str, api_key: str) -> PostHogClient:
+    return PostHogClient(api_key, host=host, sync_mode=True)
 
-    Shares `PH_US_API_KEY` with `internal_reporting_team_id`, which resolves the team the
-    already-reported lookup reads. A separate literal here could drift from that key, and the lookup
-    would then resolve no team, report that it cannot verify, and emit without checking.
+
+def get_ph_client() -> PostHogClient | None:
+    """The client for AI observability usage report events, or None when usage reports are off.
+
+    Sends with the same collector token that `internal_reporting_team_id` looks up, so the
+    already-reported lookup reads the project these reports land in.
     """
-    return PostHogClient(PH_US_API_KEY, sync_mode=True)
+    target = get_usage_reports_target()
+    if target is None:
+        return None
+    return _usage_reports_client(target.host, target.api_key)
 
 
 # Only team discovery reads this list: it must pick up customer-emitted core events, never
@@ -790,11 +796,14 @@ def usage_report_dispatch_lock_key(date: str) -> str:
 def internal_reporting_team_id() -> int | None:
     """The team whose events hold previously emitted reports, when this region has one.
 
-    `get_ph_client` emits with the US project's token from every region, so reports only ever land in
-    that one project and only a worker in the region hosting it can read them back. Everywhere else
-    the token matches no team. Callers must read None as "cannot verify", never as "nothing emitted".
+    `get_ph_client` emits with the collector's token, so the reports can be read back only when that
+    collector is this instance. Otherwise the token matches no team here. Callers must read None as
+    "cannot verify", never as "nothing emitted".
     """
-    return Team.objects.filter(api_token=PH_US_API_KEY).values_list("id", flat=True).first()
+    target = get_usage_reports_target()
+    if target is None:
+        return None
+    return Team.objects.filter(api_token=target.api_key).values_list("id", flat=True).first()
 
 
 @timed_log()
@@ -1176,9 +1185,11 @@ def capture_ai_observability_report(
     if not organization_id:
         raise ValueError("organization_id must be provided")
 
-    try:
-        pha_client = get_ph_client()
+    pha_client = get_ph_client()
+    if pha_client is None:
+        return
 
+    try:
         capture_event(
             pha_client=pha_client,
             name=AI_OBSERVABILITY_USAGE_EVENT,
@@ -1198,7 +1209,6 @@ def capture_ai_observability_report(
         )
 
         try:
-            pha_client = get_ph_client()
             capture_event(
                 pha_client=pha_client,
                 name="llm analytics usage report failure",
@@ -1237,15 +1247,10 @@ def send_ai_observability_usage_reports(
         at: ISO format date to run the report for (defaults to previous day)
         organization_ids: Optional list of specific organization IDs to report on
     """
-    import posthoganalytics
-
-    # Check if reports are disabled
-    are_usage_reports_disabled = posthoganalytics.feature_enabled(
-        "llm-analytics-disable-usage-reports", "internal_billing_events"
-    )
-
-    if are_usage_reports_disabled:
-        posthoganalytics.capture_exception(Exception(f"AI observability usage reports are disabled for {at}"))
+    if get_usage_reports_target() is None and not dry_run:
+        logger.info(
+            "AI observability usage reports are off, set POSTHOG_TELEMETRY_USAGE_REPORTS and the telemetry collector"
+        )
         return
 
     at_date = parser.parse(at) if at else None

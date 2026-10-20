@@ -69,7 +69,9 @@ class EarlyAccessFeature(FileSystemSyncMixin, RootTeamMixin, UUIDTModel):
         # db_constraint disabled to avoid locking the hot posthog_user table when adding this FK.
         db_constraint=False,
     )
-    assigned_role = models.ForeignKey("ee.Role", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    assigned_role = models.ForeignKey(
+        "access_control.Role", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     def __str__(self) -> str:
         return self.name

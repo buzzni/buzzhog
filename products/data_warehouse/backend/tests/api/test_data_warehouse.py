@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 
 from posthog.test.base import APIBaseTest
@@ -153,54 +153,14 @@ class TestDataWarehouseAPI(APIBaseTest):
         )
         self.assertEqual(response["Cache-Control"], "max-age=10")
 
-    @patch("products.data_warehouse.backend.presentation.views.data_warehouse.BillingManager")
-    @patch("products.data_warehouse.backend.presentation.views.data_warehouse.get_cached_instance_license")
-    def test_basic_calculation_with_billing_data(self, mock_license, mock_billing_manager):
-        """trackedBillingRows from billing; pending = db_total - tracked; totalRows = tracked + pending"""
-        endpoint = f"/api/projects/{self.team.id}/data_warehouse/total_rows_stats"
-
-        mock_billing_manager.return_value.get_billing.return_value = {
-            "billing_period": {
-                "current_period_start": "2023-08-01T00:00:00Z",
-                "current_period_end": "2023-09-01T00:00:00Z",
-                "interval": "month",
-            },
-            "usage_summary": {"rows_synced": {"usage": 100}},
-        }
-
-        source = ExternalDataSource.objects.create(
-            source_id="test-id", connection_id="conn-id", destination_id="dest-id", team=self.team, source_type="Stripe"
-        )
-        schema = ExternalDataSchema.objects.create(name="test", team=self.team, source=source)
-
-        job = ExternalDataJob.objects.create(
-            pipeline_id=source.pk,
-            schema=schema,
-            team=self.team,
-            rows_synced=150,
-            billable=True,
-        )
-        ExternalDataJob.objects.filter(pk=job.pk).update(created_at=datetime(2023, 8, 15, tzinfo=UTC))
-
-        response = self.client.get(endpoint)
-        data = response.json()
+    def test_total_rows_stats_reports_no_billing_data(self):
+        response = self.client.get(f"/api/projects/{self.team.id}/data_warehouse/total_rows_stats")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(data["tracked_billing_rows"], 100)
-        self.assertEqual(data["pending_billing_rows"], 50)
-        self.assertEqual(data["total_rows"], 150)
-
-    @patch("products.data_warehouse.backend.presentation.views.data_warehouse.BillingManager")
-    @patch("products.data_warehouse.backend.presentation.views.data_warehouse.get_cached_instance_license")
-    def test_billing_exception_returns_500(self, mock_license, mock_billing_manager):
-        endpoint = f"/api/projects/{self.team.id}/data_warehouse/total_rows_stats"
-        mock_billing_manager.return_value.get_billing.side_effect = Exception("Billing service unavailable")
-
-        response = self.client.get(endpoint)
         data = response.json()
-
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(data["error"], "An error occurred retrieving billing information")
+        self.assertFalse(data["billing_available"])
+        self.assertEqual(data["total_rows"], 0)
+        self.assertEqual(data["breakdown_of_rows_by_source"], {})
 
     def test_job_stats_default_7_days(self):
         """Test job_stats endpoint with default 7-day period"""

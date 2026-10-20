@@ -10,7 +10,7 @@ import posthog.models.utils
 class Migration(migrations.Migration):
     dependencies = [
         ("conversations", "0012_backfill_ticket_message_stats"),
-        ("ee", "0014_roles_memberships_and_resource_access"),
+        ("access_control", "0000_rbac_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         null=True,
                         on_delete=django.db.models.deletion.CASCADE,
-                        to="ee.role",
+                        to="access_control.role",
                     ),
                 ),
             ],

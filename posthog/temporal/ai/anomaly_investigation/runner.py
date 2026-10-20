@@ -45,13 +45,6 @@ MAX_TOOL_CALLS = 10
 AGENT_MODEL = "claude-sonnet-5"
 FINAL_REPORT_TOOL_NAME = "submit_investigation_report"
 MAX_TOOL_RESULT_CHARS = 12_000  # ~3K tokens per call — keeps 10 calls well under the context limit.
-# Sonnet 5 runs adaptive thinking by default, which counts against max_tokens —
-# leave headroom so a thinking-heavy turn can't truncate the final report.
-MAX_OUTPUT_TOKENS = 8192
-# Per-request cap. The surrounding Temporal activity has its own (longer) deadline;
-# this guards against a single stuck HTTP call hanging for the whole activity budget.
-# Sized for adaptive-thinking turns, which run longer than plain tool-call turns.
-LLM_REQUEST_TIMEOUT_SECONDS = 180.0
 
 
 ToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
@@ -305,6 +298,10 @@ class _InvestigationRunner:
         return _result(report, self.tool_calls_used)
 
 
+def _build_llm(*, team: Team, user: User) -> Any:
+    raise RuntimeError("Anomaly investigation needs an LLM client, which this installation does not provide.")
+
+
 async def run_investigation(
     *,
     team: Team,
@@ -320,10 +317,6 @@ async def run_investigation(
     handle on the insight and detector_config. ``heartbeat`` is invoked once per
     iteration so the enclosing Temporal activity stays alive during long LLM calls.
     """
-    # Imported here so the workflow module does not require the ee package at import time
-    # (Temporal workflow sandbox restrictions).
-    from ee.hogai.llm import MaxChatAnthropic
-
     toolkit = InvestigationToolkit(team=team, alert=alert)
     handlers: dict[str, ToolHandler] = {
         "run_hogql_query": lambda raw: toolkit.run_hogql_query(RunHogQLQueryArgs.model_validate(raw)),
@@ -378,22 +371,7 @@ async def run_investigation(
         "input_schema": InvestigationReport.model_json_schema(),
     }
 
-    # No temperature: Sonnet 5 rejects non-default sampling params with a 400.
-    llm = MaxChatAnthropic(
-        model=AGENT_MODEL,
-        team=team,
-        user=user,
-        billable=True,
-        inject_context=True,
-        # One in-request retry absorbs a transient blip cheaply; the Temporal activity retry
-        # (maximum_attempts=2) is the outer safety net. Keeping this low bounds the aggregate
-        # LLM wall-clock so a run stays inside the activity's start_to_close deadline instead of
-        # being killed mid-flight (which would skip the fallback report and re-run the whole agent).
-        max_retries=1,
-        max_tokens=MAX_OUTPUT_TOKENS,
-        default_request_timeout=LLM_REQUEST_TIMEOUT_SECONDS,
-        posthog_properties={"ai_product": "alert_investigation_agent"},
-    )
+    llm = _build_llm(team=team, user=user)
     llm_with_tools = llm.bind_tools(
         [
             *(

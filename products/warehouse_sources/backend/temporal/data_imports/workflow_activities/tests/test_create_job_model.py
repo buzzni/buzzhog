@@ -636,9 +636,8 @@ class TestCreateJobActivityDeletedSourceOrSchema:
 class TestCreateJobActivityPrepareRunOutputs:
     @parameterized.expand(
         [
-            ("non_billable_run_is_never_limited", False, True, False),
-            ("billable_run_under_quota", True, False, False),
-            ("billable_run_over_quota", True, True, True),
+            ("non_billable_run_is_never_limited", False),
+            ("billable_run_is_never_limited", True),
         ]
     )
     @patch(f"{MODULE}.close_old_connections")
@@ -647,8 +646,6 @@ class TestCreateJobActivityPrepareRunOutputs:
         self,
         _name: str,
         billable: bool,
-        team_limited: bool,
-        expect_hit: bool,
         mock_activity: MagicMock,
         _mock_close_connections: MagicMock,
     ) -> None:
@@ -660,18 +657,14 @@ class TestCreateJobActivityPrepareRunOutputs:
         # Past the free window for a new source, so only the quota decides.
         ExternalDataSource.objects.filter(id=schema.source_id).update(created_at=timezone.now() - dt.timedelta(days=30))
 
-        with patch(
-            "products.warehouse_sources.backend.temporal.data_imports.workflow_activities.check_billing_limits.is_team_limited",
-            return_value=team_limited,
-        ):
-            result = create_external_data_job_model_activity(
-                CreateExternalDataJobModelActivityInputs(
-                    team_id=team.id, schema_id=schema.id, source_id=schema.source_id, billable=billable
-                )
+        result = create_external_data_job_model_activity(
+            CreateExternalDataJobModelActivityInputs(
+                team_id=team.id, schema_id=schema.id, source_id=schema.source_id, billable=billable
             )
+        )
 
         assert result.billing_limit_checked is True
-        assert result.hit_billing_limit is expect_hit
+        assert result.hit_billing_limit is False
         assert ExternalDataJob.objects.filter(schema_id=schema.id).count() == 1
 
     @parameterized.expand(

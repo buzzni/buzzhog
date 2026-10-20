@@ -1,11 +1,11 @@
 from uuid import uuid4
 
+from posthog.test.base import APIBaseTest
+
 from rest_framework import status
 
 from products.experiments.backend.models.experiment import Experiment, ExperimentSavedMetric, ExperimentToSavedMetric
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
-
-from ee.api.test.base import APILicensedTest
 
 LEGACY_TRENDS_METRIC = {
     "kind": "ExperimentTrendsQuery",
@@ -17,7 +17,7 @@ LEGACY_FUNNEL_QUERY = {
 }
 
 
-class TestExperimentMigrateEndpoint(APILicensedTest):
+class TestExperimentMigrateEndpoint(APIBaseTest):
     def setUp(self) -> None:
         super().setUp()
         self.experiment = Experiment.objects.create(

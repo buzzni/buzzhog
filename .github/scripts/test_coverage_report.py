@@ -83,11 +83,11 @@ def test_convert_core_data_combines_both_roots_under_the_core_config(
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".github").mkdir()
     shutil.copy(SCRIPT_PATH.parent.parent / "coverage-core.cfg", tmp_path / ".github" / "coverage-core.cfg")
-    for source in ("posthog/api/auth.py", "ee/api/auth.py"):
+    for source in ("posthog/api/auth.py", "common/api/auth.py"):
         (tmp_path / source).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / source).write_text("x = 1\ny = 2\n")
     core_artifacts = tmp_path / "core-artifacts"
-    shards = [{"posthog/api/auth.py": {1}}, {"posthog/api/auth.py": {2}, "ee/api/auth.py": {1}}]
+    shards = [{"posthog/api/auth.py": {1}}, {"posthog/api/auth.py": {2}, "common/api/auth.py": {1}}]
     _write_shards(core_artifacts, ".coverage", shards)
 
     coverage_report.convert_core_data(core_artifacts)
@@ -95,24 +95,27 @@ def test_convert_core_data_combines_both_roots_under_the_core_config(
 
     assert {path: sorted(lines) for path, lines in covered.items()} == {
         "posthog/api/auth.py": [1, 2],
-        "ee/api/auth.py": [1],
+        "common/api/auth.py": [1],
     }
-    assert sorted(valid) == ["ee/api/auth.py", "posthog/api/auth.py"]
+    assert sorted(valid) == ["common/api/auth.py", "posthog/api/auth.py"]
 
 
 # ---------- resolve_core_path ----------
 
 
 def test_resolve_core_path_passes_through_already_rooted_filenames() -> None:
-    assert coverage_report.resolve_core_path("posthog/api/auth.py", ["posthog", "ee"], {}) == "posthog/api/auth.py"
+    assert coverage_report.resolve_core_path("posthog/api/auth.py", ["posthog", "common"], {}) == "posthog/api/auth.py"
 
 
 def test_resolve_core_path_resolves_against_the_owning_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "ee" / "api").mkdir(parents=True)
-    (tmp_path / "ee" / "api" / "only_in_ee.py").touch()
+    (tmp_path / "common" / "api").mkdir(parents=True)
+    (tmp_path / "common" / "api" / "only_in_common.py").touch()
 
-    assert coverage_report.resolve_core_path("api/only_in_ee.py", ["posthog", "ee"], {}) == "ee/api/only_in_ee.py"
+    assert (
+        coverage_report.resolve_core_path("api/only_in_common.py", ["posthog", "common"], {})
+        == "common/api/only_in_common.py"
+    )
 
 
 def test_resolve_core_path_falls_back_to_first_source_when_no_candidate_exists(
@@ -120,7 +123,7 @@ def test_resolve_core_path_falls_back_to_first_source_when_no_candidate_exists(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    assert coverage_report.resolve_core_path("nowhere.py", ["posthog", "ee"], {}) == "posthog/nowhere.py"
+    assert coverage_report.resolve_core_path("nowhere.py", ["posthog", "common"], {}) == "posthog/nowhere.py"
 
 
 def test_resolve_core_path_warns_and_prefers_posthog_when_a_path_collides(
@@ -131,18 +134,18 @@ def test_resolve_core_path_warns_and_prefers_posthog_when_a_path_collides(
     monkeypatch.chdir(tmp_path)
     (tmp_path / "posthog" / "api").mkdir(parents=True)
     (tmp_path / "posthog" / "api" / "authentication.py").touch()
-    (tmp_path / "ee" / "api").mkdir(parents=True)
-    (tmp_path / "ee" / "api" / "authentication.py").touch()
+    (tmp_path / "common" / "api").mkdir(parents=True)
+    (tmp_path / "common" / "api" / "authentication.py").touch()
 
-    resolved = coverage_report.resolve_core_path("api/authentication.py", ["ee", "posthog"], {})
+    resolved = coverage_report.resolve_core_path("api/authentication.py", ["common", "posthog"], {})
 
     assert resolved == "posthog/api/authentication.py"
     assert "::warning::" in capsys.readouterr().err
 
 
 def test_resolve_core_path_caches_by_filename() -> None:
-    cache: dict[str, str] = {"api/auth.py": "ee/api/auth.py"}
-    assert coverage_report.resolve_core_path("api/auth.py", ["posthog"], cache) == "ee/api/auth.py"
+    cache: dict[str, str] = {"api/auth.py": "common/api/auth.py"}
+    assert coverage_report.resolve_core_path("api/auth.py", ["posthog"], cache) == "common/api/auth.py"
 
 
 # ---------- compress_ranges / format_line_ranges ----------
@@ -182,7 +185,6 @@ def test_format_line_ranges(numbers: list[int], expected: str) -> None:
     [
         (["frontend/src/scene.tsx", "docs/readme.md"], False),  # frontend-only PR → safe to clear stale section
         (["posthog/api/auth.py"], True),
-        (["ee/api/auth.py"], True),
         (["products/error_tracking/backend/api.py"], True),
         (["products/error_tracking/frontend/scene.tsx"], False),  # product frontend is not measured
         (["posthog/README.md"], False),  # non-.py under a backend root is not measured

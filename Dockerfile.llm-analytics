@@ -142,7 +142,6 @@ COPY common/hogvm common/hogvm/
 COPY common/migration_utils common/migration_utils/
 COPY posthog posthog/
 COPY products/ products/
-COPY ee ee/
 COPY bin/temporal-django-worker bin/temporal-django-worker
 
 RUN chmod +x bin/temporal-django-worker

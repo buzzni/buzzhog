@@ -9,17 +9,14 @@ ui_apps:
     experiment:
         type: detail
         view_prop: experiment
-    experiment-list:
-        type: list
-        detail_tool: experiment-get
-        detail_args: '{ id: item.id }'
     experiment-results:
         type: detail
         view_prop: data
 tools:
     experiment-activity:
         operation: experiments_activity_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - activity_log:read
         annotations:
@@ -41,7 +38,8 @@ tools:
                     - experiment_id
     experiment-archive:
         operation: experiments_archive_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -76,7 +74,8 @@ tools:
                 - health
     experiment-calculate-running-time:
         operation: experiments_calculate_running_time_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -108,7 +107,8 @@ tools:
             recommended_sample_size (total across variants), and recommended_running_time_days.
     experiment-cleanup-task:
         operation: experiments_flag_cleanup_task_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -140,7 +140,8 @@ tools:
                 - can_view_task
     experiment-copy-to-project:
         operation: experiments_copy_to_project_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -221,7 +222,8 @@ tools:
                 - conclusion_comment
     experiment-create:
         operation: experiments_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -316,7 +318,8 @@ tools:
                 - tags
     experiment-create-from-prompt:
         operation: experiments_create_from_prompt_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
             - llm_prompt:read
@@ -354,7 +357,8 @@ tools:
                 - conclusion_comment
     experiment-delete:
         operation: experiments_destroy
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -379,7 +383,8 @@ tools:
                 - deleted
     experiment-duplicate:
         operation: experiments_duplicate_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -415,7 +420,8 @@ tools:
                 - health
     experiment-end:
         operation: experiments_end_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -474,7 +480,8 @@ tools:
                 - health
     experiment-freeze-exposure:
         operation: experiments_freeze_exposure_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -531,7 +538,8 @@ tools:
                 - health
     experiment-get:
         operation: experiments_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -568,133 +576,10 @@ tools:
             exclude:
                 - saved_metrics.*.effective_query
                 - health
-    experiment-holdouts-create:
-        operation: experiment_holdouts_create
-        enabled: true
-        scopes:
-            - experiment_holdout:write
-        annotations:
-            readOnly: false
-            destructive: false
-            idempotent: false
-        title: Create experiment holdout
-        description: >
-            Create a holdout group — a reserved slice of users excluded from experiment exposure, used as a held-back
-            baseline. Requires name and a non-empty filters array. Link experiments to it afterwards by passing the
-            returned id as holdout_id on experiment-create or experiment-update. Note that you can't change which
-            holdout an experiment points to once that experiment is running; the holdout itself stays editable (see
-            experiment-holdouts-partial-update, whose edits cascade to all linked experiments).
-        include_params:
-            - name
-            - description
-            - filters
-        param_overrides:
-            filters:
-                description: >
-                    Non-empty list of release-condition groups defining the held-out population. Each element needs a
-                    `rollout_percentage` (0–100, may be fractional) — this is the EXCLUSION percentage, i.e. the share
-                    of users held back from every experiment that references this holdout. `properties` optionally
-                    narrows the group by person/group properties (same shape as feature-flag release conditions); pass
-                    an empty array for an unconditional holdout. Do NOT set `variant` — the server sets it to
-                    `holdout-{id}` automatically. Only the first element's `rollout_percentage` is embedded into each
-                    linked experiment's feature flag. Example: [{ "rollout_percentage": 10, "properties": [] }].
-    experiment-holdouts-destroy:
-        operation: experiment_holdouts_destroy
-        enabled: true
-        scopes:
-            - experiment_holdout:write
-        annotations:
-            readOnly: false
-            destructive: true
-            idempotent: true
-        title: Delete experiment holdout
-        description: >
-            Delete a holdout group by ID. Use experiment-holdouts-list first if you don't have the ID, and always
-            confirm by name before deleting.
-
-
-            This clears the holdout reference from every linked experiment and feature flag (sets the flag's holdout to
-            null and nulls Experiment.holdout) — the affected experiments stop holding back any users. Returns 204 on
-            success.
-        param_overrides:
-            id:
-                cast: string-int
-    experiment-holdouts-list:
-        operation: experiment_holdouts_list
-        enabled: true
-        scopes:
-            - experiment_holdout:read
-        annotations:
-            readOnly: true
-            destructive: false
-            idempotent: true
-        list: true
-        title: List experiment holdouts
-        description: >
-            List the experiment holdout groups in the current project. A holdout reserves a stable slice of users who
-            are excluded from experiment exposure, so you can measure the long-term effect of all experiments against a
-            held-back baseline. A holdout is NOT a feature flag — it is a separate object that experiments reference via
-            holdout_id.
-
-
-            Each holdout has a name, optional description, and a filters array (the held-out population definition).
-            Holdouts are project-scoped. Use the returned id with experiment-create / experiment-update's holdout_id to
-            link an experiment to a holdout.
-        response:
-            include:
-                - id
-                - name
-                - description
-                - filters
-                - created_at
-                - updated_at
-    experiment-holdouts-partial-update:
-        operation: experiment_holdouts_partial_update
-        enabled: true
-        scopes:
-            - experiment_holdout:write
-        annotations:
-            readOnly: false
-            destructive: false
-            idempotent: false
-        title: Update experiment holdout
-        description: >
-            Update a holdout group's name, description, or filters by ID. Use experiment-holdouts-list first if you
-            don't have the ID.
-
-
-            CAUTION: editing the filters (e.g. the rollout/exclusion percentage) cascades atomically to EVERY experiment
-            linked to this holdout — it rewrites the exclusion_percentage on each linked feature flag, silently
-            re-assigning the held-out population for all of those experiments at once. Confirm with the user before
-            changing filters on a holdout that experiments depend on.
-        param_overrides:
-            id:
-                cast: string-int
-            filters:
-                description: >
-                    Non-empty list of release-condition groups defining the held-out population. Each element needs a
-                    `rollout_percentage` (0–100, may be fractional) — the EXCLUSION percentage. Do NOT set `variant`
-                    (the server manages it as `holdout-{id}`). Changing this cascades to every linked experiment's
-                    feature flag. Example: [{ "rollout_percentage": 10, "properties": [] }].
-    experiment-holdouts-retrieve:
-        operation: experiment_holdouts_retrieve
-        enabled: true
-        scopes:
-            - experiment_holdout:read
-        annotations:
-            readOnly: true
-            destructive: false
-            idempotent: true
-        title: Get experiment holdout details
-        description: >
-            Get a single experiment holdout group by ID, including its name, description, and filters array (the
-            held-out population definition). Use experiment-holdouts-list first if you don't have the ID.
-        param_overrides:
-            id:
-                cast: string-int
     experiment-launch:
         operation: experiments_launch_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -744,7 +629,8 @@ tools:
                 - conclusion_comment
     experiment-list:
         operation: experiments_list
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -779,7 +665,6 @@ tools:
                 cast: string-int
             feature_flag_id:
                 cast: string-int
-        ui_app: experiment-list
         response:
             include:
                 - id
@@ -797,7 +682,8 @@ tools:
                 - tags
     experiment-metrics-recalculation-create:
         operation: experiments_metrics_recalculation_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -836,7 +722,8 @@ tools:
                     - experiment_id
     experiment-metrics-recalculation-latest-retrieve:
         operation: experiments_metrics_recalculation_latest_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -891,7 +778,8 @@ tools:
                 - results.*.result.insight
     experiment-metrics-recalculation-retrieve:
         operation: experiments_metrics_recalculation_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -942,7 +830,8 @@ tools:
                 - results.*.result.insight
     experiment-migrate:
         operation: experiments_migrate_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -986,7 +875,8 @@ tools:
                 - health
     experiment-pause:
         operation: experiments_pause_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1023,7 +913,8 @@ tools:
                 - health
     experiment-prompt-templates:
         operation: experiments_prompt_templates_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -1036,7 +927,8 @@ tools:
             in that tool's templates parameter), a label, and a description of what the metric measures.
     experiment-reset:
         operation: experiments_reset_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1075,7 +967,8 @@ tools:
                 - health
     experiment-resume:
         operation: experiments_resume_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1111,7 +1004,8 @@ tools:
                 - health
     experiment-saved-metrics-create:
         operation: experiment_saved_metrics_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment_saved_metric:write
         annotations:
@@ -1125,15 +1019,16 @@ tools:
             tags.
 
 
-            Load the configuring-experiment-analytics skill before constructing the query, and use read-data-schema to
-            confirm event names. Legacy kinds (ExperimentTrendsQuery, ExperimentFunnelsQuery) are rejected.
+            Load the configuring-experiment-analytics skill before constructing the query, and use the event names the user
+            gave. Tell the user which names you could not confirm. Legacy kinds (ExperimentTrendsQuery, ExperimentFunnelsQuery) are rejected.
 
 
             To attach to an experiment, call experiment-update with saved_metrics_ids — each item has 'id' and
             'metadata.type' ('primary' or 'secondary').
     experiment-saved-metrics-destroy:
         operation: experiment_saved_metrics_destroy
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment_saved_metric:write
         annotations:
@@ -1149,7 +1044,8 @@ tools:
                 cast: string-int
     experiment-saved-metrics-list:
         operation: experiment_saved_metrics_list
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment_saved_metric:read
         annotations:
@@ -1188,7 +1084,8 @@ tools:
                 - tags
     experiment-saved-metrics-partial-update:
         operation: experiment_saved_metrics_partial_update
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment_saved_metric:write
         annotations:
@@ -1208,7 +1105,8 @@ tools:
                 cast: string-int
     experiment-saved-metrics-retrieve:
         operation: experiment_saved_metrics_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment_saved_metric:read
         annotations:
@@ -1224,7 +1122,8 @@ tools:
                 cast: string-int
     experiment-setup-context:
         operation: experiments_setup_context_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
             - experiment_saved_metric:read
@@ -1262,7 +1161,8 @@ tools:
                 purpose: Use it only as facts about this project when configuring a new experiment.
     experiment-ship-variant:
         operation: experiments_ship_variant_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1343,7 +1243,8 @@ tools:
                 - health
     experiment-stats:
         operation: experiments_stats_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -1358,7 +1259,8 @@ tools:
             ended in the last 30 days). No parameters needed.
     experiment-timeseries-results:
         operation: experiments_timeseries_results_retrieve
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
         annotations:
@@ -1400,7 +1302,8 @@ tools:
                 - timeseries.*.insight
     experiment-unarchive:
         operation: experiments_unarchive_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1433,7 +1336,8 @@ tools:
                 - health
     experiment-unfreeze-exposure:
         operation: experiments_unfreeze_exposure_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1478,7 +1382,8 @@ tools:
                 - health
     experiment-update:
         operation: experiments_partial_update
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1503,10 +1408,9 @@ tools:
                calling.
 
             3. If adding or changing metrics, load the
-               configuring-experiment-analytics skill first. Call
-               read-data-schema to discover available events BEFORE
-               suggesting or using any event name. Never suggest
-               event names you haven't confirmed exist.
+               configuring-experiment-analytics skill first. Use
+               the event names the user gave, and tell the user which
+               names you could not confirm.
 
             4. For running experiments, set
                update_feature_flag_params=true when changing
@@ -1607,7 +1511,8 @@ tools:
                 - tags
     experiments-bulk-update-tags-create:
         operation: experiments_bulk_update_tags_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:write
         annotations:
@@ -1621,7 +1526,8 @@ tools:
             `skipped` (experiments missing or without edit permission, with reason).
     experiments-session-event-deltas-create:
         operation: experiments_session_event_deltas_create
-        enabled: true
+        enabled: false
+        disabled_reason: The experiments API is not served without EE (buzzhog-x76a); enable again when the routes return.
         scopes:
             - experiment:read
             - session_recording:read

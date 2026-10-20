@@ -2,7 +2,7 @@ import uuid
 from typing import Any
 
 import pytest
-from posthog.test.base import ClickhouseTestMixin
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin
 
 from products.actions.backend.models.action import Action
 from products.cdp.backend.api.hooks import create_zapier_hog_function, valid_domain
@@ -13,11 +13,10 @@ from products.cdp.backend.templates.hog_function_template import sync_template_t
 from products.cdp.backend.templates.zapier.template_zapier import template as template_zapier
 
 from common.hogvm.python.operation import HOGQL_BYTECODE_VERSION
-from ee.api.test.base import APILicensedTest
 
 
 @pytest.mark.usefixtures("unittest_snapshot")
-class TestHooksAPI(ClickhouseTestMixin, APILicensedTest):
+class TestHooksAPI(ClickhouseTestMixin, APIBaseTest):
     snapshot: Any
     action: Action
 

@@ -41,17 +41,11 @@ def ensure_only_new_column_exists(database, table_name, old_column_name, new_col
 
 
 def materialize_session_and_window_id(database):
-    try:
-        from ee.clickhouse.materialized_columns.columns import materialize
-    except ImportError:
-        return
-
     properties = ["$session_id", "$window_id"]
     for property_name in properties:
         current_materialized_column = get_materialized_column_for_property("events", "properties", property_name)
-        # If the column is not materialized, materialize it
         if current_materialized_column is None:
-            materialize("events", property_name, property_name)
+            continue
 
         # Now, we need to clean up any potentail inconsistencies with existing column names
         # Possible states are:

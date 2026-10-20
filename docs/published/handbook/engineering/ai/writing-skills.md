@@ -122,7 +122,7 @@ The rule of thumb: prefer a small set of focused skills, each with rich `referen
 ### Referencing MCP tools in skills
 
 When a skill references an MCP tool, use the `posthog:` namespace prefix
-(e.g. `posthog:execute-sql`, `posthog:feature-flag-get-all`).
+(e.g. `posthog:query-trends`, `posthog:feature-flag-get-all`).
 This matches how tools appear to agents consuming the PostHog MCP server
 and helps agents resolve tool names unambiguously.
 
@@ -166,7 +166,7 @@ Every skill entry point must have YAML frontmatter with `name` and `description`
 ```yaml
 ---
 name: querying-posthog-data
-description: 'Required reading before writing any HogQL/SQL or calling execute-sql against PostHog...'
+description: 'Required reading before writing any HogQL/SQL against PostHog...'
 ---
 ```
 
@@ -253,7 +253,7 @@ description: 'Everything about PostHog AI features'
 A focused skill that guides the agent through a specific workflow –
 see [`exploring-llm-traces/SKILL.md`](https://github.com/PostHog/posthog/blob/master/products/ai_observability/skills/exploring-llm-traces/SKILL.md):
 
-- Declares the exact MCP tools it relies on (`posthog:query-llm-traces-list`, `posthog:query-llm-trace`, `posthog:execute-sql`).
+- Declares the exact MCP tools it relies on, such as `posthog:query-llm-traces-list` and `posthog:query-llm-trace`.
 - Explains the `$ai_trace` / `$ai_span` / `$ai_generation` / `$ai_embedding` event hierarchy
   and how events link via `$ai_parent_id`.
 - Walks through concrete workflows (debugging a trace from a URL, cost analysis, tool-use verification)
@@ -319,7 +319,7 @@ Three global functions are available in all `.j2` templates:
 Imports a Pydantic model by its fully-qualified path and returns its JSON Schema:
 
 ```jinja2
-{{ pydantic_schema("products.feature_flags.backend.max_tools.FeatureFlagCreationSchema") }}
+{{ pydantic_schema("posthog.schema.ExperimentMetric") }}
 ```
 
 Changes to the Pydantic model automatically update the skill output on the next build.

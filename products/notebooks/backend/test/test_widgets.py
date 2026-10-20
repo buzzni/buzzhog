@@ -1400,7 +1400,6 @@ class TestWidgetData(APIBaseTest):
         generation_id = uuid4()
 
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             patch("products.notebooks.backend.widgets.start_widget_generation_workflow") as start_workflow,
             self.captureOnCommitCallbacks(execute=True),
         ):
@@ -1426,7 +1425,6 @@ class TestWidgetData(APIBaseTest):
         generation_id = uuid4()
 
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             patch(
                 "products.notebooks.backend.widgets.start_widget_generation_workflow",
                 side_effect=RuntimeError("dispatch failed"),
@@ -1474,7 +1472,6 @@ class TestWidgetData(APIBaseTest):
             "expected_current_version_id": str(version.id),
         }
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             patch("products.notebooks.backend.widgets.start_widget_generation_workflow") as workflow,
             self.captureOnCommitCallbacks(execute=True),
         ):
@@ -1503,7 +1500,6 @@ class TestWidgetData(APIBaseTest):
         self._mapping()
 
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             self.assertRaises(WidgetError) as error,
         ):
             start_widget_generation(
@@ -1529,7 +1525,6 @@ class TestWidgetData(APIBaseTest):
         current_version.save(update_fields=["prompt_delta", "prompt_history"])
 
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             self.assertRaises(WidgetError) as error,
         ):
             start_widget_generation(
@@ -1568,7 +1563,6 @@ class TestWidgetData(APIBaseTest):
 
     def test_team_capacity_rejection_does_not_create_a_widget(self) -> None:
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             patch("products.notebooks.backend.widgets.MAX_ACTIVE_GENERATIONS_PER_TEAM", 0),
             self.assertRaises(WidgetRateLimitError) as error,
         ):
@@ -1728,7 +1722,6 @@ class TestWidgetData(APIBaseTest):
         instance = self._mapping()
 
         with (
-            patch("products.notebooks.backend.widgets._is_ai_usage_limited", return_value=False),
             patch("products.notebooks.backend.widgets.start_widget_generation_workflow"),
             self.captureOnCommitCallbacks(execute=True),
         ):

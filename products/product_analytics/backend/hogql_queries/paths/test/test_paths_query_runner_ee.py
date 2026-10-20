@@ -10,7 +10,6 @@ from posthog.test.base import (
     ClickhouseTestMixin,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     create_person_id_override_by_distinct_id,
     snapshot_clickhouse_queries,
 )
@@ -647,7 +646,6 @@ class TestClickhousePaths(ClickhouseTestMixin, APIBaseTest):
             len(self._get_people_at_path(path_filter, "4_between_step_1_c", "5_step two", funnel_filter)),
         )
 
-    @also_test_with_materialized_columns(["$current_url", "$screen_name"])
     @snapshot_clickhouse_queries
     def test_end(self):
         _create_person(team_id=self.team.pk, distinct_ids=["person_1"])
@@ -1685,7 +1683,6 @@ class TestClickhousePaths(ClickhouseTestMixin, APIBaseTest):
             ],
         )
 
-    @also_test_with_materialized_columns(["$current_url", "$screen_name"])
     @snapshot_clickhouse_queries
     def test_start_and_end(self):
         p1 = _create_person(team_id=self.team.pk, distinct_ids=["person_1"])

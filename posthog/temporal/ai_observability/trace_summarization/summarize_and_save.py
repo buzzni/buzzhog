@@ -11,6 +11,11 @@ from posthog.models.event.util import create_event
 from posthog.models.team import Team
 from posthog.redis import get_async_client
 from posthog.sync import database_sync_to_async
+from posthog.temporal.ai_observability.summary_embedder import (
+    LLM_TRACES_SUMMARIES_DOCUMENT_TYPE,
+    LLM_TRACES_SUMMARIES_PRODUCT,
+    LLMTracesSummarizerEmbedder,
+)
 from posthog.temporal.ai_observability.trace_summarization import constants
 from posthog.temporal.ai_observability.trace_summarization.models import (
     SummarizationActivityResult,
@@ -23,9 +28,6 @@ from posthog.temporal.common.heartbeat import Heartbeater
 from products.ai_observability.backend.summarization.llm import summarize
 from products.ai_observability.backend.summarization.llm.schema import SummarizationResponse
 from products.ai_observability.backend.summarization.models import OpenAIModel, SummarizationMode
-
-from ee.hogai.llm_traces_summaries.constants import LLM_TRACES_SUMMARIES_DOCUMENT_TYPE, LLM_TRACES_SUMMARIES_PRODUCT
-from ee.hogai.llm_traces_summaries.tools.embed_summaries import LLMTracesSummarizerEmbedder
 
 logger = structlog.get_logger(__name__)
 

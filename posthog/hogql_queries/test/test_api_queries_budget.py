@@ -166,8 +166,5 @@ class TestApiQueriesBudgetEnforcement(BaseTest):
         # get_api_queries_concurrency_limit reads the plain `posthog.settings` module
         # (not django.conf.settings), so @override_settings on the class doesn't reach it.
         runner = self._runner()
-        with (
-            patch("posthog.hogql_queries.query_runner.settings.API_QUERIES_ENABLED", True),
-            patch("ee.billing.quota_limiting.list_limited_team_attributes", return_value=[self.team.api_token]),
-        ):
+        with patch("posthog.hogql_queries.query_runner.settings.API_QUERIES_ENABLED", True):
             assert runner.get_api_queries_concurrency_limit() != 0

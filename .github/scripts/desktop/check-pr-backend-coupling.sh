@@ -20,8 +20,6 @@ is_backend_path() {
         products/desktop/*) return 1 ;;
         posthog/*) return 0 ;;
         rust/*) return 0 ;;
-        ee/frontend/*) return 1 ;;
-        ee/*) return 0 ;;
         common/__init__.py | common/hogql_parser/* | common/hogvm/* | common/ingestion/* | common/migration_utils/* | common/plugin_transpiler/*) return 0 ;;
         products/*/backend/* | products/*.py) return 0 ;;
         frontend/src/products.json) return 0 ;;

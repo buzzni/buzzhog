@@ -95,8 +95,6 @@ coingecko/coingecko.py::_chart_pages
 coinmarketcap/coinmarketcap.py::get_batch_rows
 coinmarketcap/coinmarketcap.py::get_snapshot_rows
 commercetools/commercetools.py::get_rows
-common/rest_source/rest_client.py::RESTClient.paginate
-common/sql/keyset.py::iter_keyset_pages
 concord/concord.py::_iter_agreement_fanout
 concord/concord.py::_iter_events_windows
 concord/concord.py::_iter_offset

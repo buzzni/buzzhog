@@ -865,7 +865,7 @@ class FunnelCorrelationQueryRunner(AnalyticsQueryRunner[FunnelCorrelationRespons
         """
 
     def _get_aggregation_target_join_query(self) -> str:
-        aggregation_person_join = f"""
+        aggregation_person_join = """
             JOIN funnel_actors
                 ON event.person_id = funnel_actors.actor_id
         """
@@ -917,7 +917,7 @@ class FunnelCorrelationQueryRunner(AnalyticsQueryRunner[FunnelCorrelationRespons
             # way in _get_aggregation_target_join_query).
             if self._hogql_aggregation_expr() is not None:
                 return "JOIN (SELECT id, properties as person_props FROM persons) persons ON toString(persons.id) = toString(funnel_actors.actor_id)"
-            return f"JOIN (SELECT id, properties as person_props FROM persons) persons ON persons.id = funnel_actors.actor_id"
+            return "JOIN (SELECT id, properties as person_props FROM persons) persons ON persons.id = funnel_actors.actor_id"
         else:
             group_type_index = self.funnels_query.aggregation_group_type_index
             return f"""

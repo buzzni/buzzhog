@@ -40,7 +40,7 @@ class PropertyAccessControl(UUIDModel):
         null=True,
     )
     role = models.ForeignKey(
-        "ee.Role",
+        "access_control.Role",
         on_delete=models.CASCADE,
         related_name="property_access_controls",
         related_query_name="property_access_controls",

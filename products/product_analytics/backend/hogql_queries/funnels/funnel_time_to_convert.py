@@ -100,7 +100,7 @@ class FunnelTimeToConvertUDF(FunnelBase):
                 bin_count_expression = f"""{binCount}"""
             else:
                 # Auto count is clamped between 1 and 60
-                bin_count_expression = f"""toInt(least(60, greatest(1, ceil(cbrt(ifNull(length(timings), 0))))))"""
+                bin_count_expression = """toInt(least(60, greatest(1, ceil(cbrt(ifNull(length(timings), 0))))))"""
             bin_setup = f"""
                 {bin_count_expression} as bin_count,
                 floor(arrayMin(timings)) as min_timing,

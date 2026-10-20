@@ -7,7 +7,7 @@ import parserRecipeCreate from './aiObservability/parserRecipeCreate'
 import parserRecipeReference from './aiObservability/parserRecipeReference'
 // Debug
 import debugMcpUiApps from './debug/debugMcpUiApps'
-// Experiments (hand-written — CRUD + lifecycle are codegen in generated/experiments.ts)
+// Experiments (hand-written; products/experiments/mcp/tools.yaml disables the generated CRUD and lifecycle tools)
 import experimentGetByFlagKey from './experiments/getByFlagKey'
 import getExperimentResults from './experiments/getResults'
 // Feature flags
@@ -36,13 +36,10 @@ import getOrganizations from './organizations/getOrganizations'
 import setActiveOrganization from './organizations/setActive'
 // PostHog AI tools
 import {
-    EXECUTE_SQL_TOOL_NAME,
-    executeSql,
     externalDataSourcesDbSchema,
     externalDataSourcesJobs,
     externalDataSourcesPreview,
     externalDataSyncLogs,
-    readDataSchema,
 } from './posthogAiTools'
 // PostHog connections (run this project's tools against a connected project in another org/region)
 import { createConnectionCallTool } from './posthogConnections/call'
@@ -128,10 +125,6 @@ export const TOOL_MAP: Record<string, () => ToolBase<ZodObjectAny>> = {
     'tasks-artifacts-list': tasksArtifactsList,
     'tasks-comments-list': tasksCommentsList,
     'tasks-comments-retrieve': tasksCommentsRetrieve,
-
-    // PostHog AI tools
-    [EXECUTE_SQL_TOOL_NAME]: executeSql,
-    'read-data-schema': readDataSchema,
 
     // Data warehouse (custom handlers for non-standard request shapes)
     'external-data-sources-db-schema': externalDataSourcesDbSchema,

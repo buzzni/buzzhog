@@ -148,16 +148,6 @@ class TestErrorTrackingQueryRunner(ClickhouseTestMixin, NonAtomicBaseTestKeepIde
 
         sync_issues_to_clickhouse(issue_ids=[issue_id], team_id=self.team.pk)
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        from ee.clickhouse.materialized_columns.columns import get_materialized_columns, materialize
-
-        materialized_columns = get_materialized_columns("events")
-        for property_name in ("$exception_issue_id", "$exception_types", "$exception_values"):
-            if (property_name, "properties") not in materialized_columns:
-                materialize("events", property_name, is_nullable=property_name == "$exception_issue_id")
-        super().setUpClass()
-
     def test_fingerprint_grouping_key_uses_stable_json_expression(self):
         response = self._calculate()
 

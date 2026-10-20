@@ -44,7 +44,6 @@ from products.tasks.backend.facade.desktop_gateway import (
     desktop_gateway_configured,
     desktop_limit_tier,
     desktop_rollout_enabled,
-    desktop_token_ttl_seconds,
     mint_desktop_gateway_token,
     plan_allowed_models,
     posthog_code_plan,
@@ -58,18 +57,9 @@ from products.tasks.backend.presentation.serializers import (
     TaskRunErrorResponseSerializer,
 )
 
-from ee.billing.quota_limiting import team_quota_snapshot
-
 # The legacy gateway's usage windows for posthog_code, which its cost throttles exempt.
 _BURST_WINDOW_SECONDS = 86400
 _SUSTAINED_WINDOW_SECONDS = 2592000
-_USD_PER_CREDIT = 0.01
-_DESKTOP_COMPONENT_RESOURCES = {
-    "token_credits": "posthog_code_token_credits",
-    "compute_credits": "sandbox_compute_credits",
-    "cpu_millicore_seconds": "sandbox_compute_cpu_millicore_seconds",
-    "memory_mib_seconds": "sandbox_compute_memory_mib_seconds",
-}
 
 _DESKTOP_ACCESS_MESSAGES = {
     "startup_plan": "PostHog Desktop isn't available for Startup or YC program organizations.",
@@ -127,35 +117,6 @@ def _exempt_window(now: datetime, window_seconds: int) -> dict[str, Any]:
         "reset_at": _iso(now + timedelta(seconds=window_seconds)),
         "exceeded": False,
     }
-
-
-def _optional_number(value: object) -> float | None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return None
-    return float(value)
-
-
-def _credits_to_usd(credits: object) -> float | None:
-    value = _optional_number(credits)
-    return None if value is None else round(value * _USD_PER_CREDIT, 2)
-
-
-def _optional_integer(value: object) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-    return None
-
-
-def _desktop_usage_breakdown(limited: dict[str, Any]) -> dict[str, int | None] | None:
-    components = {
-        key: _optional_integer((limited.get(resource) or {}).get("usage"))
-        for key, resource in _DESKTOP_COMPONENT_RESOURCES.items()
-    }
-    return None if all(value is None for value in components.values()) else components
 
 
 @extend_schema(tags=["tasks"])
@@ -265,10 +226,7 @@ class DesktopAccessViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet):
             return _disabled("not_rolled_out")
 
         try:
-            # Cache funding for one token lifetime: the app re-mints that often, so staleness stays within a token.
-            decision = get_desktop_access_decision(
-                user, organization, funding_cache_seconds=desktop_token_ttl_seconds()
-            )
+            decision = get_desktop_access_decision(user, organization)
         except DesktopAccessResolutionError:
             return _disabled(
                 "desktop_access_unavailable",
@@ -341,11 +299,9 @@ class DesktopAccessViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet):
     @extend_schema(exclude=True)
     @action(detail=False, methods=["get"], url_path="usage", required_scopes=["llm_gateway:read"])
     def usage(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        """The legacy gateway's `/v1/usage/posthog_code` body, from Django's own quota state."""
-        snapshot = team_quota_snapshot(self.team)
-        limited = snapshot["limited"]
-        bucket = limited.get("posthog_code_credits") or {}
-        exhausted = bool(bucket.get("limited"))
+        """The legacy gateway's `/v1/usage/posthog_code` body. Without quota limiting, usage is unmetered
+        and only a deactivated organization counts as exhausted."""
+        exhausted = not self.organization.is_active
         now = timezone.now()
         period = self.organization.current_billing_period
         payload = {
@@ -355,14 +311,14 @@ class DesktopAccessViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet):
             "sustained": _exempt_window(now, _SUSTAINED_WINDOW_SECONDS),
             "ai_credits": {
                 "exhausted": exhausted,
-                "used_usd": _credits_to_usd(bucket.get("usage")),
-                "limit_usd": _credits_to_usd(bucket.get("limit")),
-                "breakdown": _desktop_usage_breakdown(limited),
+                "used_usd": None,
+                "limit_usd": None,
+                "breakdown": None,
             },
             "is_rate_limited": exhausted,
             # Older app builds require the field; no caller holds a Pro seat.
             "is_pro": False,
-            "code_usage_subscribed": bool(snapshot["code_usage_billing_active"]),
+            "code_usage_subscribed": False,
             "billing_period_end": _iso(period.end) if period is not None else None,
         }
         return Response(DesktopUsageSerializer(payload).data)

@@ -51,7 +51,6 @@
         "frontend/src/types.ts",
         "frontend/src/globals.ts",
         "posthog/**",
-        "ee/**",
         "products/*/backend/**",
         "package.json",
         "pnpm-lock.yaml",

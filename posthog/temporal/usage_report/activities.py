@@ -6,7 +6,6 @@ metadata) or the local `aggregator` / `storage` modules. Heavy logic lives
 elsewhere so these stay easy to read and mock in tests.
 """
 
-import json
 import time
 import asyncio
 import dataclasses
@@ -14,8 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from threading import Event
 from typing import Any
-
-from django.conf import settings
 
 import structlog
 from asgiref.sync import sync_to_async
@@ -38,13 +35,9 @@ from posthog.temporal.usage_report.metrics import (
     USAGE_REPORTS_ENQUEUE_LATENCY,
     USAGE_REPORTS_QUERY_LATENCY,
     get_pointer_messages_sent_metric,
-    record_aggregate_output,
-    record_pointer_sent_timestamp,
 )
 from posthog.temporal.usage_report.queries import QUERY_INDEX
 from posthog.temporal.usage_report.storage import (
-    bucket,
-    chunks_prefix,
     delete_keys,
     load_legacy_counter_counts,
     queries_key,
@@ -288,79 +281,17 @@ async def aggregate_and_chunk_org_reports(inputs: AggregateInputs) -> AggregateR
 
 @activity.defn(name="usage-reports-enqueue-pointer-message")
 async def enqueue_pointer_message(inputs: EnqueuePointerInputs) -> None:
-    """Send a single SQS pointer message to the v2 billing queue.
-
-    Body is plain JSON describing where to find the gzipped chunks; billing
-    reads the actual usage data from S3.
-    """
+    """Skip the SQS pointer message: this installation has no billing queue to notify."""
     with ExecutionTimeRecorder(
         USAGE_REPORTS_ENQUEUE_LATENCY,
         description="Send the usage-reports v2 SQS pointer message to billing.",
     ) as recorder:
-        if not settings.EE_AVAILABLE:
-            recorder.set_status("SKIPPED")
-            try:
-                get_pointer_messages_sent_metric(outcome="skipped_no_ee").add(1)
-            except Exception as err:
-                await logger.awarning("usage_reports.metrics.record_failed", error=str(err))
-            await logger.awarning("usage_reports.sqs.skipped_no_ee")
-            return
-
-        pointer = {
-            "version": SQS_POINTER_VERSION,
-            "run_id": inputs.ctx.run_id,
-            "date": inputs.ctx.date_str,
-            "period_start": inputs.ctx.period_start.isoformat(),
-            "period_end": inputs.ctx.period_end.isoformat(),
-            # "complete" tells billing the reported day was already over when
-            # queried — its signal to treat the numbers as final for that date.
-            "report_completeness": inputs.ctx.report_completeness,
-            "region": get_instance_region(),
-            "site_url": settings.SITE_URL,
-            "bucket": bucket(),
-            "manifest_key": inputs.aggregate.manifest_key,
-            "chunk_prefix": chunks_prefix(inputs.ctx) + "/",
-            "chunk_count": len(inputs.aggregate.chunk_keys),
-            "total_orgs": inputs.aggregate.total_orgs,
-            "total_orgs_with_usage": inputs.aggregate.total_orgs_with_usage,
-        }
-        # Omit the key for legacy contexts (field absent pre-deploy); billing
-        # reads it with `.get(...)` and skips the flow-latency metric when None.
-        if inputs.ctx.workflow_started_at is not None:
-            pointer["workflow_started_at"] = inputs.ctx.workflow_started_at.isoformat()
-
-        @sync_to_async(thread_sensitive=False)
-        def send() -> None:
-            from ee.sqs.SQSProducer import get_sqs_producer
-
-            producer = get_sqs_producer(SQS_QUEUE_NAME)
-            if producer is None:
-                raise RuntimeError(f"SQS producer for queue '{SQS_QUEUE_NAME}' is not configured")
-            response = producer.send_message(
-                message_body=json.dumps(pointer, separators=(",", ":")),
-                message_attributes={
-                    "content_type": "application/json",
-                    "schema_version": str(SQS_POINTER_VERSION),
-                    "run_id": inputs.ctx.run_id,
-                },
-            )
-            if response is None:
-                raise RuntimeError("SQS send_message returned no response")
-
-        await send()
-        # Best-effort from here down: the pointer is already delivered, so a
-        # metric-layer failure must not fail the activity — Temporal would
-        # retry it and send billing a duplicate pointer.
+        recorder.set_status("SKIPPED")
         try:
-            get_pointer_messages_sent_metric(outcome="sent").add(1)
-            record_aggregate_output(
-                total_orgs=inputs.aggregate.total_orgs,
-                total_orgs_with_usage=inputs.aggregate.total_orgs_with_usage,
-                chunk_count=len(inputs.aggregate.chunk_keys),
-            )
-            record_pointer_sent_timestamp()
+            get_pointer_messages_sent_metric(outcome="skipped_no_billing").add(1)
         except Exception as err:
             await logger.awarning("usage_reports.metrics.record_failed", error=str(err))
+        await logger.awarning("usage_reports.sqs.skipped_no_billing")
 
 
 @activity.defn(name="usage-reports-cleanup-intermediates")

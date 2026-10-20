@@ -1,6 +1,6 @@
 Run a stickiness query to measure how many intervals (e.g. days) within a date range users performed an event. Stickiness insights show user engagement intensity — the X-axis shows the number of intervals (1, 2, 3, ...) and the Y-axis shows how many users performed the event on exactly that many intervals. They're useful for understanding how deeply users engage with a feature.
 
-Use 'read-data-schema' to discover available events, actions, and properties for filters.
+No tool lists events or properties, so use the names the user gave for filters, and tell the user which names you could not confirm. Find an action's id with `actions-get-all`.
 
 Examples of use cases include:
 
@@ -26,7 +26,7 @@ When using a property filter, you should:
 - **Ensure that you find both the property group and name.** Property groups should be one of the following: event, person, session, group.
 - After selecting a property, **validate that the property value accurately reflects the intended criteria**.
 - **Find the suitable operator for type** (e.g., `contains`, `is set`).
-- If the operator requires a value, use the `read-data-schema` tool to find the property values.
+- If the operator requires a value, use the value the user gave. No tool lists property values, so tell the user which values you could not confirm.
 - You set logical operators to combine multiple properties of a single series: AND or OR.
 
 Infer the property groups from the user's request. If your first guess doesn't yield any results, try to adjust the property group.

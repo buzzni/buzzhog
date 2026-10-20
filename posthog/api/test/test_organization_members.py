@@ -160,8 +160,7 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
 
     @override_settings(CLOUD_DEPLOYMENT="US")
     @patch("posthoganalytics.capture")
-    @patch("posthog.tasks.sync_billing.sync_members_to_billing.delay")
-    def test_delete_organization_member(self, mock_sync_delay, mock_capture):
+    def test_delete_organization_member(self, mock_capture):
         user = User.objects.create_and_join(self.organization, "test@x.com", None, "X")
         membership_queryset = OrganizationMembership.objects.filter(user=user, organization=self.organization)
         self.assertTrue(membership_queryset.exists())
@@ -172,7 +171,6 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
         self.assertTrue(membership_queryset.exists())
         self.organization_membership.level = OrganizationMembership.Level.ADMIN
         self.organization_membership.save()
-        mock_sync_delay.reset_mock()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.delete(f"/api/organizations/@current/members/{user.uuid}/")
         self.assertEqual(response.status_code, 204)
@@ -192,7 +190,6 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
             },
             groups={"instance": "http://localhost:8010", "organization": str(self.organization.id)},
         )
-        mock_sync_delay.assert_called_once_with(str(self.organization.id))
 
     def test_github_login_endpoint(self):
         # A different member than the requester — proves the lookup is org-scoped, not self-only
@@ -352,11 +349,9 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
 
     @override_settings(CLOUD_DEPLOYMENT="US")
     @patch("posthoganalytics.capture")
-    @patch("posthog.tasks.sync_billing.sync_members_to_billing.delay")
-    def test_leave_organization(self, mock_sync_delay, mock_capture):
+    def test_leave_organization(self, mock_capture):
         membership_queryset = OrganizationMembership.objects.filter(user=self.user, organization=self.organization)
         self.assertEqual(membership_queryset.count(), 1)
-        mock_sync_delay.reset_mock()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.delete(f"/api/organizations/@current/members/{self.user.uuid}/")
         self.assertEqual(response.status_code, 204)
@@ -377,17 +372,13 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
             groups={"instance": ANY, "organization": str(self.organization.id)},
         )
 
-        mock_sync_delay.assert_called_once_with(str(self.organization.id))
-
     @override_settings(CLOUD_DEPLOYMENT="US")
-    @patch("posthog.tasks.sync_billing.sync_members_to_billing.delay")
-    def test_change_organization_member_level(self, mock_sync_delay):
+    def test_change_organization_member_level(self):
         self.organization_membership.level = OrganizationMembership.Level.OWNER
         self.organization_membership.save()
         user = User.objects.create_user("test@x.com", None, "X")
         membership = OrganizationMembership.objects.create(user=user, organization=self.organization)
         self.assertEqual(membership.level, OrganizationMembership.Level.MEMBER)
-        mock_sync_delay.reset_mock()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.patch(
                 f"/api/organizations/@current/members/{user.uuid}",
@@ -420,17 +411,14 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
                 "level": OrganizationMembership.Level.ADMIN.value,
             },
         )
-        mock_sync_delay.assert_called_once_with(str(self.organization.id))
 
     @override_settings(CLOUD_DEPLOYMENT="US")
-    @patch("posthog.tasks.sync_billing.sync_members_to_billing.delay")
-    def test_admin_can_promote_to_admin(self, mock_sync_delay):
+    def test_admin_can_promote_to_admin(self):
         self.organization_membership.level = OrganizationMembership.Level.ADMIN
         self.organization_membership.save()
         user = User.objects.create_user("test@x.com", None, "X")
         membership = OrganizationMembership.objects.create(user=user, organization=self.organization)
         self.assertEqual(membership.level, OrganizationMembership.Level.MEMBER)
-        mock_sync_delay.reset_mock()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.patch(
                 f"/api/organizations/@current/members/{user.uuid}",
@@ -440,15 +428,11 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
         updated_membership = OrganizationMembership.objects.get(user=user, organization=self.organization)
         self.assertEqual(updated_membership.level, OrganizationMembership.Level.ADMIN)
 
-        mock_sync_delay.assert_called_once_with(str(self.organization.id))
-
     @override_settings(CLOUD_DEPLOYMENT="US")
-    @patch("posthog.tasks.sync_billing.sync_members_to_billing.delay")
-    def test_change_organization_member_level_requires_admin(self, mock_sync_delay):
+    def test_change_organization_member_level_requires_admin(self):
         user = User.objects.create_user("test@x.com", None, "X")
         membership = OrganizationMembership.objects.create(user=user, organization=self.organization)
         self.assertEqual(membership.level, OrganizationMembership.Level.MEMBER)
-        mock_sync_delay.reset_mock()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.patch(
                 f"/api/organizations/@current/members/{user.uuid}/",
@@ -467,8 +451,6 @@ class TestOrganizationMembersAPI(APIBaseTest, QueryMatchingTest):
             },
         )
         self.assertEqual(response.status_code, 403)
-
-        mock_sync_delay.assert_not_called()
 
     def test_cannot_change_own_organization_member_level(self):
         self.organization_membership.level = OrganizationMembership.Level.ADMIN

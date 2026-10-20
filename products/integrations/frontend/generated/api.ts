@@ -34,11 +34,9 @@ import type {
     IntegrationsUsersRetrieveParams,
     JiraProjectsResponseApi,
     LinearTeamsResponseApi,
-    OrganizationIntegrationApi,
     PaginatedIntegrationConfigListApi,
     PaginatedRoleExternalReferenceListApi,
     PatchedIntegrationConfigApi,
-    PatchedOrganizationIntegrationApi,
     PostHogConnectionForwardApi,
     PostHogConnectionForwardResponseApi,
     PostHogConnectionTargetApi,
@@ -66,37 +64,6 @@ type NonReadonly<T> = [T] extends [UnionToIntersection<T>]
           [P in keyof Writable<T>]: T[P] extends object ? NonReadonly<NonNullable<T[P]>> : T[P]
       }
     : DistributeReadOnlyOverUnions<T>
-
-export const getIntegrationsEnvironmentMappingPartialUpdateUrl = (organizationId: string, id: string) => {
-    return `/api/organizations/${organizationId}/integrations/${id}/environment-mapping/`
-}
-
-/**
- * ViewSet for organization-level integrations.
- *
- * Provides access to integrations that are scoped to the entire organization
- * (vs. project-level integrations). Examples include Vercel, AWS Marketplace, etc.
- *
- * Creation is handled by the integration installation flows
- * (e.g., Vercel marketplace installation). Users can disconnect integrations
- * via the DELETE endpoint.
- */
-export const integrationsEnvironmentMappingPartialUpdate = async (
-    organizationId: string,
-    id: string,
-    patchedOrganizationIntegrationApi?: NonReadonly<PatchedOrganizationIntegrationApi>,
-    options?: RequestInit
-): Promise<OrganizationIntegrationApi> => {
-    return apiMutator<OrganizationIntegrationApi>(
-        getIntegrationsEnvironmentMappingPartialUpdateUrl(organizationId, id),
-        {
-            ...options,
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...options?.headers },
-            body: JSON.stringify(patchedOrganizationIntegrationApi),
-        }
-    )
-}
 
 export const getRoleExternalReferencesListUrl = (organizationId: string, params?: RoleExternalReferencesListParams) => {
     const normalizedParams = new URLSearchParams()

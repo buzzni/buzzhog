@@ -316,17 +316,17 @@ class FunnelTrendsUDF(FunnelUDFMixin, FunnelBase):
 
         # At this time, we do not support self.dropOff (we don't use it anywhere in the frontend)
         if actorsQuery.funnelTrendsDropOff is None:
-            raise ValidationError(f"Actors parameter `funnelTrendsDropOff` must be provided for funnel trends persons!")
+            raise ValidationError("Actors parameter `funnelTrendsDropOff` must be provided for funnel trends persons!")
 
         if actorsQuery.funnelTrendsEntrancePeriodStart is None:
             raise ValidationError(
-                f"Actors parameter `funnelTrendsEntrancePeriodStart` must be provided funnel trends persons!"
+                "Actors parameter `funnelTrendsEntrancePeriodStart` must be provided funnel trends persons!"
             )
 
         entrancePeriodStart = relative_date_parse(actorsQuery.funnelTrendsEntrancePeriodStart, team.timezone_info)
         if entrancePeriodStart is None:
             raise ValidationError(
-                f"Actors parameter `funnelTrendsEntrancePeriodStart` must be a valid relative date string!"
+                "Actors parameter `funnelTrendsEntrancePeriodStart` must be a valid relative date string!"
             )
 
         select: list[ast.Expr] = [

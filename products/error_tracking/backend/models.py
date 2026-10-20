@@ -257,7 +257,7 @@ class ErrorTrackingIssueAssignment(UUIDTModel):
     team = models.ForeignKey("posthog.Team", null=True, on_delete=models.CASCADE, db_index=False, related_name="+")
     user = models.ForeignKey("posthog.User", null=True, on_delete=models.CASCADE, related_name="+")
     # DEPRECATED: issues can only be assigned to users or roles
-    role = models.ForeignKey("ee.Role", null=True, on_delete=models.CASCADE, related_name="+")
+    role = models.ForeignKey("access_control.Role", null=True, on_delete=models.CASCADE, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -513,7 +513,7 @@ class ErrorTrackingAssignmentRule(UUIDTModel):
     team = models.ForeignKey("posthog.Team", on_delete=models.CASCADE, related_name="+")
     user = models.ForeignKey("posthog.User", null=True, on_delete=models.CASCADE, related_name="+")
     # DEPRECATED: issues can only be assigned to users or roles
-    role = models.ForeignKey("ee.Role", null=True, on_delete=models.CASCADE, related_name="+")
+    role = models.ForeignKey("access_control.Role", null=True, on_delete=models.CASCADE, related_name="+")
     order_key = models.IntegerField(null=False, blank=False)
     bytecode = models.JSONField(null=False, blank=False)  # The bytecode of the rule
     filters = models.JSONField(null=False, blank=False)  # The json object describing the filter rule
@@ -574,7 +574,7 @@ class ErrorTrackingGroupingRule(UUIDTModel):
     # in so far as we permit all of these to be null
     user = models.ForeignKey("posthog.User", null=True, on_delete=models.CASCADE, related_name="+")
     # DEPRECATED: issues can only be assigned to users or roles
-    role = models.ForeignKey("ee.Role", null=True, on_delete=models.CASCADE, related_name="+")
+    role = models.ForeignKey("access_control.Role", null=True, on_delete=models.CASCADE, related_name="+")
 
     # Users will probably find it convenient to be able to add a short description to grouping rules
     description = models.TextField(null=True)

@@ -12,14 +12,13 @@ from posthog.test.base import (
 )
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from parameterized import parameterized
 
 from posthog.clickhouse.client import sync_execute
 from posthog.models import Organization, Team
 from posthog.models.event.util import create_event
-from posthog.ph_client import PH_US_API_KEY
 from posthog.tasks.ai_observability_usage_report import (
     AI_EVENT_NAME_PREFIX,
     AI_OBSERVABILITY_REPORT_TRIGGER_EVENTS,
@@ -37,7 +36,15 @@ from posthog.tasks.ai_observability_usage_report import (
 )
 from posthog.utils import get_previous_day
 
+_TELEMETRY_API_KEY = "phc_test_key"
+_USAGE_REPORTS_ON = {
+    "POSTHOG_TELEMETRY_HOST": "https://telemetry.example.com",
+    "POSTHOG_TELEMETRY_API_KEY": _TELEMETRY_API_KEY,
+    "POSTHOG_TELEMETRY_USAGE_REPORTS": True,
+}
 
+
+@override_settings(**_USAGE_REPORTS_ON)
 @time_machine.travel("2022-01-10T00:01:00Z", tick=False)
 class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, ClickhouseDestroyTablesMixin):
     """Tests for AI observability usage reporting functionality."""
@@ -667,10 +674,8 @@ class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, Clickhous
 
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report.get_ph_client")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_send_ai_observability_usage_reports(
         self,
-        mock_feature_enabled: MagicMock,
         mock_get_ph_client: MagicMock,
         mock_capture_report: MagicMock,
     ) -> None:
@@ -1076,10 +1081,8 @@ class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, Clickhous
 
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report.get_ph_client")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_send_ai_observability_usage_reports_dry_run(
         self,
-        mock_feature_enabled: MagicMock,
         mock_get_ph_client: MagicMock,
         mock_capture_report: MagicMock,
     ) -> None:
@@ -1096,39 +1099,31 @@ class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, Clickhous
         # Verify capture_ai_observability_report was NOT called
         assert mock_capture_report.delay.call_count == 0
 
+    @parameterized.expand(
+        [
+            ("usage_reports_off", {"POSTHOG_TELEMETRY_USAGE_REPORTS": False}),
+            ("no_collector", {"POSTHOG_TELEMETRY_HOST": ""}),
+        ]
+    )
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report._get_all_ai_observability_reports")
-    @patch("posthoganalytics.capture_exception")
-    @patch("posthoganalytics.feature_enabled", return_value=True)
-    def test_send_ai_observability_usage_reports_disabled_by_feature_flag(
+    def test_send_ai_observability_usage_reports_sends_nothing_unless_configured(
         self,
-        mock_feature_enabled: MagicMock,
-        mock_capture_exception: MagicMock,
+        _name: str,
+        overrides: dict,
         mock_get_reports: MagicMock,
         mock_capture_report: MagicMock,
     ) -> None:
-        """Test that reports are not sent when disabled by feature flag."""
-        # Run the task
-        send_ai_observability_usage_reports()
+        with override_settings(**overrides):
+            send_ai_observability_usage_reports()
 
-        # Verify feature flag was checked
-        mock_feature_enabled.assert_called_once_with("llm-analytics-disable-usage-reports", "internal_billing_events")
-
-        # Verify capture_exception was called to log that reports are disabled
-        assert mock_capture_exception.call_count == 1
-
-        # Verify _get_all_ai_observability_reports was NOT called (early exit)
         assert mock_get_reports.call_count == 0
-
-        # Verify capture_ai_observability_report was NOT called
         assert mock_capture_report.delay.call_count == 0
 
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report.get_ph_client")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_send_ai_observability_usage_reports_with_at_parameter(
         self,
-        mock_feature_enabled: MagicMock,
         mock_get_ph_client: MagicMock,
         mock_capture_report: MagicMock,
     ) -> None:
@@ -1176,17 +1171,15 @@ class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, Clickhous
     )
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report.get_ph_client")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_manual_run_skips_organizations_with_an_existing_report(
         self,
         _name: str,
         existing_period_start: str,
         expected_emissions: int,
-        mock_feature_enabled: MagicMock,
         mock_get_ph_client: MagicMock,
         mock_capture_report: MagicMock,
     ) -> None:
-        self.team.api_token = PH_US_API_KEY
+        self.team.api_token = _TELEMETRY_API_KEY
         self.team.save()
 
         distinct_id = str(uuid4())
@@ -1220,6 +1213,7 @@ class TestAIObservabilityUsageReport(APIBaseTest, ClickhouseTestMixin, Clickhous
         assert mock_capture_report.delay.call_count == expected_emissions
 
 
+@override_settings(**_USAGE_REPORTS_ON)
 @time_machine.travel("2022-01-10T00:01:00Z", tick=False)
 class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
     @parameterized.expand(
@@ -1232,7 +1226,6 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
     @patch("posthog.tasks.ai_observability_usage_report.internal_reporting_team_id", return_value=None)
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report._get_all_ai_observability_reports")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_reports_get_deterministic_timestamp_and_trigger_source(
         self,
         _name: str,
@@ -1240,7 +1233,6 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
         filter_by_org: bool,
         expected_at_date: str,
         expected_trigger: str,
-        mock_feature_enabled: MagicMock,
         mock_get_reports: MagicMock,
         mock_capture_report: MagicMock,
         mock_internal_team_id: MagicMock,
@@ -1269,10 +1261,8 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
     @patch("posthog.tasks.ai_observability_usage_report.internal_reporting_team_id", return_value=2)
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report._get_all_ai_observability_reports")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_run_emits_nothing_when_the_already_reported_lookup_fails(
         self,
-        mock_feature_enabled: MagicMock,
         mock_get_reports: MagicMock,
         mock_capture_report: MagicMock,
         mock_internal_team_id: MagicMock,
@@ -1292,12 +1282,10 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
     @patch("posthog.tasks.ai_observability_usage_report.internal_reporting_team_id", return_value=2)
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report._get_all_ai_observability_reports")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_already_reported_organizations_are_skipped_on_every_run_type(
         self,
         _name: str,
         at: str | None,
-        mock_feature_enabled: MagicMock,
         mock_get_reports: MagicMock,
         mock_capture_report: MagicMock,
         mock_internal_team_id: MagicMock,
@@ -1318,10 +1306,8 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
     @patch("posthog.tasks.ai_observability_usage_report.internal_reporting_team_id", return_value=None)
     @patch("posthog.tasks.ai_observability_usage_report.capture_ai_observability_report")
     @patch("posthog.tasks.ai_observability_usage_report._get_all_ai_observability_reports")
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_run_still_emits_where_previous_reports_cannot_be_read(
         self,
-        mock_feature_enabled: MagicMock,
         mock_get_reports: MagicMock,
         mock_capture_report: MagicMock,
         mock_internal_team_id: MagicMock,
@@ -1357,7 +1343,6 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
     @patch("posthog.tasks.ai_observability_usage_report._get_organizations_to_skip", return_value=set())
     @patch("posthog.tasks.ai_observability_usage_report.logger")
     @patch("posthog.tasks.ai_observability_usage_report.get_teams_with_ai_events", side_effect=Exception("CH down"))
-    @patch("posthoganalytics.feature_enabled", return_value=False)
     def test_send_task_failure_log_level(
         self,
         _name: str,
@@ -1366,7 +1351,6 @@ class TestAIObservabilityUsageReportTaskWiring(SimpleTestCase):
         expected_level: str,
         forbidden_level: str | None,
         expected_message: str,
-        mock_feature_enabled: MagicMock,
         mock_get_teams: MagicMock,
         mock_logger: MagicMock,
         mock_organizations_to_skip: MagicMock,

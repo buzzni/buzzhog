@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("cohorts", "0009_cohort_backfill_per_kind_uniqueness"),
-        ("ee", "0059_scimprovisioneduser_unique_config"),
+        ("access_control", "0000_rbac_models"),
         ("posthog", "1340_drop_userproductlist_reason_columns"),
     ]
 
@@ -200,7 +200,10 @@ class Migration(migrations.Migration):
                 ("disabled_data", models.JSONField(blank=True, null=True)),
                 ("order_key", models.IntegerField()),
                 ("description", models.TextField(null=True)),
-                ("role", models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role")),
+                (
+                    "role",
+                    models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
+                ),
                 ("team", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="posthog.team")),
                 (
                     "user",
@@ -232,7 +235,10 @@ class Migration(migrations.Migration):
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("disabled_data", models.JSONField(blank=True, null=True)),
-                ("role", models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role")),
+                (
+                    "role",
+                    models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
+                ),
                 ("team", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="posthog.team")),
                 (
                     "user",
@@ -530,7 +536,10 @@ class Migration(migrations.Migration):
                         to="error_tracking.errortrackingissue",
                     ),
                 ),
-                ("role", models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="ee.role")),
+                (
+                    "role",
+                    models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to="access_control.role"),
+                ),
                 (
                     "user",
                     models.ForeignKey(

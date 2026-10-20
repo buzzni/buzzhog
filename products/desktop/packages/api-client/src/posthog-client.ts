@@ -98,6 +98,7 @@ import {
   decorateSurveyPreview,
   type EvidencePreview,
   type ExperimentMetricQueryResult,
+  type ExperimentRecord,
   experimentMetricQueries,
   formatDay,
   gridRows,
@@ -7820,13 +7821,6 @@ export class PostHogAPIClient {
     }
   }
 
-  /**
-   * Resolves an `evidence:<kind>/<id>` citation from an agent message to a
-   * small live summary of the object it points at. Returns null for kinds
-   * without a lookup and for ids that don't resolve, so the caller can fall
-   * back to a static reference. Query-backed kinds (hogql, insight) resolve
-   * in the UI instead, where chart shaping lives.
-   */
   /** Names of the cohorts a cohort's criteria reference, so the criteria read as prose. */
   private async resolveCohortNames(
     projectId: string,
@@ -7899,6 +7893,31 @@ export class PostHogAPIClient {
     }
   }
 
+  private async getExperimentRecord(
+    projectId: string,
+    id: number,
+  ): Promise<ExperimentRecord | null> {
+    try {
+      const urlPath = `/api/projects/${projectId}/experiments/${id}/`;
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url: new URL(`${this.api.baseUrl}${urlPath}`),
+        path: urlPath,
+      });
+      return (await response.json()) as ExperimentRecord;
+    } catch (error) {
+      if (requestErrorStatus(error) === 404) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Resolves an `evidence:<kind>/<id>` citation from an agent message to a
+   * small live summary of the object it points at. Returns null for kinds
+   * without a lookup and for ids that don't resolve, so the caller can fall
+   * back to a static reference. Query-backed kinds (hogql, insight) resolve
+   * in the UI instead, where chart shaping lives.
+   */
   async getEvidencePreview(
     kind: string,
     id: string,
@@ -7947,10 +7966,11 @@ export class PostHogAPIClient {
       }
       case "experiment": {
         if (numericId === null) return null;
-        const experiment = await this.api.get(
-          "/api/projects/{project_id}/experiments/{id}/",
-          { path: { project_id: projectId, id: numericId } },
-        );
+        // The experiments route is absent from the typed client because this
+        // repository's backend registers it only when EE is available, while
+        // PostHog Cloud serves it. Fetch it directly and treat 404 as missing.
+        const experiment = await this.getExperimentRecord(projectId, numericId);
+        if (!experiment) return null;
         const preview = shapeExperimentPreview(experiment);
         const primaryQueries = experimentMetricQueries(experiment, "primary");
         const secondaryQueries = experimentMetricQueries(

@@ -13,8 +13,6 @@ rules:
       owners: team-ingestion
     - match: '/stop_surveys_reached_target.py'
       owners: conversations
-    - match: '/sync_billing.py'
-      owners: team-billing
     - match: '/test/test_ai_observability_usage_report.py'
       owners: team-ai-observability
     - match:

@@ -127,7 +127,7 @@ describe('Tool Filtering - Features', () => {
         {
             features: ['experiments'],
             description: 'experiment tools',
-            expectedTools: ['experiment-list'],
+            expectedTools: ['experiment-results-get'],
         },
         {
             features: ['llm_analytics'],
@@ -138,11 +138,6 @@ describe('Tool Filtering - Features', () => {
             features: ['llm-analytics'],
             description: 'AI observability tools (hyphen, normalized)',
             expectedTools: ['get-llm-total-costs-for-project'],
-        },
-        {
-            features: ['docs'],
-            description: 'documentation tools',
-            expectedTools: ['docs-search'],
         },
         {
             features: ['invalid', 'flags'],
@@ -332,18 +327,6 @@ describe('Tool Filtering - API Scopes', () => {
         expect(tools.some((tool) => tool.name === 'inbox-report-checks-replace')).toBe(visible)
     })
 
-    it.each([
-        { scopes: ['billing:read'], visible: true },
-        { scopes: [], visible: false },
-    ])('billing read tools require a scope but no rollout flag: $visible', async ({ scopes, visible }) => {
-        const tools = await getToolsFromContext(createMockContext(scopes), { featureFlags: {} })
-        const names = tools.map((tool) => tool.name)
-
-        for (const name of ['billing-overview-get', 'billing-usage-get', 'billing-spend-get']) {
-            expect(names.includes(name)).toBe(visible)
-        }
-    })
-
     it('should return all tools when user has * scope', async () => {
         const context = createMockContext(['*'])
         const tools = await getToolsFromContext(context)
@@ -389,7 +372,6 @@ describe('Tool Filtering - API Scopes', () => {
 
         // insight-query is in the hand-written TOOL_MAP and requires query:read
         expect(toolNames).toContain('insight-query')
-        expect(toolNames).toContain('execute-sql')
 
         expect(toolNames).not.toContain('dashboard-create')
     })
@@ -1008,25 +990,6 @@ describe('Tool Filtering - Feature Flags', () => {
         expect(on).not.toContain('notebooks-partial-update')
     })
 
-    it('organization-billing-api flag gates the tools that call the organization billing API', () => {
-        const gated = [
-            'billing-subscription-get',
-            'billing-usage-status-get',
-            'billing-usage-timeseries-get',
-            'billing-spend-timeseries-get',
-            'billing-projects-list',
-        ]
-        const off = getToolsForFeatures({ featureFlags: { 'organization-billing-api': false } })
-        for (const tool of gated) {
-            expect(off).not.toContain(tool)
-        }
-
-        const on = getToolsForFeatures({ featureFlags: { 'organization-billing-api': true } })
-        for (const tool of gated) {
-            expect(on).toContain(tool)
-        }
-    })
-
     it('customer-analytics-csp flag gates account meeting tools', () => {
         const off = getToolsForFeatures({ featureFlags: { 'customer-analytics-csp': false } })
         expect(off).not.toContain('accounts-meetings-list')
@@ -1123,23 +1086,19 @@ describe('Tool Filtering - Feature Flags', () => {
                 'stamphog',
                 'review-hog',
                 'warehouse-person-properties',
-                'organization-billing-api',
                 'streamlit-apps',
                 'posthog-connect',
-                'experiment-behavior-comparison',
-                'experiment-setup-context',
                 'data-warehouse-scene',
                 'data-quality-checks',
                 'context-layer',
                 'warehouse-multi-destination',
                 'autoresearch',
                 'marketing-analytics-setup-plan-mcp',
-                'subscription-source-summaries',
                 'workflows-data-suggestions',
             ])
         )
         expect(flags).toContain('ai-observability-offline-evaluations')
-        expect(flags).toHaveLength(38)
+        expect(flags).toHaveLength(34)
     })
 
     it('keeps human and task context wiki tools on separate scopes', () => {

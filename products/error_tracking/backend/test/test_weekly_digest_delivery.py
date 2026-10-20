@@ -24,8 +24,6 @@ from products.error_tracking.backend.models import (
 )
 from products.error_tracking.backend.weekly_digest_delivery import send_digest_to_workflow
 
-from ee.clickhouse.materialized_columns.columns import materialize
-
 
 def _days_ago(n: int) -> str:
     return (timezone.now() - timedelta(days=n)).isoformat()
@@ -57,11 +55,6 @@ class TestSendDigestToWorkflow(SimpleTestCase):
 
 @override_settings(CLOUD_DEPLOYMENT="US")
 class TestWeeklyDigestWorkflowDelivery(ClickhouseTestMixin, APIBaseTest):
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-        materialize("events", "$exception_issue_id", is_nullable=True)
-
     @override_settings(ERROR_TRACKING_WEEKLY_DIGEST_ALLOWED_EMAILS=["*"])
     def test_task_posts_json_safe_digest_and_dedupes_on_retry(self):
         issue = ErrorTrackingIssue.objects.create(

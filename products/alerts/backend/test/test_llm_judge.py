@@ -1,16 +1,11 @@
 from collections.abc import Iterator
-from contextlib import contextmanager
 from html import escape
 from typing import Any
 
 import pytest
 from unittest.mock import MagicMock, patch
 
-from django.core.cache import cache
-
-import httpx
 import numpy as np
-import anthropic
 from parameterized import parameterized
 
 from posthog.models.team import Team
@@ -382,95 +377,6 @@ class TestLLMJudgePrompt:
         assert label[:MAX_SERIES_LABEL_CHARS] in message
 
 
-_SLOT = "b8f3a1e0-0000-0000-0000-000000000001:2026-01-07T00:00:00+00:00"
-_NEXT_SLOT = "b8f3a1e0-0000-0000-0000-000000000001:2026-01-07T00:15:00+00:00"
-
-
-@contextmanager
-def _mocked_model(verdict: LLMDetectionVerdict) -> Iterator[Any]:
-    with (
-        patch("products.alerts.backend.judge.prompt.render_series_chart", return_value=None),
-        patch("products.alerts.backend.judge.llm.posthoganalytics.default_client", None),
-        patch("ee.hogai.llm.MaxChatAnthropic") as chat,
-    ):
-        invoke = chat.return_value.with_structured_output.return_value.invoke
-        invoke.return_value = verdict
-        yield invoke
-
-
-@pytest.fixture
-def _memo_cache(settings: Any) -> Iterator[None]:
-    settings.CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    cache.clear()
-    yield
-    cache.clear()
-
-
-@pytest.mark.usefixtures("_memo_cache")
-class TestLLMJudgeVerdictMemo:
-    @parameterized.expand(
-        [
-            ("the same check retried", _SLOT, _SLOT, SERIES, {}, 1),
-            ("the same check on different numbers", _SLOT, _SLOT, SERIES * 2, {}, 2),
-            ("the next scheduled check", _SLOT, _NEXT_SLOT, SERIES, {}, 2),
-            ("a simulation, which carries no slot", None, None, SERIES, {}, 2),
-            ("changed insight name", _SLOT, _SLOT, SERIES, {"insight_name": "Weekly pageviews"}, 2),
-            ("changed series label", _SLOT, _SLOT, SERIES, {"series_label": "Purchases"}, 2),
-            ("changed interval", _SLOT, _SLOT, SERIES, {"interval": "week"}, 2),
-            ("changed dates", _SLOT, _SLOT, SERIES, {"dates": (None,) * 7}, 2),
-            ("changed metric", _SLOT, _SLOT, SERIES, {"metric_description": "Revenue in USD"}, 2),
-            ("changed instructions", _SLOT, _SLOT, SERIES, {"instructions": "Only drops"}, 2),
-        ]
-    )
-    def test_only_a_retry_of_the_same_check_reuses_a_verdict(
-        self,
-        _name: str,
-        first_id: str | None,
-        second_id: str | None,
-        second_data: np.ndarray,
-        second_series: dict[str, Any],
-        expected_calls: int,
-    ) -> None:
-        # The activity that pays for a verdict also writes the AlertCheck, and it retries as a
-        # whole, so without the memo one check can buy a verdict once per attempt.
-        judge = LLMSeriesJudge({"type": "llm"})
-        with _mocked_model(_verdict()) as invoke:
-            judge.judge_latest(SERIES, series=_series(), attribution=_attribution(evaluation_id=first_id))
-            judge.judge_latest(
-                second_data, series=_series(**second_series), attribution=_attribution(evaluation_id=second_id)
-            )
-
-        assert invoke.call_count == expected_calls
-
-    @parameterized.expand([("LLM_DETECTOR_MODEL", "new-model"), ("PROMPT_REVISION", 99)])
-    def test_model_and_prompt_updates_require_a_new_verdict(self, setting: str, value: str | int) -> None:
-        judge = LLMSeriesJudge({"type": "llm"})
-        with _mocked_model(_verdict()) as invoke:
-            judge.judge_latest(SERIES, series=_series(), attribution=_attribution(evaluation_id=_SLOT))
-            with patch(f"products.alerts.backend.judge.llm.{setting}", value):
-                judge.judge_latest(SERIES, series=_series(), attribution=_attribution(evaluation_id=_SLOT))
-
-        assert invoke.call_count == 2
-
-
-@pytest.mark.parametrize(
-    "error_type,status_code",
-    [(anthropic.AuthenticationError, 401), (anthropic.PermissionDeniedError, 403), (anthropic.BadRequestError, 400)],
-)
-def test_provider_rejections_do_not_disable_an_alert(
-    error_type: type[anthropic.APIStatusError], status_code: int
-) -> None:
-    response = httpx.Response(status_code, request=httpx.Request("POST", "https://example.com/messages"))
-    with _mocked_model(_verdict()) as invoke:
-        invoke.side_effect = error_type("Provider unavailable", response=response, body={})
-        with pytest.raises(LLMDetectorUnavailableError):
-            LLMSeriesJudge({"type": "llm"}).judge_latest(SERIES, series=_series(), attribution=_attribution())
-
-
-@pytest.mark.parametrize("is_agent_billable", [True, False])
-def test_model_call_preserves_the_billing_decision(is_agent_billable: bool) -> None:
-    with _mocked_model(_verdict()) as invoke:
-        LLMSeriesJudge({"type": "llm"}).judge_every_point(
-            SERIES, series=_series(), attribution=_attribution(is_agent_billable=is_agent_billable)
-        )
-    assert invoke.call_args.kwargs["config"]["configurable"]["is_agent_billable"] is is_agent_billable
+def test_check_without_a_model_raises_instead_of_reporting_no_anomaly() -> None:
+    with pytest.raises(LLMDetectorUnavailableError):
+        LLMSeriesJudge({"type": "llm"}).judge_latest(SERIES, series=_series(), attribution=_attribution())

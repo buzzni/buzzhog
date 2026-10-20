@@ -1,6 +1,5 @@
 import { z } from 'zod'
 
-import type { Schemas } from '@/api/generated'
 import { ToolInputValidationError } from '@/lib/errors'
 import { normalizeParamAliases } from '@/tools/cast-helpers'
 import { resolveFlagsByKey } from '@/tools/featureFlags/resolveFlagsByKey'
@@ -49,11 +48,24 @@ interface ExperimentLookupMiss {
     candidates?: ExperimentCandidate[]
 }
 
-type Result = (WithPostHogUrl<Schemas.Experiment> & { found: true }) | ExperimentLookupMiss
+// The experiments API schema is not in the generated OpenAPI types while the routes are off, so the
+// fields this tool reads are typed here.
+type ExperimentBasic = {
+    id: number
+    name: string
+    status?: string | null
+    start_date?: string | null
+    end_date?: string | null
+    created_at?: string | null
+}
+
+type Experiment = { id: number } & Record<string, unknown>
+
+type Result = (WithPostHogUrl<Experiment> & { found: true }) | ExperimentLookupMiss
 
 type LinkedPick = { experimentId: number } | { candidates: ExperimentCandidate[] }
 
-const toCandidate = (experiment: Schemas.ExperimentBasic, archived: boolean): ExperimentCandidate => ({
+const toCandidate = (experiment: ExperimentBasic, archived: boolean): ExperimentCandidate => ({
     id: experiment.id,
     name: experiment.name,
     status: experiment.status ?? null,
@@ -65,8 +77,8 @@ const toCandidate = (experiment: Schemas.ExperimentBasic, archived: boolean): Ex
 
 /** Among several experiments on one flag, the single live one wins, then the single archived one. */
 const pickLinkedExperiment = async (context: Context, projectId: string, flagId: number): Promise<LinkedPick> => {
-    const listLinked = async (archivedOnly: boolean): Promise<Schemas.ExperimentBasic[]> => {
-        const page = await context.api.request<Schemas.PaginatedExperimentBasicList>({
+    const listLinked = async (archivedOnly: boolean): Promise<ExperimentBasic[]> => {
+        const page = await context.api.request<{ results?: ExperimentBasic[] }>({
             method: 'GET',
             path: `/api/projects/${encodeURIComponent(projectId)}/experiments/`,
             query: { feature_flag_id: flagId, limit: 50, ...(archivedOnly && { archived: true }) },
@@ -152,7 +164,7 @@ const experimentGetByFlagKey = (): ToolBase<typeof schema, Result> => ({
             experimentId = pick.experimentId
         }
 
-        const experiment = await context.api.request<Schemas.Experiment>({
+        const experiment = await context.api.request<Experiment>({
             method: 'GET',
             path: `/api/projects/${encodeURIComponent(projectId)}/experiments/${encodeURIComponent(String(experimentId))}/`,
         })

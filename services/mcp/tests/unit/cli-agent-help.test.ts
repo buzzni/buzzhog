@@ -11,10 +11,8 @@ describe('CLI agent help', () => {
 
     it('quotes JSON payloads and unescapes embedded quotes', () => {
         expect(
-            toCliSyntax(
-                'posthog:exec({ "command": "call read-data-schema {\\"query\\": {\\"kind\\": \\"events\\"}}" })'
-            )
-        ).toBe(`posthog-cli api call read-data-schema '{"query": {"kind": "events"}}'`)
+            toCliSyntax('posthog:exec({ "command": "call insight-query {\\"query\\": {\\"kind\\": \\"events\\"}}" })')
+        ).toBe(`posthog-cli api call insight-query '{"query": {"kind": "events"}}'`)
     })
 
     it('builds the agent guide from the MCP exec templates', () => {

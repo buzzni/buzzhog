@@ -10,7 +10,6 @@ from products.posthog_ai.backend.context_wrapper import (
     ContextService,
 )
 
-SERIALIZERS = "ee.hogai.api.serializers"
 WRAPPER = "products.posthog_ai.backend.context_wrapper"
 
 

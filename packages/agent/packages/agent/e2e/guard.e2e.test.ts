@@ -11,8 +11,8 @@ describe("live e2e preconditions", () => {
     expect(
       E2E.hasToken,
       "POSTHOG_CODE_E2E_GATEWAY_PERSONAL_API_KEY is not set — every adapter arm would skip and the run " +
-        "would pass without testing anything. Mint one via e2e/run-e2e.sh or " +
-        "set POSTHOG_CODE_E2E_GATEWAY_PERSONAL_API_KEY against a reachable POSTHOG_CODE_E2E_GATEWAY_URL.",
+        "would pass without testing anything. Set it to a personal API key that " +
+        "a reachable POSTHOG_CODE_E2E_GATEWAY_URL accepts.",
     ).toBe(true);
   });
 

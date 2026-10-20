@@ -1096,27 +1096,6 @@ def update_survey_adaptive_sampling() -> None:
     update_survey_adaptive_sampling()
 
 
-def recompute_materialized_columns_enabled() -> bool:
-    from posthog.models.instance_setting import get_instance_setting
-
-    if get_instance_setting("MATERIALIZED_COLUMNS_ENABLED") and get_instance_setting(
-        "COMPUTE_MATERIALIZED_COLUMNS_ENABLED"
-    ):
-        return True
-    return False
-
-
-@shared_task(ignore_result=True)
-def clickhouse_materialize_columns() -> None:
-    if recompute_materialized_columns_enabled():
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize_properties_task
-        except ImportError:
-            pass
-        else:
-            materialize_properties_task()
-
-
 @shared_task(ignore_result=True, queue=CeleryQueue.USAGE_REPORTS.value)
 def send_org_usage_reports() -> None:
     from posthog.tasks.usage_report import send_all_org_usage_reports

@@ -5,7 +5,7 @@ import { ApiClient } from '@/api/client'
 import { ForwardingApiClient } from '@/lib/connection-forwarding'
 import { ExecCommandError, PostHogApiError, PostHogTransportError } from '@/lib/errors'
 import { StateManager } from '@/lib/StateManager'
-import executeSqlTool from '@/tools/posthogAiTools/executeSql'
+import { GENERATED_TOOL_MAP } from '@/tools/generated'
 import { createConnectionCallTool } from '@/tools/posthogConnections/call'
 import type { Context, ToolBase, ZodObjectAny } from '@/tools/types'
 
@@ -247,11 +247,11 @@ describe('posthog connection forwarding', () => {
             // This is the promise the tool makes: the agent passes no project id and never resolves
             // one. If the forwarded context leaked the local id, every call would hit the wrong project.
             const request = createRequestMock({ status: 200, data: { results: [[1]] } })
-            const tool = createConnectionCallTool((name) => (name === 'execute-sql' ? fakeTool(name) : undefined))
+            const tool = createConnectionCallTool((name) => (name === 'insights-list' ? fakeTool(name) : undefined))
 
             const result: any = await tool.handler(createContext(request), {
                 connection_id: '99',
-                tool: 'execute-sql',
+                tool: 'insights-list',
                 arguments: { query: 'select 1 from events limit 5' },
             })
 
@@ -272,7 +272,7 @@ describe('posthog connection forwarding', () => {
             ['a session-state tool', 'switch-project'],
         ])('refuses %s before contacting the connection', async (_case, toolName) => {
             const request = createRequestMock({ status: 200, data: {} })
-            const tool = createConnectionCallTool((name) => (name === 'execute-sql' ? fakeTool(name) : undefined))
+            const tool = createConnectionCallTool((name) => (name === 'insights-list' ? fakeTool(name) : undefined))
 
             const error = await tool
                 .handler(createContext(request), { connection_id: '99', tool: toolName, arguments: {} })
@@ -282,28 +282,25 @@ describe('posthog connection forwarding', () => {
             expect(request).not.toHaveBeenCalledWith(expect.objectContaining({ path: FORWARD_PATH }))
         })
 
-        it('runs a tool that builds its own request through the connection, not against the target', async () => {
-            // `execute-sql` reaches the API through `invokeMcpTool` rather than a generated handler.
-            // Whatever route it takes has to be the client's, or it sends the caller's own bearer
+        it('runs a real tool that builds its own request through the connection, not against the target', async () => {
+            // Whatever route a tool takes has to be the client's, or it sends the caller's own bearer
             // token straight to the connected project's server and skips `forward/` entirely.
             const globalFetch = vi.fn()
             vi.stubGlobal('fetch', globalFetch)
-            const request = createRequestMock({ status: 200, data: { success: true, content: 'rows' } })
-            const tool = createConnectionCallTool((name) => (name === 'execute-sql' ? executeSqlTool() : undefined))
+            const request = createRequestMock({ status: 200, data: { count: 0, results: [] } })
+            const tool = createConnectionCallTool((name) =>
+                name === 'cohorts-list' ? (GENERATED_TOOL_MAP['cohorts-list']!() as ToolBase<ZodObjectAny>) : undefined
+            )
 
-            const result: any = await tool.handler(createContext(request), {
+            await tool.handler(createContext(request), {
                 connection_id: '99',
-                tool: 'execute-sql',
-                arguments: { query: 'select 1' },
+                tool: 'cohorts-list',
+                arguments: {},
             })
 
             const forwardCall = request.mock.calls.find(([opts]: any[]) => opts.path === FORWARD_PATH)
-            expect(forwardCall![0].body).toMatchObject({
-                method: 'POST',
-                path: 'api/environments/4242/mcp_tools/execute_sql/',
-            })
+            expect(forwardCall![0].body).toMatchObject({ method: 'GET', path: 'api/projects/4242/cohorts/' })
             expect(globalFetch).not.toHaveBeenCalled()
-            expect(result.result).toBe('rows')
         })
 
         it.each([
@@ -346,10 +343,10 @@ describe('posthog connection forwarding', () => {
             // Validating up front keeps a malformed call from burning a cross-region round trip and
             // coming back as an opaque 400 from the other project.
             const request = createRequestMock({ status: 200, data: {} })
-            const tool = createConnectionCallTool(() => fakeTool('execute-sql'))
+            const tool = createConnectionCallTool(() => fakeTool('insights-list'))
 
             const error: any = await tool
-                .handler(createContext(request), { connection_id: '99', tool: 'execute-sql', arguments: { q: 1 } })
+                .handler(createContext(request), { connection_id: '99', tool: 'insights-list', arguments: { q: 1 } })
                 .catch((e) => e)
 
             expect(error).toBeInstanceOf(ExecCommandError)

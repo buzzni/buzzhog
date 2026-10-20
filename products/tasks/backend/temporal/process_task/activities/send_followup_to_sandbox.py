@@ -30,6 +30,7 @@ from products.tasks.backend.logic.services.peer_messages import mark_peer_messag
 from products.tasks.backend.logic.services.run_actor import slack_actor_state_updates, user_has_current_team_access
 from products.tasks.backend.logic.services.staged_artifacts import get_task_run_artifacts_by_id
 from products.tasks.backend.logic.services.store_skills import refresh_store_skills_state
+from products.tasks.backend.logic.stream.agent_events import STOP_REASON_END_TURN, TURN_COMPLETE_METHOD
 from products.tasks.backend.logic.stream.redis_stream import publish_task_run_stream_event
 from products.tasks.backend.metrics import observe_followup_denied_permission_stop, observe_followup_sandbox_stopped
 from products.tasks.backend.models import AgentPeerMessage, TaskRun
@@ -59,8 +60,6 @@ from products.tasks.backend.temporal.process_task.utils import (
     sandbox_identity_scope,
     upgrade_run_to_user_authorship,
 )
-
-from ee.hogai.sandbox import STOP_REASON_END_TURN, TURN_COMPLETE_METHOD
 
 logger = structlog.get_logger(__name__)
 

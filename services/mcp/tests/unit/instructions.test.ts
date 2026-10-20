@@ -26,12 +26,12 @@ describe('buildToolDomainsBlock', () => {
 
     it('keeps a singleton tool whole but collapses siblings to a shared root', () => {
         const tools = [
-            { name: 'execute-sql', category: 'SQL' },
+            { name: 'agent-feedback', category: 'Feedback' },
             { name: 'external-data-schemas-list', category: 'Data warehouse' },
             { name: 'external-data-sources-list', category: 'Data warehouse' },
         ]
         const result = buildToolDomainsBlock(tools)
-        expect(result).toContain('- execute-sql')
+        expect(result).toContain('- agent-feedback')
         // external-data-* siblings collapse to their shared prefix, not listed verbatim
         expect(result).toContain('- external-data')
         expect(result).not.toContain('- external-data-schemas-list')
@@ -181,9 +181,9 @@ describe('buildToolDomainsCompact', () => {
             { name: 'experiment-get', category: 'Experiments' },
             { name: 'survey-create', category: 'Surveys' },
             { name: 'survey-get', category: 'Surveys' },
-            { name: 'execute-sql', category: 'SQL' },
+            { name: 'agent-feedback', category: 'Feedback' },
         ]
-        expect(buildToolDomainsCompact(tools)).toBe('execute-sql|experiment|survey')
+        expect(buildToolDomainsCompact(tools)).toBe('agent-feedback|experiment|survey')
     })
 
     it('returns an empty string for an empty array', () => {

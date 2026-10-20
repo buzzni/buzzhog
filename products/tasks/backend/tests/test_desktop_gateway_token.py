@@ -29,8 +29,6 @@ from products.tasks.backend.logic.services.desktop_gateway_token import (
 )
 from products.tasks.backend.logic.services.gateway_model_pin import DESKTOP_AGENT_MODELS, FREE_TIER_MODELS
 
-from ee.billing.billing_manager import OrganizationFundingStatus, PrepaidCreditState
-
 _VIEW = "products.tasks.backend.presentation.views.desktop_access"
 _POST = "products.tasks.backend.logic.services.desktop_gateway_token.requests.post"
 _EXHAUSTED = (
@@ -264,7 +262,7 @@ class TestDesktopGatewayTokenMint(_GatewayTestBase):
         post.assert_not_called()
 
     def test_access_resolution_failure_is_unavailable(self) -> None:
-        self.mocks["access"].side_effect = DesktopAccessResolutionError("billing down")
+        self.mocks["access"].side_effect = DesktopAccessResolutionError("unavailable")
         response, post = self._mint()
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert response.json()["reason"] == "desktop_access_unavailable"
@@ -396,13 +394,6 @@ class TestDesktopGatewayTokenMint(_GatewayTestBase):
             label: (1 if label == outcome else 0) for label in before
         }
 
-    @parameterized.expand([("configured", 900, 900), ("clamped", 5, 60)])
-    def test_the_mint_caches_the_funding_lookup_for_the_token_lifetime(self, _name, configured, expected) -> None:
-        with override_settings(DESKTOP_GATEWAY_TOKEN_TTL_SECONDS=configured):
-            self._mint()
-        self.mocks["access"].assert_called_once()
-        assert self.mocks["access"].call_args.kwargs == {"funding_cache_seconds": expected}
-
     @parameterized.expand([("valid", "350", "350", 0), ("invalid", "lots", "200", 1)])
     def test_the_default_cap_is_minted_and_only_an_invalid_one_is_reported(
         self, _name, configured, minted, reports
@@ -432,23 +423,6 @@ class TestDesktopGatewayTokenMint(_GatewayTestBase):
         assert response.status_code == status.HTTP_201_CREATED
         assert post.call_args.args[0] == "https://ai-gateway.us.posthog.com/v1/tokens"
         assert response.json()["gateway_url"] == "https://ai-gateway.us.posthog.com"
-
-    def test_a_second_mint_within_the_token_lifetime_skips_the_billing_call(self) -> None:
-        self.gates["access"].stop()
-        with (
-            patch("products.tasks.backend.access.get_feature_flag_or_none", return_value=False),
-            patch(
-                "products.tasks.backend.access._get_funding_status",
-                return_value=OrganizationFundingStatus(
-                    startup_program_label=None, prepaid_credit_state=PrepaidCreditState.NONE
-                ),
-            ) as funding,
-        ):
-            first, _ = self._mint()
-            second, _ = self._mint()
-        self.mocks["access"] = self.gates["access"].start()
-        assert (first.status_code, second.status_code) == (status.HTTP_201_CREATED, status.HTTP_201_CREATED)
-        funding.assert_called_once()
 
     def test_transport_failure_is_503(self) -> None:
         with patch(_POST, side_effect=requests.ReadTimeout("slow")):
@@ -539,93 +513,22 @@ class TestDesktopGatewayTokenMint(_GatewayTestBase):
         capture.assert_called_once()
 
 
-@time_machine.travel("2026-09-23T12:00:00Z", tick=False)
 class TestDesktopUsageEndpoint(_GatewayTestBase):
-    def _usage(self, limited_resources: dict | None = None):
-        with patch(
-            "ee.billing.quota_limiting.get_fresh_team_limited_resources",
-            side_effect=lambda _token: {
-                resource: (limited_resources or {}).get(resource.value, False)
-                for resource in __import__("ee.billing.quota_limiting", fromlist=["QuotaResource"]).QuotaResource
-            },
-        ):
-            return self._client().get(self._url("usage"))
-
-    def test_body_matches_the_legacy_contract_field_by_field(self) -> None:
-        self.organization.usage = {
-            "period": ["2026-09-01T00:00:00Z", "2026-10-01T00:00:00Z"],
-            "posthog_code_credits": {"usage": 1200, "todays_usage": 34, "limit": 5000},
-            "posthog_code_token_credits": {"usage": 900, "todays_usage": 0},
-            "sandbox_compute_credits": {"usage": 334.0},
-            "sandbox_compute_cpu_millicore_seconds": {"usage": 12.5},
-        }
-        self.organization.available_product_features = [
-            {"key": AvailableFeature.POSTHOG_CODE_USAGE, "name": "PostHog Desktop usage billing"}
-        ]
-        self.organization.save()
-
-        response = self._usage()
+    def test_usage_is_unmetered_without_quota_limiting(self) -> None:
+        response = self._client().get(self._url("usage"))
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == {
-            "product": "posthog_code",
-            "user_id": self.user.id,
-            "burst": {
-                "used_percent": 0.0,
-                "resets_in_seconds": 86400,
-                "reset_at": "2026-09-24T12:00:00Z",
-                "exceeded": False,
-            },
-            "sustained": {
-                "used_percent": 0.0,
-                "resets_in_seconds": 2592000,
-                "reset_at": "2026-10-23T12:00:00Z",
-                "exceeded": False,
-            },
-            "ai_credits": {
-                "exhausted": False,
-                "used_usd": 12.34,
-                "limit_usd": 50.0,
-                "breakdown": {
-                    "token_credits": 900,
-                    "compute_credits": 334,
-                    # A fractional unit is not a count; legacy reports it as unknown.
-                    "cpu_millicore_seconds": None,
-                    "memory_mib_seconds": None,
-                },
-            },
-            "is_rate_limited": False,
-            "is_pro": False,
-            "code_usage_subscribed": True,
-            "billing_period_end": "2026-10-01T00:00:00Z",
-        }
-
-    def test_unsynced_org_reports_unknown_not_zero(self) -> None:
-        body = self._usage().json()
+        body = response.json()
         assert body["ai_credits"] == {"exhausted": False, "used_usd": None, "limit_usd": None, "breakdown": None}
-        assert body["billing_period_end"] is None
+        assert body["is_rate_limited"] is False
         assert body["code_usage_subscribed"] is False
 
-    def test_exhausted_bucket_is_rate_limited(self) -> None:
-        body = self._usage({"posthog_code_credits": True}).json()
-        assert body["ai_credits"]["exhausted"] is True
-        assert body["is_rate_limited"] is True
-
-    def test_ai_credits_limit_does_not_leak_into_the_desktop_bucket(self) -> None:
-        body = self._usage({"ai_credits": True}).json()
-        assert body["ai_credits"]["exhausted"] is False
-        assert body["is_rate_limited"] is False
-
-    def test_deactivated_org_is_exhausted_and_unbilled(self) -> None:
-        self.organization.available_product_features = [
-            {"key": AvailableFeature.POSTHOG_CODE_USAGE, "name": "PostHog Desktop usage billing"}
-        ]
+    def test_deactivated_org_is_exhausted(self) -> None:
         self.organization.is_active = False
         self.organization.save()
         # Token callers are refused upstream of the view; a session reaches the body.
-        with patch("ee.billing.quota_limiting.get_fresh_team_limited_resources", side_effect=Exception("unused")):
-            body = self.client.get(self._url("usage")).json()
-            refused = self._client().get(self._url("usage"))
+        body = self.client.get(self._url("usage")).json()
+        refused = self._client().get(self._url("usage"))
         assert body["ai_credits"]["exhausted"] is True
         assert body["is_rate_limited"] is True
         assert body["code_usage_subscribed"] is False

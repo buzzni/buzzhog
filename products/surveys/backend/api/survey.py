@@ -105,8 +105,6 @@ from products.surveys.backend.summarization import fetch_responses, format_as_ma
 from products.surveys.backend.translation import generate_survey_translation
 from products.surveys.backend.util import SurveyEventProperties, get_archived_response_uuids
 
-from ee.surveys.summaries.headline_summary import generate_survey_headline
-
 # Constants for better maintainability
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -3280,8 +3278,6 @@ class SurveyViewSet(ApprovalHandlingMixin, TeamAndOrgViewSetMixin, AccessControl
         if not request.user.is_authenticated:
             raise exceptions.NotAuthenticated()
 
-        user = cast(User, request.user)
-
         logger.info("[summary_headline] checking survey exists", survey_id=survey_id)
         if not Survey.objects.filter(id=survey_id, team__project_id=self.project_id).exists():
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -3300,39 +3296,10 @@ class SurveyViewSet(ApprovalHandlingMixin, TeamAndOrgViewSetMixin, AccessControl
                 }
             )
 
-        if not self.team.organization.is_ai_data_processing_approved:
-            return Response(
-                {"error": "AI data processing must be approved to generate summaries"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        logger.info("[summary_headline] calling generate_survey_headline", survey_id=survey_id)
-        result = generate_survey_headline(
-            survey=survey,
-            team=self.team,
-            user=user,
+        return Response(
+            {"error": "Survey headline summaries cannot be generated on this install."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-
-        timings_header = result.pop("timings_header", None)
-
-        survey.headline_summary = result.get("headline")
-        survey.headline_response_count = result.get("responses_sampled", 0)
-        survey.save(update_fields=["headline_summary", "headline_response_count"])
-
-        posthoganalytics.capture(
-            event="survey headline generated",
-            distinct_id=str(user.distinct_id),
-            properties={
-                "survey_id": survey_id,
-                "responses_sampled": result.get("responses_sampled", 0),
-                "has_more": result.get("has_more", False),
-            },
-        )
-
-        r = Response(result)
-        if timings_header:
-            r.headers["Server-Timing"] = timings_header
-        return r
 
     @extend_schema(
         request=GenerateSurveyTranslationsRequestSerializer,

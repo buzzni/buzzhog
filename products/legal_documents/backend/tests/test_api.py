@@ -3,7 +3,6 @@ import json
 import hashlib
 from contextlib import contextmanager, nullcontext
 from datetime import timedelta
-from typing import Any
 
 from posthog.test.base import APIBaseTest
 from unittest.mock import patch
@@ -40,18 +39,6 @@ DPA_PAYLOAD = {
 }
 
 
-def _billing_with_addons(addon_types_subscribed: set[str]) -> dict[str, Any]:
-    return {
-        "products": [
-            {
-                "type": "platform_and_support",
-                "addons": [{"type": addon_type, "subscribed": True} for addon_type in addon_types_subscribed]
-                + [{"type": "unrelated", "subscribed": False}],
-            }
-        ]
-    }
-
-
 @override_settings(CLOUD_DEPLOYMENT="US")
 class TestLegalDocumentAPI(APIBaseTest):
     def setUp(self) -> None:
@@ -60,11 +47,7 @@ class TestLegalDocumentAPI(APIBaseTest):
         self.organization_membership.save()
         self.url = f"/api/organizations/{self.organization.id}/legal_documents/"
 
-    @parameterized.expand([("boost",), ("scale",), ("enterprise",)])
-    @patch("products.legal_documents.backend.logic.BillingManager")
-    def test_create_baa_with_qualifying_addon_succeeds(self, addon_type: str, mock_manager_cls) -> None:
-        mock_manager_cls.return_value.get_billing.return_value = _billing_with_addons({addon_type})
-
+    def test_create_baa_succeeds(self) -> None:
         response = self.client.post(self.url, BAA_PAYLOAD, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.json())
@@ -72,16 +55,6 @@ class TestLegalDocumentAPI(APIBaseTest):
         self.assertEqual(row.document_type, "BAA")
         self.assertEqual(row.organization_id, self.organization.id)
         self.assertEqual(row.created_by_id, self.user.id)
-
-    @patch("products.legal_documents.backend.logic.BillingManager")
-    def test_create_baa_without_qualifying_addon_is_forbidden(self, mock_manager_cls) -> None:
-        mock_manager_cls.return_value.get_billing.return_value = _billing_with_addons(set())
-
-        response = self.client.post(self.url, BAA_PAYLOAD, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertIn("Boost, Scale, or Enterprise", response.json()["detail"])
-        self.assertFalse(LegalDocument.objects.exists())
 
     def test_create_dpa_succeeds(self) -> None:
         response = self.client.post(self.url, DPA_PAYLOAD, format="json")
@@ -167,11 +140,7 @@ class TestLegalDocumentAPI(APIBaseTest):
 
     @patch("products.legal_documents.backend.logic.posthoganalytics.capture")
     def test_create_baa_fires_submitted_event(self, mock_capture) -> None:
-        with patch(
-            "products.legal_documents.backend.logic.has_qualifying_baa_addon",
-            return_value=True,
-        ):
-            response = self.client.post(self.url, BAA_PAYLOAD, format="json")
+        response = self.client.post(self.url, BAA_PAYLOAD, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mock_capture.assert_called_once()
@@ -209,8 +178,7 @@ class TestLegalDocumentAPI(APIBaseTest):
         self.assertIn("already has a DPA", second.json()["detail"])
         self.assertEqual(LegalDocument.objects.filter(document_type="DPA").count(), 1)
 
-    @patch("products.legal_documents.backend.logic.has_qualifying_baa_addon", return_value=True)
-    def test_only_one_baa_per_organization(self, _mock_addon) -> None:
+    def test_only_one_baa_per_organization(self) -> None:
         first = self.client.post(self.url, BAA_PAYLOAD, format="json")
         self.assertEqual(first.status_code, status.HTTP_201_CREATED)
 
@@ -219,8 +187,7 @@ class TestLegalDocumentAPI(APIBaseTest):
         self.assertIn("already has a BAA", second.json()["detail"])
         self.assertEqual(LegalDocument.objects.filter(document_type="BAA").count(), 1)
 
-    @patch("products.legal_documents.backend.logic.has_qualifying_baa_addon", return_value=True)
-    def test_baa_and_dpa_can_coexist_in_same_organization(self, _mock_addon) -> None:
+    def test_baa_and_dpa_can_coexist_in_same_organization(self) -> None:
         baa_response = self.client.post(self.url, BAA_PAYLOAD, format="json")
         dpa_response = self.client.post(self.url, DPA_PAYLOAD, format="json")
         self.assertEqual(baa_response.status_code, status.HTTP_201_CREATED)

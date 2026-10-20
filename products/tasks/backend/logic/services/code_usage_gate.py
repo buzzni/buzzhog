@@ -36,26 +36,8 @@ class CodeUsageStatus:
 
 
 def get_posthog_code_usage(team_id: int) -> CodeUsageStatus | None:
-    """None (fail open) on any failure, so a Redis or DB error never blocks task creation."""
-    from posthog.models import Team  # noqa: PLC0415
-
-    from ee.billing.quota_limiting import QuotaResource, is_team_over_credit_budget  # noqa: PLC0415
-
-    try:
-        team = Team.objects.select_related("organization").get(id=team_id)
-        limited = is_team_over_credit_budget(team.api_token, QuotaResource.POSTHOG_CODE_CREDITS)
-        if not limited:
-            return CodeUsageStatus(is_rate_limited=False, limit_type=None, reset_at=None, is_pro=False)
-        period = team.organization.current_billing_period
-    except Exception:
-        logger.warning("code_usage_gate: credit bucket check failed", exc_info=True)
-        return None
-    return CodeUsageStatus(
-        is_rate_limited=True,
-        limit_type=None,
-        reset_at=period.end.isoformat() if period else None,
-        is_pro=False,
-    )
+    """Usage is never limited without quota limiting; None would mean the check failed open."""
+    return CodeUsageStatus(is_rate_limited=False, limit_type=None, reset_at=None, is_pro=False)
 
 
 def rate_limit_error_payload(usage: CodeUsageStatus) -> dict[str, Any]:

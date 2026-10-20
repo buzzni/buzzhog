@@ -87,16 +87,9 @@ DESKTOP_GATEWAY_MINTS = Counter(
 def _team_credit_refusal(team_id: int, bucket: str) -> str | None:
     from posthog.models import Team  # noqa: PLC0415
 
-    from ee.billing.quota_limiting import QuotaResource, is_team_over_credit_budget  # noqa: PLC0415
-
-    row = Team.objects.filter(id=team_id).values_list("api_token", "organization__is_active").first()
-    if not row:
-        return None
-    api_token, org_active = row
+    org_active = Team.objects.filter(id=team_id).values_list("organization__is_active", flat=True).first()
     if org_active is False:
         return "org_deactivated"
-    if api_token and is_team_over_credit_budget(api_token, QuotaResource(bucket)):
-        return f"{bucket}_exhausted"
     return None
 
 

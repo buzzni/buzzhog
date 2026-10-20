@@ -1,14 +1,7 @@
 import dataclasses
 
 import time_machine
-from posthog.test.base import (
-    APIBaseTest,
-    BaseTest,
-    ClickhouseTestMixin,
-    _create_event,
-    _create_person,
-    also_test_with_materialized_columns,
-)
+from posthog.test.base import APIBaseTest, BaseTest, ClickhouseTestMixin, _create_event, _create_person
 
 from django.utils.timezone import now
 
@@ -34,7 +27,6 @@ class MockEvent:
 
 
 class TestPaths(ClickhouseTestMixin, APIBaseTest):
-    @also_test_with_materialized_columns(["$current_url", "$screen_name"], person_properties=["email"])
     def test_current_url_paths_and_logic(self):
         events = []
         _create_person(team_id=self.team.pk, distinct_ids=["fake"])

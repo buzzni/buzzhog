@@ -15,7 +15,7 @@ import type { PostHog } from 'posthog-js/dist/module'
 import { lemonToast } from 'lib/lemon-ui/LemonToast/LemonToast'
 
 import { toolbarLogger } from '~/toolbar/toolbarLogger'
-import { captureToolbarException, toolbarPosthogJS } from '~/toolbar/toolbarPosthogJS'
+import { captureToolbarException, toolbarPosthogJS, toolbarTelemetryEnabled } from '~/toolbar/toolbarPosthogJS'
 import { TOOLBAR_USER_INTENTS, ToolbarProps, ToolbarUserIntent } from '~/types'
 
 import type { ExperimentIdType } from '../types'
@@ -694,7 +694,7 @@ function maybeMigrateTemporaryToken(
 export function identifiesToolbarUser<P extends Pick<ToolbarProps, 'instrument' | 'distinctId'>>(
     props: P
 ): props is P & { distinctId: string } {
-    return !!props.instrument && !!props.distinctId
+    return toolbarTelemetryEnabled && !!props.instrument && !!props.distinctId
 }
 
 /** Set up PostHog instrumentation and capture the "toolbar loaded" event. */
@@ -707,11 +707,11 @@ function initInstrumentation(
         apiHostResolution: { host: string; source: ApiHostSource }
     }
 ): void {
-    if (props.instrument) {
+    if (props.instrument && toolbarTelemetryEnabled) {
         toolbarPosthogJS.opt_in_capturing()
     }
     if (identifiesToolbarUser(props)) {
-        toolbarPosthogJS.identify(props.distinctId, props.userEmail ? { email: props.userEmail } : {})
+        toolbarPosthogJS.identify(props.distinctId)
     }
 
     const loadStart = (window as any).__posthog_toolbar_load_start as number | undefined

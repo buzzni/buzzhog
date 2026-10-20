@@ -7,12 +7,11 @@ A stripped-back Expo app over PostHog cloud tasks, built for a local stack.
 In the posthog repo, once:
 
 ```bash
-echo 'ALLOW_DEV_API_KEY_REVEAL=1' >> .env
 echo 'SANDBOX_PROVIDER=docker' >> .env
-flox activate -- bash -c "python manage.py setup_local_api_key"
 ```
 
-Then restart the stack. The login screen posts email and password to `/api/login/`, reads the seeded local dev personal API key, and uses it as a bearer token from then on.
+Then restart the stack. The login screen posts email and password to `/api/login/`, then creates a personal API key named `mobilehog local` for that user and uses it as a bearer token from then on.
+If that key already exists, the login screen rolls it instead of creating another one. A device that signed in earlier as the same user then has to sign in again.
 
 ## Run
 

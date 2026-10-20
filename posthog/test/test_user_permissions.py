@@ -15,8 +15,6 @@ from products.dashboards.backend.models.dashboard import Dashboard
 from products.dashboards.backend.models.dashboard_tile import DashboardTile
 from products.product_analytics.backend.facade.models import Insight
 
-from ee.models.dashboard_privilege import DashboardPrivilege
-
 
 class WithPermissionsBase:
     user: User
@@ -779,18 +777,6 @@ class TestUserDashboardPermissions(BaseTest, WithPermissionsBase):
 
         assert self.dashboard_permissions().effective_privilege_level == Dashboard.PrivilegeLevel.CAN_VIEW
 
-    def test_dashboard_effective_privilege_level_priviledged(self):
-        self.dashboard.restriction_level = Dashboard.RestrictionLevel.ONLY_COLLABORATORS_CAN_EDIT
-        self.dashboard.save()
-
-        DashboardPrivilege.objects.create(
-            user=self.user,
-            dashboard=self.dashboard,
-            level=Dashboard.PrivilegeLevel.CAN_EDIT,
-        )
-
-        assert self.dashboard_permissions().effective_privilege_level == Dashboard.PrivilegeLevel.CAN_EDIT
-
     def test_dashboard_effective_privilege_level_creator(self):
         self.dashboard.restriction_level = Dashboard.RestrictionLevel.ONLY_COLLABORATORS_CAN_EDIT
         self.dashboard.save()
@@ -829,18 +815,6 @@ class TestUserDashboardPermissions(BaseTest, WithPermissionsBase):
         self.dashboard.save()
         self.dashboard.created_by = self.user
         self.dashboard.save()
-
-        assert self.dashboard_permissions().can_edit
-
-    def test_dashboard_can_edit_priviledged(self):
-        self.dashboard.restriction_level = Dashboard.RestrictionLevel.ONLY_COLLABORATORS_CAN_EDIT
-        self.dashboard.save()
-
-        DashboardPrivilege.objects.create(
-            user=self.user,
-            dashboard=self.dashboard,
-            level=Dashboard.PrivilegeLevel.CAN_EDIT,
-        )
 
         assert self.dashboard_permissions().can_edit
 

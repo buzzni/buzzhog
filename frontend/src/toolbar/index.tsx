@@ -17,7 +17,7 @@ import { ToolbarApp } from '~/toolbar/ToolbarApp'
 import { canonicalizeApiHost, identifiesToolbarUser } from '~/toolbar/toolbarConfigLogic'
 import { isToolbarMounted, posthogToolbarController, setToolbarRefs } from '~/toolbar/toolbarController'
 import { toolbarLogger } from '~/toolbar/toolbarLogger'
-import { captureToolbarException, toolbarPosthogJS } from '~/toolbar/toolbarPosthogJS'
+import { captureToolbarException, toolbarPosthogJS, toolbarTelemetryEnabled } from '~/toolbar/toolbarPosthogJS'
 import { isToolbarRequestError } from '~/toolbar/toolbarRequestError'
 import { safeFetch, toError } from '~/toolbar/utils'
 import { ToolbarParams } from '~/types'
@@ -99,6 +99,9 @@ export { posthogToolbarController }
 const TOOLBAR_FLAGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
 function startToolbarFlags(toolbarParams: ToolbarParams): void {
+    if (!toolbarTelemetryEnabled) {
+        return
+    }
     toolbarPosthogJS.set_config({ remote_config_refresh_interval_ms: TOOLBAR_FLAGS_REFRESH_INTERVAL_MS })
     // Otherwise identify() gives the instance a new distinct id, and posthog-js loads the flags for that user
     if (!identifiesToolbarUser(toolbarParams)) {

@@ -32,11 +32,10 @@ config:
             marker: 'op://'
             wrap: [op, run, --env-file, '{file}', --]
     telemetry:
-        # Write-only project token for PostHog's internal hogli project.
-        # It cannot read data; safe to commit. Standalone hogli users get a blank
-        # default and telemetry stays disabled unless they set their own key.
-        api_key: phc_JYFXrbqdzueOYb0wFUTnCglFKZuC4xRXBW790ewdcvn
-        host: https://us.i.posthog.com
+        # Blank, so hogli sends nothing. Set POSTHOG_TELEMETRY_HOST and POSTHOG_TELEMETRY_API_KEY
+        # to send hogli events to your own collector.
+        api_key: ''
+        host: ''
 
 metadata:
     devbox:
@@ -308,13 +307,6 @@ core:
             - ensure:local:setup
         description: Full reset - wipe volumes, migrate, load demo data, sync flags
         prompt: true
-    dev:api-key:
-        cmd: python manage.py setup_local_api_key
-        description: Creates a personal API key that's always the same, so you don't need
-            to manually create a new one every time you reset the stack. Its value is also
-            shown in Settings > Personal API keys.
-        services:
-            - postgresql
 health_checks:
     check:dagster-graphql:
         bin_script: check_dagster_graphql_up

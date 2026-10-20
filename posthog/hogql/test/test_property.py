@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from typing import Any, Literal, Optional, Union, cast
 
 import time_machine
-from posthog.test.base import APIBaseTest, BaseTest, _create_event, cleanup_materialized_columns
+from posthog.test.base import APIBaseTest, BaseTest, _create_event
 from unittest.mock import MagicMock, patch
 
 from django.conf import settings
@@ -56,8 +56,6 @@ from products.cohorts.backend.models.cohort import Cohort
 from products.data_tools.backend.models.join import DataWarehouseJoin
 from products.event_definitions.backend.models.property_definition import PropertyType
 from products.warehouse_sources.backend.facade.models import DataWarehouseCredential, DataWarehouseTable
-
-from ee.clickhouse.materialized_columns.columns import materialize
 
 elements_chain_match = lambda x: parse_expr("elements_chain =~ {regex}", {"regex": ast.Constant(value=str(x))})
 elements_chain_imatch = lambda x: parse_expr("elements_chain =~* {regex}", {"regex": ast.Constant(value=str(x))})
@@ -2470,26 +2468,17 @@ class TestPropertyIsSetIsNotSetWithData(APIBaseTest):
     # Sentinel to indicate a property should not be included in the event
     NOT_SET: Any = object()
 
-    # Expected is_set value can be True, False, or a callable(uses_legacy_materialized_columns) -> bool.
-    # Legacy materialized columns turn empty string and "null" string into NULL due to nullIf wrapping.
-    ONLY_WHEN_NOT_LEGACY_MATERIALIZED = staticmethod(lambda uses_legacy_mat_cols: not uses_legacy_mat_cols)
-
     def setUp(self):
         super().setUp()
         self.event_name = "test_is_set_event"
 
         # (property_name, value, property_type, expected_is_set)
-        # expected_is_set: True, False, or callable(is_materialized) -> bool
-        self.test_cases: list[tuple[str, Any, PropertyType, Any]] = [
+        self.test_cases: list[tuple[str, Any, PropertyType, bool]] = [
             # String type: value, empty, "null" literal, null, not set
             ("string_value_prop", "hello", PropertyType.String, True),
-            (
-                "string_empty_prop",
-                "",
-                PropertyType.String,
-                False if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA else self.ONLY_WHEN_NOT_LEGACY_MATERIALIZED,
-            ),
-            ("string_null_literal_prop", "null", PropertyType.String, self.ONLY_WHEN_NOT_LEGACY_MATERIALIZED),
+            # The native events table reads an empty string as a missing value, so only it reports this as not set.
+            ("string_empty_prop", "", PropertyType.String, not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA),
+            ("string_null_literal_prop", "null", PropertyType.String, True),
             ("string_null_prop", None, PropertyType.String, False),
             ("string_not_set_prop", self.NOT_SET, PropertyType.String, False),
             # Numeric type: zero, non-zero int, non-zero float, string values, null, not set
@@ -2535,31 +2524,13 @@ class TestPropertyIsSetIsNotSetWithData(APIBaseTest):
             properties=properties,
         )
 
-    def _expected_is_set_values(self, is_materialized: bool) -> dict[str, int]:
-        uses_legacy_materialized_columns = is_materialized and not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-        result = {}
-        for prop_name, _, _, expected in self.test_cases:
-            if callable(expected):
-                result[prop_name] = 1 if expected(uses_legacy_materialized_columns) else 0
-            else:
-                result[prop_name] = 1 if expected else 0
-        return result
-
-    def _expected_is_not_set_values(self, is_materialized: bool) -> dict[str, int]:
-        return {k: 1 - v for k, v in self._expected_is_set_values(is_materialized).items()}
-
-    @parameterized.expand([("not_materialized", False), ("materialized", True)])
-    def test_is_set_operator(self, _name: str, is_materialized: bool):
-        if is_materialized:
-            self.addCleanup(cleanup_materialized_columns)
-            for prop_name, _, _, _ in self.test_cases:
-                materialize("events", prop_name)
-
+    @parameterized.expand([("is_set",), ("is_not_set",)])
+    def test_is_set_and_is_not_set_operators(self, operator: str) -> None:
         select_exprs: list[ast.Expr] = [
             ast.Alias(
                 alias=prop_name,
                 expr=property_to_expr(
-                    {"type": "event", "key": prop_name, "operator": "is_set"},
+                    {"type": "event", "key": prop_name, "operator": operator},
                     team=self.team,
                     scope="event",
                 ),
@@ -2583,44 +2554,8 @@ class TestPropertyIsSetIsNotSetWithData(APIBaseTest):
         assert row
         results = dict(zip(result.columns, row))
 
-        assert results == self._expected_is_set_values(is_materialized)
-
-    @parameterized.expand([("not_materialized", False), ("materialized", True)])
-    def test_is_not_set_operator(self, _name: str, is_materialized: bool):
-        if is_materialized:
-            self.addCleanup(cleanup_materialized_columns)
-            for prop_name, _, _, _ in self.test_cases:
-                materialize("events", prop_name)
-
-        select_exprs: list[ast.Expr] = [
-            ast.Alias(
-                alias=prop_name,
-                expr=property_to_expr(
-                    {"type": "event", "key": prop_name, "operator": "is_not_set"},
-                    team=self.team,
-                    scope="event",
-                ),
-            )
-            for prop_name, _, _, _ in self.test_cases
-        ]
-
-        query_ast = ast.SelectQuery(
-            select=select_exprs,
-            select_from=ast.JoinExpr(table=ast.Field(chain=["events"])),
-            where=ast.CompareOperation(
-                op=ast.CompareOperationOp.Eq,
-                left=ast.Field(chain=["event"]),
-                right=ast.Constant(value=self.event_name),
-            ),
-        )
-
-        result = execute_hogql_query(team=self.team, query=query_ast)
-        assert result.columns
-        row: Iterable[Any] = result.results[0]
-        assert row
-        results = dict(zip(result.columns, row))
-
-        assert results == self._expected_is_not_set_values(is_materialized)
+        expected_set = operator == "is_set"
+        assert results == {prop_name: int(is_set == expected_set) for prop_name, _, _, is_set in self.test_cases}
 
 
 class TestPropertyDateOperatorsWithData(APIBaseTest):

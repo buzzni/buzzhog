@@ -25,6 +25,13 @@ from products.tasks.backend.logic.services.connection_token import (
     reset_sandbox_jwt_key_cache,
 )
 from products.tasks.backend.logic.services.sandbox_config import SANDBOX_TTL_SECONDS
+from products.tasks.backend.logic.stream.agent_events import (
+    PI_RUNTIME_ERROR_MESSAGE,
+    is_idle_resume_turn_complete,
+    is_turn_complete,
+    pi_turn_error,
+    turn_completed_successfully,
+)
 from products.tasks.backend.logic.stream.event_ingest import (
     MAX_EVENT_LINE_BYTES,
     MAX_EVENTS_PER_REQUEST,
@@ -44,23 +51,27 @@ from products.tasks.backend.logic.stream.redis_stream import (
 from products.tasks.backend.models import Task, TaskRun
 from products.tasks.backend.tests.test_api import TEST_RSA_PRIVATE_KEY
 
-from ee.hogai.sandbox import PI_RUNTIME_ERROR_MESSAGE
-
 SKIP_COUNTER_SAMPLE = "posthog_tasks_task_run_stream_write_skipped_total"
 PROCESS_KILLED_COUNTER_SAMPLE = "posthog_tasks_sandbox_process_killed_notifications_total"
 
 
-class TestSessionUpdateContract(SimpleTestCase):
+class TestTurnEventContract(SimpleTestCase):
+    # services/agent-proxy reads the same fixture, so the two sides cannot drift apart.
     @parameterized.expand(
         [
-            (case["name"], case["event"], case["expect"]["session_update"])
-            for case in json.loads(
-                (Path(__file__).parents[4] / "ee/hogai/sandbox/turn_event_contract.json").read_text()
-            )
+            (case["name"], case["event"], case["expect"])
+            for case in json.loads((Path(__file__).parent / "fixtures/turn_event_contract.json").read_text())
         ]
     )
-    def test_session_update_contract(self, _name: str, event: dict[str, object], expected: bool) -> None:
-        self.assertEqual(_is_session_update(event), expected)
+    def test_turn_event_contract(self, _name: str, event: dict[str, object], expected: dict[str, bool]) -> None:
+        actual = {
+            "turn_complete": is_turn_complete(event),
+            "idle_resume": is_idle_resume_turn_complete(event),
+            "pi_error": pi_turn_error(event),
+            "session_update": _is_session_update(event),
+            "successful": turn_completed_successfully(event),
+        }
+        self.assertEqual(actual, expected)
 
 
 class TestTaskRunEventIngest(TestCase):

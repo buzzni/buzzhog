@@ -1,7 +1,5 @@
 import re
-from contextlib import nullcontext
 from datetime import UTC, datetime
-from itertools import product
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -12,21 +10,17 @@ from posthog.test.base import (
     QueryMatchingTest,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
-    cleanup_materialized_columns,
     flush_persons_and_events,
     snapshot_clickhouse_queries,
 )
 from unittest.mock import ANY, patch
 
-from django.conf import settings
 from django.test import override_settings
 from django.utils.timezone import now
 
 from dateutil.relativedelta import relativedelta
 from parameterized import parameterized, parameterized_class
 from rest_framework.exceptions import ValidationError
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from posthog.schema import ActionsNode, EventsNode, PersonsOnEventsMode, RecordingsQuery
 
@@ -62,8 +56,14 @@ from posthog.test.test_utils import create_group_type_mapping_without_created_at
 from products.actions.backend.models.action import Action
 from products.cohorts.backend.models.cohort import Cohort
 
-from ee.clickhouse.materialized_columns.columns import get_materialized_columns, materialize
-from ee.clickhouse.models.test.test_cohort import get_person_ids_by_cohort_id
+
+def get_person_ids_by_cohort_id(team_id: int, cohort_id: int) -> list[str]:
+    rows = sync_execute(
+        "SELECT person_id FROM cohortpeople WHERE team_id = %(team_id)s AND cohort_id = %(cohort_id)s "
+        "GROUP BY person_id HAVING sum(sign) > 0",
+        {"team_id": team_id, "cohort_id": cohort_id},
+    )
+    return [str(row[0]) for row in rows]
 
 
 @parameterized_class([{"allow_event_property_expansion": True}, {"allow_event_property_expansion": False}])
@@ -1783,7 +1783,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             (session_id_active_is_61, 59, 61.0)
         ]
 
-    @also_test_with_materialized_columns(["$current_url", "$browser"])
     @snapshot_clickhouse_queries
     def test_event_filter_with_properties(self):
         user = "test_event_filter_with_properties-user"
@@ -2078,12 +2077,11 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(["$session_id", "$browser"], person_properties=["email"])
     @time_machine.travel("2023-01-04", tick=False)
     def test_action_filter(self):
         user = "test_action_filter-user"
         create_person(team=self.team, distinct_ids=[user], properties={"email": "bla"})
-        session_id_one = f"test_action_filter-session-one"
+        session_id_one = "test_action_filter-session-one"
         window_id = "test_action_filter-window-id"
         action_with_properties = self.create_action(
             "custom-event",
@@ -2902,7 +2900,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(person_properties=["email"])
     def test_filter_with_person_properties_exact(self):
         session_id_one, session_id_two = self._two_sessions_two_persons(
             "test_filter_with_person_properties_exact",
@@ -2925,7 +2922,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(person_properties=["email"])
     def test_filter_with_person_properties_not_contains(self):
         session_id_one, session_id_two = self._two_sessions_two_persons(
             "test_filter_with_person_properties_not_contains",
@@ -2939,7 +2935,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(["$current_url"])
     def test_event_filter_with_matching_on_session_id(self):
         user_distinct_id = "test_event_filter_with_matching_on_session_id-user"
         create_person(team=self.team, distinct_ids=[user_distinct_id], properties={"email": "bla"})
@@ -3242,7 +3237,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
                 [session_id] if matches else [],
             )
 
-    @also_test_with_materialized_columns(event_properties=["$current_url", "$browser"], person_properties=["email"])
     @snapshot_clickhouse_queries
     def test_event_filter_with_hogql_properties(self):
         user = "test_event_filter_with_hogql_properties-user"
@@ -3377,7 +3371,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             [],
         )
 
-    @also_test_with_materialized_columns(["$current_url", "$browser"])
     @snapshot_clickhouse_queries
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     def test_any_event_filter_with_properties(self):
@@ -4225,11 +4218,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             [long_session],
         )
 
-    @also_test_with_materialized_columns(
-        event_properties=["is_internal_user"],
-        person_properties=["email"],
-        verify_no_jsonextract=False,
-    )
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_event_filter_with_test_accounts_excluded(self):
@@ -4307,11 +4295,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             ["1"],
         )
 
-    @also_test_with_materialized_columns(
-        event_properties=["$browser"],
-        person_properties=["email"],
-        verify_no_jsonextract=False,
-    )
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_event_filter_with_hogql_event_properties_test_accounts_excluded(self):
@@ -4412,7 +4395,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
 
     # TRICKY: we had to disable use of materialized columns for part of the query generation
     # due to RAM usage issues on the EU cluster
-    @also_test_with_materialized_columns(event_properties=["is_internal_user"], verify_no_jsonextract=False)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_top_level_event_property_test_account_filter(self):
@@ -4505,7 +4487,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
 
     # TRICKY: we had to disable use of materialized columns for part of the query generation
     # due to RAM usage issues on the EU cluster
-    @also_test_with_materialized_columns(event_properties=["is_internal_user"], verify_no_jsonextract=True)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_top_level_event_property_test_account_filter_allowing_denormalized_props(self):
@@ -4596,7 +4577,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
                 ["1"],
             )
 
-    @also_test_with_materialized_columns(event_properties=["is_internal_user"])
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_top_level_hogql_event_property_test_account_filter(self):
@@ -4682,7 +4662,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             ["2"],
         )
 
-    @also_test_with_materialized_columns(person_properties=["email"], verify_no_jsonextract=False)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_top_level_hogql_person_property_test_account_filter(self):
@@ -4768,7 +4747,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             ["1"],
         )
 
-    @also_test_with_materialized_columns(person_properties=["email"], verify_no_jsonextract=False)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_top_level_person_property_test_account_filter(self):
@@ -5055,9 +5033,9 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_ordering(self):
-        session_id_one = f"test_ordering-one"
-        session_id_two = f"test_ordering-two"
-        session_id_three = f"test_ordering-three"
+        session_id_one = "test_ordering-one"
+        session_id_two = "test_ordering-two"
+        session_id_three = "test_ordering-three"
 
         produce_replay_summary(
             session_id=session_id_one,
@@ -5090,7 +5068,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             sort_results_when_asserting=False,
         )
 
-    @also_test_with_materialized_columns(event_properties=["$host"], verify_no_jsonextract=False)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_top_level_event_host_property_test_account_filter(self):
@@ -5361,7 +5338,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             expected=[identified_session, anonymous_session],
         )
 
-    @also_test_with_materialized_columns(person_properties=["email"], verify_no_jsonextract=False)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_filter_users_from_excluded_cohort(self):
@@ -5460,7 +5436,6 @@ class TestSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseTest):
             ["actual_session"],
         )
 
-    @also_test_with_materialized_columns(person_properties=["email"], verify_no_jsonextract=False)
     @time_machine.travel("2021-01-21T20:00:00.000Z", tick=False)
     @snapshot_clickhouse_queries
     def test_filter_users_from_excluded_cohort_no_events(self):
@@ -5606,13 +5581,6 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
                 PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
             ],
             [
-                "test_poe_being_unavailable_we_fall_back_to_person_subquery_but_still_use_mat_props",
-                False,
-                False,
-                False,
-                PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
-            ],
-            [
                 "test_allow_denormalised_props_fix_does_not_stop_all_poe_processing",
                 False,
                 True,
@@ -5642,10 +5610,6 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
             ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalized_props,
         ):
             assert self.team.person_on_events_mode == expected_poe_mode
-            materialize("events", "rgInternal", table_column="person_properties")
-            # Materialized directly (not via the decorator), so drop it after the test — leaked
-            # columns break later runs' query snapshots when the ClickHouse schema is reused.
-            self.addCleanup(cleanup_materialized_columns)
 
             query = RecordingsQuery.model_validate(
                 {
@@ -5667,10 +5631,8 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
             printed_query = self._print_query(hogql_parsed_select)
 
             if poe_v1 or poe_v2:
-                if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                    assert "events.person_properties.rgInternal" in printed_query
-                else:
-                    assert re.search(r"equals\(events\.mat_pp_rgInternal, %\(hogql_val_\d+\)s\)", printed_query)
+                assert "person.properties" not in printed_query
+                assert "events.person_properties" in printed_query
             else:
                 assert re.search(
                     r"tupleElement\(argMax\(tuple\(replaceRegexpAll\(nullIf\(nullIf\(JSONExtractRaw\(person\.properties, %\(hogql_val_\d+\)s\), ''\), 'null'\), '^\"|\"\$', ''\)\), person\.version\), 1\) AS properties___rgInternal",
@@ -5682,7 +5644,7 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
                 )
             self.assertQueryMatchesSnapshot(printed_query)
 
-    settings_combinations = [
+    test_case_combinations = [
         ["poe v2 and materialized columns allowed", False, True, True],
         ["poe v2 and materialized columns off", False, True, False],
         ["poe off and materialized columns allowed", False, False, True],
@@ -5691,63 +5653,19 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
         ["poe v1 and not materialized columns not allowed", True, False, False],
     ]
 
-    materialization_options = [
-        [" with materialization", True],
-        [" without materialization", False],
-    ]
-
-    test_case_combinations = [
-        [f"{name}{mat_option}", poe_v1, poe, mat_columns, mat_person]
-        for (name, poe_v1, poe, mat_columns), (mat_option, mat_person) in product(
-            settings_combinations, materialization_options
-        )
-    ]
-
     @parameterized.expand(test_case_combinations)
     @snapshot_clickhouse_queries
-    def test_event_filter_with_person_properties_materialized(
+    def test_event_filter_with_person_properties(
         self,
         _name: str,
         poe1_enabled: bool,
         poe2_enabled: bool,
         allow_denormalised_props: bool,
-        materialize_person_props: bool,
     ) -> None:
-        if materialize_person_props:
-            materialize("events", "email", table_column="person_properties")
-            materialize("person", "email")
-            # Materialized directly (not via the decorator), so drop them after the test — leaked
-            # columns break later runs' query snapshots when the ClickHouse schema is reused.
-            self.addCleanup(cleanup_materialized_columns)
-
-            @retry(wait=wait_exponential(multiplier=0.5, min=0.5, max=5), stop=stop_after_attempt(10))
-            def wait_for_materialized_columns():
-                events_col = get_materialized_columns("events").get(("email", "person_properties"))
-                person_col = get_materialized_columns("person").get(("email", "properties"))
-                if not events_col or not person_col:
-                    raise ValueError("Materialized columns not ready yet")
-                return events_col, person_col
-
-            wait_for_materialized_columns()
-
-        # Pin materialization state to avoid non-deterministic snapshots when
-        # leftover materialized columns exist in the CI ClickHouse instance.
-        mat_mock = (
-            nullcontext()
-            if materialize_person_props
-            else patch(
-                "ee.clickhouse.materialized_columns.columns.get_materialized_columns",
-                return_value={},
-            )
-        )
-
-        with (
-            mat_mock,
-            self.settings(
-                PERSON_ON_EVENTS_OVERRIDE=poe1_enabled,
-                PERSON_ON_EVENTS_V2_OVERRIDE=poe2_enabled,
-                ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalised_props,
-            ),
+        with self.settings(
+            PERSON_ON_EVENTS_OVERRIDE=poe1_enabled,
+            PERSON_ON_EVENTS_V2_OVERRIDE=poe2_enabled,
+            ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalised_props,
         ):
             user_one = "test_event_filter_with_person_properties-user"
             user_two = "test_event_filter_with_person_properties-user2"
@@ -5825,36 +5743,16 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
         poe2_enabled: bool,
         poe1_enabled: bool,
         allow_denormalised_props: bool,
-        materialize_person_props: bool,
     ) -> None:
-        if materialize_person_props:
-            materialize("events", "email", table_column="person_properties")
-            materialize("person", "email")
-            # Materialized directly (not via the decorator), so drop them after the test — leaked
-            # columns break later runs' query snapshots when the ClickHouse schema is reused.
-            self.addCleanup(cleanup_materialized_columns)
-
-        mat_mock = (
-            nullcontext()
-            if materialize_person_props
-            else patch(
-                "ee.clickhouse.materialized_columns.columns.get_materialized_columns",
-                return_value={},
-            )
-        )
-
-        with (
-            mat_mock,
-            self.settings(
-                PERSON_ON_EVENTS_OVERRIDE=poe1_enabled,
-                PERSON_ON_EVENTS_V2_OVERRIDE=poe2_enabled,
-                ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalised_props,
-            ),
+        with self.settings(
+            PERSON_ON_EVENTS_OVERRIDE=poe1_enabled,
+            PERSON_ON_EVENTS_V2_OVERRIDE=poe2_enabled,
+            ALLOW_DENORMALIZED_PROPS_IN_LISTING=allow_denormalised_props,
         ):
             three_user_ids = ["person-1-distinct-1", "person-1-distinct-2", "person-2"]
-            session_id_one = f"test_person_id_filter-session-one"
-            session_id_two = f"test_person_id_filter-session-two"
-            session_id_three = f"test_person_id_filter-session-three"
+            session_id_one = "test_person_id_filter-session-one"
+            session_id_two = "test_person_id_filter-session-two"
+            session_id_three = "test_person_id_filter-session-three"
 
             p = create_person(
                 team=self.team,

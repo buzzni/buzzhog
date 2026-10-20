@@ -54,6 +54,15 @@ E2E_TESTING: bool = get_from_env(
     "E2E_TESTING", False, type_cast=str_to_bool
 )  # whether the app is currently running for E2E tests
 OPT_OUT_CAPTURE: bool = get_from_env("OPT_OUT_CAPTURE", False, type_cast=str_to_bool)
+# Nothing is sent unless both are set and OPT_OUT_CAPTURE is off. The browser evaluates flags against this
+# collector and the server against this instance's flags team, so the two agree only when it is this instance.
+POSTHOG_TELEMETRY_HOST: str = get_from_env("POSTHOG_TELEMETRY_HOST", "")
+POSTHOG_TELEMETRY_API_KEY: str = get_from_env("POSTHOG_TELEMETRY_API_KEY", "")
+POSTHOG_TELEMETRY_USAGE_REPORTS: bool = get_from_env("POSTHOG_TELEMETRY_USAGE_REPORTS", False, type_cast=str_to_bool)
+# Usage reports name the users who signed up or logged in by id only. This adds their email and first name.
+POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII: bool = get_from_env(
+    "POSTHOG_TELEMETRY_USAGE_REPORTS_INCLUDE_PII", False, type_cast=str_to_bool
+)
 BENCHMARK: bool = get_from_env("BENCHMARK", False, type_cast=str_to_bool)
 if E2E_TESTING:
     logger.warning(

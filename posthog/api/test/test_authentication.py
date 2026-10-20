@@ -33,10 +33,15 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.parsers import JSONParser
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
+from social_core.exceptions import AuthFailed
 from social_django.models import UserSocialAuth
 from two_factor.utils import totp_digits
 
-from posthog.api.authentication import password_reset_token_generator, social_login_notification
+from posthog.api.authentication import (
+    password_reset_token_generator,
+    social_login_notification,
+    social_sso_enforcement_allows,
+)
 from posthog.api.email_verification import is_email_verification_disabled
 from posthog.auth import (
     ExportRendererAuthentication,
@@ -3395,3 +3400,38 @@ async def test_known_device_cookie_async_chain_with_project_secret_api_key():
 
     assert response.status_code == status.HTTP_200_OK, response.text
     assert not any(name.startswith("ph_device_") for name in response.cookies)
+
+
+@pytest.mark.parametrize(
+    "backend_name,account_email,enforced_domains,refused",
+    [
+        ("github", None, {"hogflix.com": "google-oauth2"}, True),
+        ("google-oauth2", None, {"hogflix.com": "google-oauth2"}, False),
+        ("github", None, {}, False),
+        # The provider address reaches an account whose own address sits on an enforced domain.
+        ("github", "user@posthog.com", {"posthog.com": "google-oauth2"}, True),
+    ],
+)
+def test_social_login_is_refused_through_a_provider_the_domain_does_not_enforce(
+    backend_name: str, account_email: str | None, enforced_domains: dict[str, str], refused: bool
+) -> None:
+    backend = MagicMock()
+    backend.name = backend_name
+    user = MagicMock(email=account_email) if account_email else None
+    with patch.object(
+        OrganizationDomain.objects,
+        "get_sso_enforcement_for_email_address",
+        side_effect=lambda email: enforced_domains.get(email.split("@")[1]),
+    ):
+        if refused:
+            with pytest.raises(AuthFailed):
+                social_sso_enforcement_allows(MagicMock(), backend, details={"email": "user@hogflix.com"}, user=user)
+        else:
+            social_sso_enforcement_allows(MagicMock(), backend, details={"email": "user@hogflix.com"}, user=user)
+
+
+def test_sso_enforcement_step_runs_before_the_social_login_provisions_or_signs_in() -> None:
+    pipeline = list(settings.SOCIAL_AUTH_PIPELINE)
+    step = pipeline.index("posthog.api.authentication.social_sso_enforcement_allows")
+    assert pipeline.index("social_core.pipeline.social_auth.associate_by_email") < step
+    assert step < pipeline.index("posthog.api.signup.social_create_user")

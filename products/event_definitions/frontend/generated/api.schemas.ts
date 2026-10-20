@@ -8,6 +8,18 @@
  * OpenAPI spec version: 1.0.0
  */
 /**
+ * * `allow` - Allow
+ * * `reject` - Reject
+ */
+export type SchemaEnforcementModeEnumApi =
+    (typeof SchemaEnforcementModeEnumApi)[keyof typeof SchemaEnforcementModeEnumApi]
+
+export const SchemaEnforcementModeEnumApi = {
+    Allow: 'allow',
+    Reject: 'reject',
+} as const
+
+/**
  * * `engineering` - Engineering
  * * `data` - Data
  * * `product` - Product Management
@@ -65,42 +77,18 @@ export interface UserBasicApi {
 }
 
 /**
- * * `allow` - Allow
- * * `reject` - Reject
- */
-export type SchemaEnforcementModeEnumApi =
-    (typeof SchemaEnforcementModeEnumApi)[keyof typeof SchemaEnforcementModeEnumApi]
-
-export const SchemaEnforcementModeEnumApi = {
-    Allow: 'allow',
-    Reject: 'reject',
-} as const
-
-/**
  * Serializer mixin that handles tags for objects.
  */
-export interface EnterpriseEventDefinitionApi {
+export interface EventDefinitionRecordApi {
     readonly id: string
     /** @maxLength 400 */
     name: string
     /** @nullable */
-    owner?: number | null
+    created_at?: string | null
     /** @nullable */
-    description?: string | null
-    tags?: unknown[]
-    /** @nullable */
-    readonly created_at: string | null
-    readonly updated_at: string
-    readonly updated_by: UserBasicApi
-    /** @nullable */
-    readonly last_seen_at: string | null
+    last_seen_at?: string | null
     readonly last_updated_at: string
-    verified?: boolean
-    /** @nullable */
-    readonly verified_at: string | null
-    readonly verified_by: UserBasicApi
-    /** @nullable */
-    hidden?: boolean | null
+    tags?: unknown[]
     enforcement_mode?: SchemaEnforcementModeEnumApi
     /**
      * Name of a single property on this event that PostHog UIs should display alongside the event (for example `$pathname` on `$pageview`). When set, surfaces like the session replay inspector show the property's value next to the event name without the user having to open the event.
@@ -114,17 +102,15 @@ export interface EnterpriseEventDefinitionApi {
     readonly last_calculated_at: string
     readonly created_by: UserBasicApi
     post_to_slack?: boolean
-    default_columns?: string[]
-    readonly media_preview_urls: readonly string[]
 }
 
-export interface PaginatedEnterpriseEventDefinitionListApi {
+export interface PaginatedEventDefinitionRecordListApi {
     count: number
     /** @nullable */
     next?: string | null
     /** @nullable */
     previous?: string | null
-    results: EnterpriseEventDefinitionApi[]
+    results: EventDefinitionRecordApi[]
     /** True when `count` stopped at a cap, so it is a lower bound and `next` keeps paging past it. */
     count_is_capped?: boolean
 }
@@ -132,28 +118,16 @@ export interface PaginatedEnterpriseEventDefinitionListApi {
 /**
  * Serializer mixin that handles tags for objects.
  */
-export interface PatchedEnterpriseEventDefinitionApi {
+export interface PatchedEventDefinitionRecordApi {
     readonly id?: string
     /** @maxLength 400 */
     name?: string
     /** @nullable */
-    owner?: number | null
+    created_at?: string | null
     /** @nullable */
-    description?: string | null
-    tags?: unknown[]
-    /** @nullable */
-    readonly created_at?: string | null
-    readonly updated_at?: string
-    readonly updated_by?: UserBasicApi
-    /** @nullable */
-    readonly last_seen_at?: string | null
+    last_seen_at?: string | null
     readonly last_updated_at?: string
-    verified?: boolean
-    /** @nullable */
-    readonly verified_at?: string | null
-    readonly verified_by?: UserBasicApi
-    /** @nullable */
-    hidden?: boolean | null
+    tags?: unknown[]
     enforcement_mode?: SchemaEnforcementModeEnumApi
     /**
      * Name of a single property on this event that PostHog UIs should display alongside the event (for example `$pathname` on `$pageview`). When set, surfaces like the session replay inspector show the property's value next to the event name without the user having to open the event.
@@ -167,8 +141,6 @@ export interface PatchedEnterpriseEventDefinitionApi {
     readonly last_calculated_at?: string
     readonly created_by?: UserBasicApi
     post_to_slack?: boolean
-    default_columns?: string[]
-    readonly media_preview_urls?: readonly string[]
 }
 
 /**
@@ -250,34 +222,6 @@ export interface EventDefinitionBulkUpdateVerifiedResponseApi {
     updated: EventDefinitionBulkUpdateVerifiedItemApi[]
     /** Events that were skipped (e.g. not found in this project), with a reason each. */
     skipped: BulkUpdateTagsUUIDErrorApi[]
-}
-
-/**
- * Serializer mixin that handles tags for objects.
- */
-export interface EventDefinitionRecordApi {
-    readonly id: string
-    /** @maxLength 400 */
-    name: string
-    /** @nullable */
-    created_at?: string | null
-    /** @nullable */
-    last_seen_at?: string | null
-    readonly last_updated_at: string
-    tags?: unknown[]
-    enforcement_mode?: SchemaEnforcementModeEnumApi
-    /**
-     * Name of a single property on this event that PostHog UIs should display alongside the event (for example `$pathname` on `$pageview`). When set, surfaces like the session replay inspector show the property's value next to the event name without the user having to open the event.
-     * @maxLength 400
-     * @nullable
-     */
-    primary_property?: string | null
-    readonly is_action: boolean
-    readonly action_id: number
-    readonly is_calculating: boolean
-    readonly last_calculated_at: string
-    readonly created_by: UserBasicApi
-    post_to_slack?: boolean
 }
 
 /**

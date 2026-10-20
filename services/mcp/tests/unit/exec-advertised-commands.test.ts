@@ -17,21 +17,17 @@ const CATALOG = new Set(CATALOG_TOOL_NAMES)
  *  live instance of the same defect, kept as a ratchet rather than fixed here:
  *  `analysis-artifacts` and `url-patterns` name dashboard and link tools, the
  *  metric-discovery sections name the data-catalog trio, and `examples`,
- *  `retrieving-data`, `cli-data-discovery` and `schema-workflow` name query, SQL,
- *  schema and skill tools. `cli-rendering` names a tool as an example of one
- *  `render-ui` can render, and `cli-syntax` names one as an example of a namespaced
- *  reference. Remove a name once its section gates the mention. */
+ *  `retrieving-data` and `schema-workflow` name query and skill tools. `cli-rendering`
+ *  names `survey-stats` as an example of one `render-ui` can render, although the
+ *  `render-ui` enum is built from the connection's tools and can leave it out.
+ *  `cli-syntax` names one as an example of a namespaced reference. Remove a name
+ *  once its section gates the mention. */
 const UNGATED_BY_DESIGN = new Set([
-    'actions-get-all',
     'agent-feedback',
-    'business-knowledge-document-window-retrieve',
     'dashboard-create',
-    'dashboard-get',
     'dashboard-widgets-batch-add',
     'dashboards-get-all',
     'data-catalog-metric-run',
-    'execute-sql',
-    'experiment-get',
     'feature-flag-get-all',
     'generate-app-url',
     'insight-create',
@@ -46,8 +42,8 @@ const UNGATED_BY_DESIGN = new Set([
     'query-retention',
     'query-stickiness',
     'query-trends',
-    'read-data-schema',
     'skill-get',
+    'survey-stats',
 ])
 
 /** Backticked kebab-case names the guidance uses, which is the shape every tool
@@ -64,7 +60,7 @@ function backtickedNames(text: string): string[] {
 }
 
 /** Unlike `backtickedNames`, this scans inside the span, so a name still counts
- *  when the span holds a whole invocation (`call docs-search <json_input>`). URL
+ *  when the span holds a whole invocation (`call business-knowledge-documents-search <json_input>`). URL
  *  slugs that share the shape drop out against the catalog. */
 function namedCatalogTools(text: string): string[] {
     const named = new Set<string>()
@@ -148,10 +144,6 @@ describe('exec guidance advertises only resolvable commands', () => {
             (name) => !CATALOG.has(name) && !NOT_EXEC_COMMANDS.has(name)
         )
         expect(unresolvable).toEqual([])
-    })
-
-    it('names docs-search when the connection holds it', () => {
-        expect(advertised).toContain('docs-search')
     })
 
     // Resolvable is not the same as reachable: an agent reading a CLI contract types

@@ -445,14 +445,6 @@ def _check_generation_rate(team_id: int, user_id: int) -> None:
         raise WidgetRateLimitError("Too many widgets were started. Try again in a minute.", "rate_limited")
 
 
-def _is_ai_usage_limited(team_api_token: str) -> bool:
-    from ee.billing.quota_limiting import (  # noqa: PLC0415 — keeps the billing query stack off the API import path
-        is_team_over_ai_credit_budget,
-    )
-
-    return is_team_over_ai_credit_budget(team_api_token)
-
-
 def is_notebook_widget_enabled(user: User | None) -> bool:
     if settings.DEBUG or settings.TEST:
         return True
@@ -709,11 +701,6 @@ def start_widget_generation(
         return get_widget_status(notebook=notebook, node_id=node_id)
 
     _check_generation_rate(notebook.team_id, user_id)
-    if _is_ai_usage_limited(notebook.team.api_token):
-        raise WidgetRateLimitError(
-            "Widget generation is unavailable because this project's AI usage limit has been reached.",
-            "usage_limit_exceeded",
-        )
     with transaction.atomic():
         Team.objects.select_for_update().only("id").get(id=notebook.team_id)
         existing_job = _get_existing_generation_job(notebook.team_id, generation_id)

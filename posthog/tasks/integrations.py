@@ -137,17 +137,6 @@ def delete_ses_identity_if_unused(domain: str) -> None:
     delete_ses_identity(domain)
 
 
-@shared_task(ignore_result=True, queue=CeleryQueue.INTEGRATIONS.value)
-@skip_team_scope_audit
-def push_vercel_secrets(team_id: int) -> None:
-    from posthog.models.team import Team
-
-    from ee.vercel.integration import VercelIntegration
-
-    team = Team.objects.get(id=team_id)
-    VercelIntegration.push_secrets_to_vercel(team)
-
-
 @shared_task(bind=True, ignore_result=True, queue=CeleryQueue.LONG_RUNNING.value, max_retries=5)
 @skip_team_scope_audit
 def refresh_github_branch_cache(

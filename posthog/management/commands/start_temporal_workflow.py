@@ -15,7 +15,6 @@ from posthog.temporal.event_screenshots import WORKFLOWS as EVENT_SCREENSHOTS_WO
 from posthog.temporal.health_checks import WORKFLOWS as HEALTH_CHECK_WORKFLOWS
 from posthog.temporal.proxy_service import WORKFLOWS as PROXY_SERVICE_WORKFLOWS
 from posthog.temporal.quota_limiting import WORKFLOWS as QUOTA_LIMITING_WORKFLOWS
-from posthog.temporal.salesforce_enrichment import WORKFLOWS as SALESFORCE_ENRICHMENT_WORKFLOWS
 from posthog.temporal.session_replay.count_playlist_items import COUNT_PLAYLIST_ITEMS_WORKFLOWS
 from posthog.temporal.session_replay.delete_recordings import DELETE_RECORDINGS_WORKFLOWS
 from posthog.temporal.session_replay.enforce_max_replay_retention import ENFORCE_MAX_REPLAY_RETENTION_WORKFLOWS
@@ -31,7 +30,6 @@ from products.batch_exports.backend.facade.temporal import WORKFLOWS as BATCH_EX
 from products.data_catalog.backend.facade.temporal import WORKFLOWS as DATA_CATALOG_DIGEST_WORKFLOWS
 from products.error_tracking.backend.facade.temporal import WORKFLOWS as ERROR_TRACKING_WORKFLOWS
 from products.logs.backend.temporal.retention_entitlements import WORKFLOWS as LOGS_RETENTION_ENTITLEMENTS_WORKFLOWS
-from products.posthog_ai.backend.temporal.backfill import WORKFLOWS as CONVERSATION_BACKFILL_WORKFLOWS
 from products.warehouse_sources.backend.facade.temporal import WORKFLOWS as DATA_IMPORT_WORKFLOWS
 from products.web_analytics.backend.temporal import WORKFLOWS as WA_DIGEST_WORKFLOWS
 
@@ -145,8 +143,6 @@ class Command(BaseCommand):
             + USAGE_REPORTS_WORKFLOWS
             + QUOTA_LIMITING_WORKFLOWS
             + AI_WORKFLOWS
-            + CONVERSATION_BACKFILL_WORKFLOWS
-            + SALESFORCE_ENRICHMENT_WORKFLOWS
             + TEST_WORKFLOWS
             + COUNT_PLAYLIST_ITEMS_WORKFLOWS
             + DELETE_RECORDINGS_WORKFLOWS

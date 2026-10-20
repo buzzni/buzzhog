@@ -2,19 +2,26 @@ import { expectLogic } from 'kea-test-utils'
 
 import { userLogic } from 'scenes/userLogic'
 
-import { ConfigScopeEnumApi } from '~/generated/core/api.schemas'
+import { ConfigScopeEnumApi, DomainScopeEnumApi, IdentityProviderConfigApi } from '~/generated/core/api.schemas'
 import { useAvailableFeatures } from '~/mocks/features'
 import { useMocks } from '~/mocks/jest'
 import { initKeaTests } from '~/test/init'
 import { AvailableFeature } from '~/types'
 
-import { getIdentityProviderConfigForDomain, isSecureURL, verifiedDomainsLogic } from './verifiedDomainsLogic'
+import {
+    getEnabledScimConfigForDomain,
+    getIdentityProviderConfigForDomain,
+    isSecureURL,
+    verifiedDomainsLogic,
+} from './verifiedDomainsLogic'
 
 describe('verifiedDomainsLogic', () => {
     let logic: ReturnType<typeof verifiedDomainsLogic.build>
     let userlogic: ReturnType<typeof userLogic.build>
+    let patchRequests: { id: string; body: unknown }[]
 
     beforeEach(() => {
+        patchRequests = []
         useAvailableFeatures([AvailableFeature.SSO_ENFORCEMENT, AvailableFeature.SAML])
         useMocks({
             get: {
@@ -27,25 +34,6 @@ describe('verifiedDomainsLogic', () => {
                             id: 'config_will_be_deleted',
                             config_scope: null,
                             organization_domain_ids: ['id_will_be_deleted'],
-                        },
-                    ],
-                },
-                '/api/organizations/:organization/identity_provider_configs/:id/scim/logs/': {
-                    count: 1,
-                    next: null,
-                    previous: null,
-                    results: [
-                        {
-                            id: 'log-id',
-                            request_method: 'GET',
-                            request_path: '/scim/v2/config/Users',
-                            request_headers: {},
-                            request_body: null,
-                            response_status: 200,
-                            response_body: null,
-                            identity_provider: 'okta',
-                            duration_ms: 12,
-                            created_at: '2026-08-01T00:00:00Z',
                         },
                     ],
                 },
@@ -90,6 +78,10 @@ describe('verifiedDomainsLogic', () => {
                 },
             },
             patch: {
+                '/api/organizations/:organization/identity_provider_configs/:id/': async ({ request, params }) => {
+                    patchRequests.push({ id: params.id as string, body: await request.json() })
+                    return [200, { id: params.id, has_scim: false, scim_enabled: false }]
+                },
                 '/api/organizations/:organization/domains/:id/': {
                     id: '8db3b0c2-a0ab-490a-9037-14f3358a81bc',
                     domain: 'my.posthog.com',
@@ -193,6 +185,48 @@ describe('verifiedDomainsLogic', () => {
                 'other-domain-config'
             )
         })
+
+        const scimConfig = (id: string, overrides: Partial<IdentityProviderConfigApi>): IdentityProviderConfigApi => ({
+            id,
+            config_scope: ConfigScopeEnumApi.Scim,
+            organization_domain_ids: [],
+            created_at: '2024-01-01',
+            updated_at: '2024-01-01',
+            saml_relay_state: 'relay-state',
+            has_saml: false,
+            has_oidc: false,
+            has_oidc_client_secret: false,
+            has_scim: false,
+            scim_base_url: null,
+            scim_bearer_token: null,
+            has_id_jag: false,
+            ...overrides,
+        })
+
+        it.each([
+            {
+                case: 'a linked unscoped config with a token behind a linked SCIM config without one',
+                configs: [
+                    scimConfig('linked-scim-without-token', { organization_domain_ids: ['domain-id'] }),
+                    scimConfig('linked-unscoped-with-token', {
+                        config_scope: null,
+                        organization_domain_ids: ['domain-id'],
+                        has_scim: true,
+                    }),
+                ],
+                expected: 'linked-unscoped-with-token',
+            },
+            {
+                case: 'an all-domains config when no linked config has a token',
+                configs: [
+                    scimConfig('linked-scim-without-token', { organization_domain_ids: ['domain-id'] }),
+                    scimConfig('all-domains-with-token', { domain_scope: DomainScopeEnumApi.All, has_scim: true }),
+                ],
+                expected: 'all-domains-with-token',
+            },
+        ])('finds the SCIM config to disable: $case', ({ configs, expected }) => {
+            expect(getEnabledScimConfigForDomain(configs, 'domain-id')?.id).toBe(expected)
+        })
     })
 
     describe('values', () => {
@@ -202,7 +236,7 @@ describe('verifiedDomainsLogic', () => {
             expect(logic.values).toMatchSnapshot()
         })
 
-        it.each(['setConfigureSAMLModalId', 'setConfigureSCIMModalId', 'setConfigureIdJagModalId'] as const)(
+        it.each(['setConfigureSAMLModalId', 'setConfigureIdJagModalId'] as const)(
             'creates and links an IdP config when %s opens',
             async (openModal) => {
                 await expectLogic(logic).toFinishAllListeners()
@@ -216,13 +250,16 @@ describe('verifiedDomainsLogic', () => {
             }
         )
 
-        it('loads SCIM logs by identity provider config', async () => {
+        it('disables SCIM by sending scim_enabled false for the config', async () => {
             await expectLogic(logic).toFinishAllListeners()
 
-            logic.actions.setScimConfigLogsModalId('config-id')
-            await expectLogic(logic).toFinishAllListeners()
+            await expectLogic(logic, () => {
+                logic.actions.disableScim('scim-config-id')
+            })
+                .toDispatchActions(['disableScimSuccess'])
+                .toMatchValues({ disablingScimLoading: false })
 
-            expect(logic.values.scimLogs?.results[0].request_path).toBe('/scim/v2/config/Users')
+            expect(patchRequests).toEqual([{ id: 'scim-config-id', body: { scim_enabled: false } }])
         })
 
         it('creates domain correctly', async () => {

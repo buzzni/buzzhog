@@ -371,7 +371,7 @@ LOGIN_METHODS = [
     {
         "key": "google-oauth2",
         "display": "Google OAuth",
-        "backends": ["google-oauth2", "ee.api.authentication.CustomGoogleOAuth2"],
+        "backends": ["google-oauth2"],
     },
     {
         "key": "github",
@@ -386,7 +386,7 @@ LOGIN_METHODS = [
     {
         "key": "saml",
         "display": "SAML",
-        "backends": ["saml", "ee.api.authentication.MultitenantSAMLAuth"],
+        "backends": ["saml"],
     },
     {
         "key": "oidc",
@@ -404,8 +404,3 @@ LOGIN_METHODS = [
 AUTH_BACKEND_DISPLAY_NAMES = {backend: m["display"] for m in LOGIN_METHODS for backend in m["backends"]}
 
 AUTH_BACKEND_KEYS = {backend: m["key"] for m in LOGIN_METHODS for backend in m["backends"]}
-
-
-# PostHog's own posthog-js instance on PostHog Cloud. The app's CSP names these by exact path.
-POSTHOG_JS_CLOUD_HOST = "https://internal-cf.posthog.com"
-POSTHOG_JS_CLOUD_TOKEN = "sTMFPsFhdP1Ssg"

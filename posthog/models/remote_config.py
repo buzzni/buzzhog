@@ -304,20 +304,6 @@ class RemoteConfig(UUIDTModel):
 
         config["sessionRecording"] = session_recording_config_response
 
-        # MARK: Quota limiting
-        if settings.EE_AVAILABLE:
-            from ee.billing.quota_limiting import QuotaLimitingCaches, QuotaResource, list_limited_team_attributes
-
-            limited_tokens_recordings = list_limited_team_attributes(
-                QuotaResource.RECORDINGS,
-                QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY,
-                use_cache=not bypass_recordings_quota_cache,
-            )
-
-            if team.api_token in limited_tokens_recordings:
-                config["quotaLimited"] = ["recordings"]
-                config["sessionRecording"] = False
-
         config["heatmaps"] = build_heatmaps_config(team) if team.heatmaps_opt_in else False
 
         # MARK: Conversations

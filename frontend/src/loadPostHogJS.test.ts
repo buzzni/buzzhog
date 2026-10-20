@@ -65,7 +65,11 @@ describe('loadPostHogJS', () => {
 
             expect(posthog.init).toHaveBeenCalledWith(
                 'fake_token',
-                expect.objectContaining({ advanced_disable_flags: true, opt_out_capturing_by_default: true })
+                expect.objectContaining({
+                    api_host: window.location.origin,
+                    advanced_disable_flags: true,
+                    opt_out_capturing_by_default: true,
+                })
             )
         })
     })

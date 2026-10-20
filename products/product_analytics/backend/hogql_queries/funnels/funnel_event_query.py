@@ -574,11 +574,11 @@ class FunnelEventQuery(DataWarehouseSchemaMixin):
                         # 2. Try to cast strings to UUID directly.
                         # 3. As a last resort, create a UUID by hashing the value with a table prefix.
                         return parse_expr(
-                            f"""tupleElement((
-                                throwIf(isNull({{id_field}}), {{exception_message}}),
+                            """tupleElement((
+                                throwIf(isNull({id_field}), {exception_message}),
                                 toUUIDOrDefault(
-                                    toString({{id_field}}),
-                                    reinterpretAsUUID(md5(concat({{table_prefix}}, toString({{id_field}}))))
+                                    toString({id_field}),
+                                    reinterpretAsUUID(md5(concat({table_prefix}, toString({id_field}))))
                                 )
                             ), 2)""",
                             placeholders={

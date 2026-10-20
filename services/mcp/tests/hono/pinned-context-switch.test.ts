@@ -30,11 +30,11 @@ const mswServer = setupServer(
                   organization: params.projectId === OTHER_PROJECT ? OTHER_ORG : PINNED_ORG,
               })
     ),
-    http.post('*/api/environments/:projectId/mcp_tools/execute_sql/', ({ request }) => {
+    http.get('*/api/projects/:projectId/cohorts/', ({ request }) => {
         apiPaths.push(new URL(request.url).pathname)
-        return HttpResponse.json({ success: true, content: 'ok' })
+        return HttpResponse.json({ count: 0, results: [] })
     }),
-    http.get('*/api/organizations/:orgId/billing/subscription/', ({ request }) => {
+    http.get('*/api/organizations/:orgId/domains/', ({ request }) => {
         apiPaths.push(new URL(request.url).pathname)
         return HttpResponse.json({})
     }),
@@ -90,7 +90,6 @@ function requestHeaders({ token = 'phx_default', sessionId }: CallOptions): Reco
         'Content-Type': 'application/json',
         Accept: 'application/json, text/event-stream',
         'x-posthog-mcp-mode': 'tools',
-        'x-posthog-flag-overrides': JSON.stringify({ 'organization-billing-api': true }),
         ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
     }
 }
@@ -150,13 +149,13 @@ async function callTool(
     return { isError: result.isError, text: result.content?.[0]?.text ?? '' }
 }
 
-// The project the query tool and the org the billing tool really call, or null when the tool calls nothing.
+// The project the cohorts tool and the org the domains tool really calls, or null when the tool calls nothing.
 async function targets(options: CallOptions): Promise<{ project: string | null; org: string | null }> {
     apiPaths.length = 0
-    await postToolCall('execute-sql', { query: 'SELECT 1' }, options)
-    const project = apiPaths.map((path) => /^\/api\/environments\/([^/]+)\//.exec(path)?.[1]).find(Boolean) ?? null
+    await postToolCall('cohorts-list', {}, options)
+    const project = apiPaths.map((path) => /^\/api\/projects\/([^/]+)\/cohorts\//.exec(path)?.[1]).find(Boolean) ?? null
     apiPaths.length = 0
-    await postToolCall('billing-subscription-get', {}, options)
+    await postToolCall('domains-list', {}, options)
     const org = apiPaths.map((path) => /^\/api\/organizations\/([^/]+)\//.exec(path)?.[1]).find(Boolean) ?? null
     apiPaths.length = 0
     return { project, org }
@@ -170,30 +169,30 @@ async function seedLegacySession(sessionId: string, state: Partial<SessionScoped
     await new RedisCache<SessionScopedState>(legacyPrefix, redis, 'session', 3600).setMany(state)
 }
 
-async function runQueryAndBilling(options: CallOptions = {}): Promise<string[]> {
+async function runQueryAndOrgTool(options: CallOptions = {}): Promise<string[]> {
     apiPaths.length = 0
-    expect((await callTool('execute-sql', { query: 'SELECT 1' }, options)).isError).toBeFalsy()
-    expect((await callTool('billing-subscription-get', {}, options)).isError).toBeFalsy()
+    expect((await callTool('cohorts-list', {}, options)).isError).toBeFalsy()
+    expect((await callTool('domains-list', {}, options)).isError).toBeFalsy()
     return [...apiPaths]
 }
 
-async function runBilling(options: CallOptions): Promise<{ isError?: boolean; paths: string[] }> {
+async function runOrgTool(options: CallOptions): Promise<{ isError?: boolean; paths: string[] }> {
     apiPaths.length = 0
-    const result = await callTool('billing-subscription-get', {}, options)
+    const result = await callTool('domains-list', {}, options)
     return { isError: result.isError, paths: [...apiPaths] }
 }
 
 const pathsFor = (projectId: string, orgId: string): string[] => [
-    `/api/environments/${projectId}/mcp_tools/execute_sql/`,
-    `/api/organizations/${orgId}/billing/subscription/`,
+    `/api/projects/${projectId}/cohorts/`,
+    `/api/organizations/${orgId}/domains/`,
 ]
-const billingPathFor = (orgId: string): string[] => [`/api/organizations/${orgId}/billing/subscription/`]
+const orgToolPathFor = (orgId: string): string[] => [`/api/organizations/${orgId}/domains/`]
 
 // An unpinned, sessionless switch writes the shared token cache, as another session on the credential would.
 async function cacheOtherProjectOnToken(token: string): Promise<void> {
     const switched = await callTool('switch-project', { projectId: Number(OTHER_PROJECT) }, { token, query: '' })
     expect(switched.isError).toBeFalsy()
-    expect(await runQueryAndBilling({ token, query: '' })).toEqual(pathsFor(OTHER_PROJECT, OTHER_ORG))
+    expect(await runQueryAndOrgTool({ token, query: '' })).toEqual(pathsFor(OTHER_PROJECT, OTHER_ORG))
 }
 
 describe('pinned project with switch-project (Hono)', () => {
@@ -201,7 +200,7 @@ describe('pinned project with switch-project (Hono)', () => {
         apiPaths.length = 0
     })
 
-    it('runs query and billing tools against the switched project, and keeps other sessions on the pin', async () => {
+    it('runs query and organization tools against the switched project, and keeps other sessions on the pin', async () => {
         const token = 'phx_switch'
         const switched = await callTool(
             'switch-project',
@@ -212,13 +211,13 @@ describe('pinned project with switch-project (Hono)', () => {
         expect(switched.text).toContain(`Switched to project ${OTHER_PROJECT}`)
 
         // Each call resends the same pin, which must not revert the switch.
-        expect(await runQueryAndBilling({ token, sessionId: 'session-a' })).toEqual(pathsFor(OTHER_PROJECT, OTHER_ORG))
+        expect(await runQueryAndOrgTool({ token, sessionId: 'session-a' })).toEqual(pathsFor(OTHER_PROJECT, OTHER_ORG))
 
         // A second session on the same credential keeps its own pin.
-        expect(await runQueryAndBilling({ token, sessionId: 'session-b' })).toEqual(
+        expect(await runQueryAndOrgTool({ token, sessionId: 'session-b' })).toEqual(
             pathsFor(PINNED_PROJECT, PINNED_ORG)
         )
-        expect(await runQueryAndBilling({ token, sessionId: 'session-a' })).toEqual(pathsFor(OTHER_PROJECT, OTHER_ORG))
+        expect(await runQueryAndOrgTool({ token, sessionId: 'session-a' })).toEqual(pathsFor(OTHER_PROJECT, OTHER_ORG))
     })
 
     it('refuses switch-project without an MCP session instead of reporting a switch the pin reverts', async () => {
@@ -227,7 +226,7 @@ describe('pinned project with switch-project (Hono)', () => {
         expect(switched.isError).toBe(true)
         expect(switched.text).toContain('sends no MCP session id')
 
-        expect(await runQueryAndBilling({ token })).toEqual(pathsFor(PINNED_PROJECT, PINNED_ORG))
+        expect(await runQueryAndOrgTool({ token })).toEqual(pathsFor(PINNED_PROJECT, PINNED_ORG))
     })
 
     it.each([
@@ -254,7 +253,7 @@ describe('pinned project with switch-project (Hono)', () => {
         const token = 'phx_missing_project'
         await cacheOtherProjectOnToken(token)
 
-        const result = await runBilling({ token, query: `?project_id=${MISSING_PROJECT}` })
+        const result = await runOrgTool({ token, query: `?project_id=${MISSING_PROJECT}` })
 
         expect(result.isError).toBe(true)
         expect(result.paths).toEqual([])
@@ -264,12 +263,12 @@ describe('pinned project with switch-project (Hono)', () => {
         const token = 'phx_switch_org'
         const ownOrg = await callTool('switch-organization', { orgId: PINNED_ORG }, { token })
         expect(ownOrg.isError).toBeFalsy()
-        expect(await runBilling({ token })).toEqual({ isError: undefined, paths: billingPathFor(PINNED_ORG) })
+        expect(await runOrgTool({ token })).toEqual({ isError: undefined, paths: orgToolPathFor(PINNED_ORG) })
 
         const otherOrg = await callTool('switch-organization', { orgId: OTHER_ORG }, { token })
         expect(otherOrg.isError).toBe(true)
         expect(otherOrg.text).toContain('sends no MCP session id')
-        expect(await runBilling({ token })).toEqual({ isError: undefined, paths: billingPathFor(PINNED_ORG) })
+        expect(await runOrgTool({ token })).toEqual({ isError: undefined, paths: orgToolPathFor(PINNED_ORG) })
     })
     it('keeps an unpinned session on the shared token selection across repeated switches', async () => {
         const token = 'phx_unpinned_switches'
@@ -413,8 +412,8 @@ describe('pinned project with switch-project (Hono)', () => {
 
         for (const credential of [token, `${token}_other`]) {
             for (const [name, args] of [
-                ['execute-sql', { query: 'SELECT 1' }],
-                ['billing-subscription-get', {}],
+                ['cohorts-list', {}],
+                ['domains-list', {}],
             ] as const) {
                 const response = await postToolCall(name, args, { token: credential, sessionId, query })
                 expect(response).toMatchObject({ status: 200, error: { data: { reason: 'session_reset_required' } } })

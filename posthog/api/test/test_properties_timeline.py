@@ -9,7 +9,6 @@ from posthog.test.base import (
     ClickhouseTestMixin,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     flush_persons_and_events,
     snapshot_clickhouse_queries,
 )
@@ -71,7 +70,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         self.assertEqual(properties_timeline.status_code, expected_status)
         return properties_timeline.json()
 
-    @also_test_with_materialized_columns(**MATERIALIZED_COLUMN_KWARGS)
     @snapshot_clickhouse_queries
     def test_timeline_for_new_actor_with_one_event_in_range(self):
         self._create_person({"foo": "abc", "bar": 123})
@@ -109,7 +107,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
             },
         )
 
-    @also_test_with_materialized_columns(**MATERIALIZED_COLUMN_KWARGS)
     @snapshot_clickhouse_queries
     def test_timeline_for_new_actor_with_one_event_before_range(self):
         self._create_person({"foo": "abc", "bar": 123})
@@ -141,7 +138,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
             },
         )
 
-    @also_test_with_materialized_columns(**MATERIALIZED_COLUMN_KWARGS)
     @snapshot_clickhouse_queries
     def test_timeline_with_two_events_in_range_using_filter_on_series(self):
         self._create_person({"foo": "abc", "bar": 123})
@@ -203,7 +199,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
             },
         )
 
-    @also_test_with_materialized_columns(**MATERIALIZED_COLUMN_KWARGS)
     @snapshot_clickhouse_queries
     def test_timeline_with_two_events_in_range_using_breakdown(self):
         self._create_person({"foo": "abc", "bar": 123})
@@ -253,7 +248,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(**MATERIALIZED_COLUMN_KWARGS)
     def test_timeline_for_existing_actor_with_three_events_and_return_to_previous_value(self):
         self._create_person({"foo": "abc", "bar": 123})
         self._create_event(
@@ -314,9 +308,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(
-        person_properties=["bar"],
-    )
     def test_timeline_for_existing_person_with_three_events_and_return_to_previous_value_at_single_day_point(self):
         self._create_person(properties={"foo": "abc", "bar": 123})
         self._create_event(
@@ -381,9 +372,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(
-        person_properties=["bar"],
-    )
     def test_timeline_for_existing_person_with_three_events_and_return_to_previous_value_at_single_hour_point(self):
         self._create_person(properties={"foo": "abc", "bar": 123})
         self._create_event(
@@ -446,9 +434,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(
-        person_properties=["bar"],
-    )
     def test_timeline_for_existing_person_with_three_events_and_return_to_previous_value_at_single_month_point(
         self,
     ):
@@ -513,9 +498,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(
-        person_properties=["bar"],
-    )
     def test_timeline_for_existing_person_with_three_events_and_return_to_previous_value_using_relative_date_from(
         self,
     ):
@@ -579,7 +561,6 @@ class TestPersonPropertiesTimeline(ClickhouseTestMixin, APIBaseTest):
         )
 
     @snapshot_clickhouse_queries
-    @also_test_with_materialized_columns(**MATERIALIZED_COLUMN_KWARGS)
     def test_timeline_for_existing_actor_with_six_events_but_only_two_relevant_changes(self):
         self._create_person({"foo": "abc", "bar": 123})
         self._create_event(

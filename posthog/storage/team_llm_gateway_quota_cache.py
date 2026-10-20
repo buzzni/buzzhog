@@ -135,8 +135,6 @@ def deactivated_teams_needing_a_blob() -> QuerySet[Team]:
 
 
 def _derive_blobs(teams: list[Team], now: datetime) -> dict[int, dict[str, Any] | None]:
-    from ee.billing.quota_limiting import get_teams_limited_until  # noqa: PLC0415
-
     # A NULL is_active counts as active.
     active_by_org = dict(
         Organization.objects.filter(id__in={team.organization_id for team in teams}).values_list("id", "is_active")
@@ -148,11 +146,10 @@ def _derive_blobs(teams: list[Team], now: datetime) -> dict[int, dict[str, Any] 
         if inactive_ids
         else set()
     )
-    limited = get_teams_limited_until([team.api_token for team in teams if active[team.id]], AI_GATEWAY_QUOTA_BUCKETS)
     blobs: dict[int, dict[str, Any] | None] = {}
     for team in teams:
         if active[team.id]:
-            blobs[team.id] = build_quota_blob(team.id, limited[team.api_token], True, now)
+            blobs[team.id] = build_quota_blob(team.id, {}, True, now)
         else:
             blobs[team.id] = build_quota_blob(team.id, {}, False, now) if team.id in reachable else None
     return blobs
@@ -252,17 +249,6 @@ def project_team_quota(team: Team) -> bool | None:
     return True if projected.written else False if projected.cleared else None
 
 
-def clear_team_quota(team: Team | int) -> None:
-    if not _enabled():
-        return
-    try:
-        team_llm_gateway_quota_hypercache.delete_cache_entry(team, kinds=["redis"])
-    except Exception as e:
-        team_id = team.id if isinstance(team, Team) else team
-        logger.warning("llm_gateway_quota: clear failed", team_id=team_id, error=str(e))
-        capture_exception(e)
-
-
 def project_org_quota(organization: Organization) -> int:
     """Includes child environments so an obo naming either the project or an environment resolves."""
     if not _enabled():
@@ -319,15 +305,7 @@ def reconcile_quota_projection() -> dict[str, int]:
     team with a blob, which deletes a stray one."""
     if not _enabled():
         return {"candidates": 0, "written": 0, "cleared": 0, "failed": 0}
-    from ee.billing.quota_limiting import (  # noqa: PLC0415
-        QuotaLimitingCaches,
-        QuotaResource,
-        list_team_attributes_in_zset,
-    )
-
     tokens: set[str] = set()
-    for bucket in AI_GATEWAY_QUOTA_BUCKETS:
-        tokens.update(list_team_attributes_in_zset(QuotaResource(bucket), QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY))
     now_ts = time.time()
     have = projected_team_ids()
     expiring = projected_team_ids(expiring_before=now_ts + LLM_GATEWAY_QUOTA_RESTAMP_WINDOW_SECONDS)

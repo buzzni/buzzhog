@@ -1,7 +1,7 @@
 import type { Schemas } from '@/api/generated'
 
-export type ApiPropertyDefinition = Schemas.EnterprisePropertyDefinition
-export type ApiEventDefinition = Schemas.EnterpriseEventDefinition
+export type ApiPropertyDefinition = Schemas.PropertyDefinition
+export type ApiEventDefinition = Schemas.EventDefinitionRecord
 
 export interface ApiUser {
     distinct_id: string

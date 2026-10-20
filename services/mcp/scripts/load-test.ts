@@ -41,8 +41,6 @@ const TOOLS: ToolCall[] = [
     { name: 'notebooks-list', arguments: { limit: 3 } },
     { name: 'session-recording-playlists-list', arguments: { limit: 3 } },
     { name: 'cdp-functions-list', arguments: { limit: 3 } },
-    { name: 'docs-search', arguments: { query: 'feature flags' } },
-    { name: 'docs-search', arguments: { query: 'session replay' } },
     { name: 'persons-list', arguments: { limit: 3 } },
     { name: 'early-access-feature-list', arguments: { limit: 3 } },
     { name: 'view-list', arguments: { limit: 3 } },

@@ -24,7 +24,6 @@
           "optional_field"?: string
           "required_field": number
       }
-      "untyped_event": Record<string, any>
   }
   // Type alias for all valid event names
   export type EventName = keyof EventSchemas

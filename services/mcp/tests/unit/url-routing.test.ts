@@ -353,17 +353,17 @@ describe('URL Routing', () => {
             const request = new Request('https://example.com/mcp', {
                 headers: {
                     Authorization: 'Bearer phx_test',
-                    'x-posthog-exclude-tools': 'docs-search, docs-search, nope!, DOCS-SEARCH',
+                    'x-posthog-exclude-tools': 'insights-list, insights-list, nope!, INSIGHTS-LIST',
                 },
             })
-            expect(parseRequestProperties(request, {}).excludeTools).toEqual(['docs-search'])
+            expect(parseRequestProperties(request, {}).excludeTools).toEqual(['insights-list'])
         })
 
         it('parses exclude_tools query param', () => {
-            const request = new Request('https://example.com/mcp?exclude_tools=docs-search', {
+            const request = new Request('https://example.com/mcp?exclude_tools=insights-list', {
                 headers: { Authorization: 'Bearer phx_test' },
             })
-            expect(parseRequestProperties(request, {}).excludeTools).toEqual(['docs-search'])
+            expect(parseRequestProperties(request, {}).excludeTools).toEqual(['insights-list'])
         })
 
         it('caps excludeTools at 32 names', () => {

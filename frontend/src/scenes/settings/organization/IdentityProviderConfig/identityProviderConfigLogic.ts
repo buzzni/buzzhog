@@ -58,7 +58,6 @@ export interface IdentityProviderConfigForm {
     oidc_client_id: string
     oidc_client_secret: string
     oidc_client_secret_cleared: boolean
-    scim_enabled: boolean
     id_jag_issuer_url: string
     id_jag_jwks_url: string
     id_jag_allowed_clients: string[]
@@ -75,7 +74,6 @@ type IdentityProviderConfigWritePayload = Pick<IdentityProviderConfigApi, 'domai
             | 'oidc_issuer_url'
             | 'oidc_client_id'
             | 'oidc_client_secret'
-            | 'scim_enabled'
             | 'id_jag_issuer_url'
             | 'id_jag_jwks_url'
             | 'id_jag_allowed_clients'
@@ -96,7 +94,6 @@ const emptyIdentityProviderConfigForm = (): IdentityProviderConfigForm => ({
     oidc_client_id: '',
     oidc_client_secret: '',
     oidc_client_secret_cleared: false,
-    scim_enabled: false,
     id_jag_issuer_url: '',
     id_jag_jwks_url: '',
     id_jag_allowed_clients: [],
@@ -116,7 +113,6 @@ const formValuesFromConfig = (config: IdentityProviderConfigApi | null): Identit
     oidc_client_id: config?.oidc_client_id ?? '',
     oidc_client_secret: '',
     oidc_client_secret_cleared: false,
-    scim_enabled: config?.scim_enabled ?? false,
     id_jag_issuer_url: config?.id_jag_issuer_url ?? '',
     id_jag_jwks_url: config?.id_jag_jwks_url ?? '',
     id_jag_allowed_clients: config?.id_jag_allowed_clients ?? [],
@@ -143,7 +139,7 @@ const payloadFromForm = (
     }
 
     if (configScope === ConfigScopeEnumApi.Scim) {
-        return { ...commonPayload, scim_enabled: formValues.scim_enabled }
+        return commonPayload
     }
 
     if (configScope === ConfigScopeEnumApi.Oidc) {
@@ -212,9 +208,6 @@ export interface identityProviderConfigLogicValues {
     organizationDomains: OrganizationDomainApi[] | null
     organizationDomainsLoadFailed: boolean
     organizationDomainsLoading: boolean
-    regeneratedScimToken: string | null
-    regeneratedScimTokenLoading: boolean
-    revealedScimToken: string | null
     showIdentityProviderConfigFormErrors: boolean
 }
 
@@ -282,21 +275,6 @@ export interface identityProviderConfigLogicActions {
         payload?: any
     }
     openDeleteModal: () => {}
-    regenerateScimToken: () => any
-    regenerateScimTokenFailure: (
-        error: string,
-        errorObject?: any
-    ) => {
-        error: string
-        errorObject?: any
-    }
-    regenerateScimTokenSuccess: (
-        regeneratedScimToken: string | null,
-        payload?: any
-    ) => {
-        regeneratedScimToken: string | null
-        payload?: any
-    }
     resetIdentityProviderConfigForm: (values?: IdentityProviderConfigForm) => {
         values?: IdentityProviderConfigForm
     }
@@ -315,9 +293,6 @@ export interface identityProviderConfigLogicActions {
     }
     setIdentityProviderConfigFormValues: (values: DeepPartial<IdentityProviderConfigForm>) => {
         values: DeepPartial<IdentityProviderConfigForm>
-    }
-    setRevealedScimToken: (token: string | null) => {
-        token: string | null
     }
     submitIdentityProviderConfigForm: () => {
         value: boolean
@@ -394,7 +369,6 @@ export const identityProviderConfigLogic = kea<identityProviderConfigLogicType>(
         ],
     })),
     actions({
-        setRevealedScimToken: (token: string | null) => ({ token }),
         openDeleteModal: () => ({}),
         closeDeleteModal: () => ({}),
         setDeleteConfirmation: (confirmation: string) => ({ confirmation }),
@@ -452,7 +426,6 @@ export const identityProviderConfigLogic = kea<identityProviderConfigLogicType>(
                           )
 
                 actions.loadIdentityProviderConfigSuccess(config)
-                actions.setRevealedScimToken(config.scim_bearer_token)
             },
         },
     })),
@@ -503,21 +476,6 @@ export const identityProviderConfigLogic = kea<identityProviderConfigLogicType>(
                 },
             },
         ],
-        regeneratedScimToken: [
-            null as string | null,
-            {
-                regenerateScimToken: async () => {
-                    if (!values.identityProviderConfig) {
-                        return null
-                    }
-                    const response = await api.identityProviderConfigsScimTokenCreate(
-                        values.currentOrganizationId,
-                        values.identityProviderConfig.id
-                    )
-                    return response.scim_bearer_token
-                },
-            },
-        ],
     })),
     reducers({
         identityProviderConfigLoaded: [
@@ -540,13 +498,6 @@ export const identityProviderConfigLogic = kea<identityProviderConfigLogicType>(
             {
                 loadOrganizationDomains: () => false,
                 loadOrganizationDomainsFailure: () => true,
-            },
-        ],
-        revealedScimToken: [
-            null as string | null,
-            {
-                loadIdentityProviderConfig: () => null,
-                setRevealedScimToken: (_, { token }) => token,
             },
         ],
         isDeleteModalOpen: [
@@ -685,10 +636,6 @@ export const identityProviderConfigLogic = kea<identityProviderConfigLogicType>(
         },
         deleteIdentityProviderConfigFailure: () => {
             lemonToast.error('Could not delete the identity provider configuration. Try again.')
-        },
-        regenerateScimTokenSuccess: ({ regeneratedScimToken }) => {
-            actions.setRevealedScimToken(regeneratedScimToken)
-            lemonToast.success('SCIM token regenerated.')
         },
     })),
     afterMount(({ actions, values }) => {

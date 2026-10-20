@@ -47,7 +47,6 @@ FACADE_MODULES = [
     "products.tasks.backend.facade.repo_selection",
     "products.tasks.backend.facade.streams",
     "products.tasks.backend.facade.temporal",
-    "products.tasks.backend.facade.max_tools",
 ]
 
 
@@ -1108,8 +1107,7 @@ class TestFacadeReadsAndMappers(TestCase):
                 self.assertIsNotNone(dtos[task.id].latest_run_id)
 
     @patch("products.tasks.backend.logic.services.warm.execute_task_processing_workflow")
-    @patch("products.tasks.backend.logic.services.warm.is_team_limited", return_value=False)
-    def test_warm_task_run_returns_contract(self, _mock_quota, mock_workflow):
+    def test_warm_task_run_returns_contract(self, mock_workflow):
         task = self._make_task(origin_product=Task.OriginProduct.POSTHOG_AI)
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -2285,79 +2283,6 @@ class TestSelfDrivingQuotaFacadeGates(TestCase):
         # Genuinely manual creations keep the `manual_create` stage, distinct from the facade
         # backstop's `task_create`.
         self.assertEqual(capture_mock.call_args.kwargs["stage"], "manual_create")
-
-
-class TestSelfDrivingQuotaRefreshDispatch(TestCase):
-    organization: ClassVar[Organization]
-    team: ClassVar[Team]
-    user: ClassVar[User]
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.organization = Organization.objects.create(name="Refresh Org")
-        cls.team = Team.objects.create(organization=cls.organization, name="Refresh Team")
-        cls.user = User.objects.create(email="refresh@test.com", distinct_id="refresh-distinct")
-
-    def _self_driving_run(self) -> TaskRun:
-        task = Task.objects.create(
-            team=self.team,
-            title="Implementation: t",
-            description="d",
-            origin_product=Task.OriginProduct.SIGNAL_REPORT,
-            created_by=self.user,
-        )
-        return TaskRun.objects.create(task=task, team=self.team, status=TaskRun.Status.IN_PROGRESS)
-
-    @parameterized.expand(
-        [
-            # First PR URL on a self-driving-origin run is the billable moment: re-evaluate now.
-            ("first_pr_dispatches", None, {"pr_url": "https://github.com/x/y/pull/1"}, True),
-            # A repeat write for the same PR must not spam the quota task.
-            (
-                "repeat_write_skipped",
-                "https://github.com/x/y/pull/1",
-                {"pr_url": "https://github.com/x/y/pull/1"},
-                False,
-            ),
-            # No PR in the output: nothing billable happened.
-            ("no_pr_skipped", None, {"summary": "wip"}, False),
-            # Billing only counts GitHub PR URLs; anything else must not enqueue a refresh.
-            ("non_github_pr_url_skipped", None, {"pr_url": "https://evil.example/pr/1"}, False),
-        ]
-    )
-    @patch("ee.tasks.quota_limiting.refresh_org_self_driving_quota_task")
-    def test_refresh_dispatch_on_first_pr(self, _name, old_pr_url, output, expect_dispatch, task_mock):
-        run = self._self_driving_run()
-        run.output = output
-        run.save(update_fields=["output"])
-        with self.captureOnCommitCallbacks(execute=True):
-            facade._refresh_self_driving_quota_for_pr(run, old_pr_url)
-        self.assertEqual(task_mock.delay.call_count, 1 if expect_dispatch else 0)
-        if expect_dispatch:
-            self.assertEqual(task_mock.delay.call_args.args, (str(self.organization.id),))
-
-    @patch("ee.tasks.quota_limiting.refresh_org_self_driving_quota_task")
-    def test_refresh_swallows_lookup_failure(self, task_mock):
-        # The refresh is best-effort (the quota cron is the backstop): a transient DB fault must
-        # not propagate, or it would 500 an already-committed run write and abort the completion
-        # signaling that follows at both call sites.
-        run = self._self_driving_run()
-        run.output = {"pr_url": "https://github.com/x/y/pull/1"}
-        run.save(update_fields=["output"])
-        with patch("products.tasks.backend.facade.api.Team.objects.filter", side_effect=RuntimeError("db down")):
-            facade._refresh_self_driving_quota_for_pr(run, None)
-        task_mock.delay.assert_not_called()
-
-    @patch("ee.tasks.quota_limiting.refresh_org_self_driving_quota_task")
-    def test_refresh_dispatch_skipped_for_other_origins(self, task_mock):
-        run = self._self_driving_run()
-        run.task.origin_product = Task.OriginProduct.USER_CREATED
-        run.task.save(update_fields=["origin_product"])
-        run.output = {"pr_url": "https://github.com/x/y/pull/1"}
-        run.save(update_fields=["output"])
-        with self.captureOnCommitCallbacks(execute=True):
-            facade._refresh_self_driving_quota_for_pr(run, None)
-        task_mock.delay.assert_not_called()
 
 
 class TestApplyTaskRunModelConfig(TestCase):

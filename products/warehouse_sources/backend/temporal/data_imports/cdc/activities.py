@@ -49,11 +49,6 @@ from products.warehouse_sources.backend.temporal.data_imports.cdc.batcher import
     enrich_delete_rows,
     enrich_toast_omitted_rows,
 )
-from products.warehouse_sources.backend.temporal.data_imports.cdc.billing_expiry import (
-    blocked_past_buffer_retention,
-    clear_kept_slot_billing_expiry,
-    stop_cdc_past_billing_retention,
-)
 from products.warehouse_sources.backend.temporal.data_imports.cdc.broken import (
     AUTO_DROPPED_LAG_REASON,
     SELF_MANAGED_LAG_REASON,
@@ -1636,31 +1631,7 @@ def cleanup_orphan_slots_activity() -> None:
                     purge_buffer_prefix(source.team_id, str(schema_id), source_log)
                 continue
 
-            # 2. Active sources over the billing limit for longer than the buffer keeps changes
-            try:
-                cleared = clear_kept_slot_billing_expiry(source)
-                if cleared:
-                    source_log.info("cdc_billing_expiry_cleared_under_limit", schemas=cleared)
-                past_billing_retention = blocked_past_buffer_retention(source, sweep_started)
-            except Exception:
-                # The lag check below still runs for this source, and the next sweep retries this one.
-                source_log.exception("failed_to_check_billing_retention")
-                metrics.get_sweeper_source_errors_metric().add(1)
-                sources_errored += 1
-                past_billing_retention = False
-            if past_billing_retention:
-                source_log.warning("cdc_stopping_past_billing_retention")
-                try:
-                    if stop_cdc_past_billing_retention(source, cdc_config, adapter):
-                        slots_dropped += 1
-                    continue
-                except Exception:
-                    # The source keeps running, so the lag check below still covers it until a later sweep stops it.
-                    source_log.exception("failed_to_stop_cdc_past_billing_retention")
-                    metrics.get_sweeper_source_errors_metric().add(1)
-                    sources_errored += 1
-
-            # 3. Active sources — check WAL lag
+            # 2. Active sources — check WAL lag
             source_started = dt.datetime.now(tz=dt.UTC)
             try:
                 with adapter.management_connection(source, connect_timeout=10) as conn:

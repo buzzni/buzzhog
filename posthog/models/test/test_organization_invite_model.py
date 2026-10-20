@@ -12,8 +12,6 @@ from posthog.models.user import User
 
 from products.access_control.backend.models.access_control import AccessControl
 
-from ee.models.explicit_team_membership import ExplicitTeamMembership
-
 
 class TestOrganizationInvite(BaseTest):
     def test_organization_active_invites(self):
@@ -162,9 +160,6 @@ class TestOrganizationInvite(BaseTest):
         # Verify the user has been added to the organization
         org_membership = OrganizationMembership.objects.filter(organization=self.organization, user=user).first()
         self.assertIsNotNone(org_membership)
-
-        # Verify no explicit team memberships were created
-        self.assertEqual(ExplicitTeamMembership.objects.filter(parent_membership=org_membership).count(), 0)
 
         # Verify no access controls were created
         self.assertEqual(AccessControl.objects.filter(organization_member=org_membership).count(), 0)

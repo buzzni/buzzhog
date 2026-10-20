@@ -1,7 +1,6 @@
 from typing import Any
 
 from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied
 from rest_framework_dataclasses.serializers import DataclassSerializer
 
 from posthog.models.organization import Organization
@@ -44,9 +43,6 @@ class CreateLegalDocumentSerializer(serializers.Serializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         document_type = attrs["document_type"]
         organization: Organization = self.context["view"].organization
-
-        if document_type == DocumentType.BAA and not api.has_qualifying_baa_addon(organization):
-            raise PermissionDenied("A Boost, Scale, or Enterprise add-on is required to generate a BAA.")
 
         # Only one BAA and one DPA per organization. If they need a new one, a staff
         # member deletes the old row from Django admin. The DB-level unique constraint

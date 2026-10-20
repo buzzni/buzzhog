@@ -103,8 +103,7 @@ class TestGetContextForTemplate(APIBaseTest):
             )
 
         # Under self-capture, posthog-js evaluates PostHog's own flags with the dogfood-flags team's
-        # token (first team by PK), which in this test is self.team — not the PH Cloud key.
-        assert self.team.api_token != "sTMFPsFhdP1Ssg"
+        # token (first team by PK), which in this test is self.team.
         assert actual == {
             "git_rev": mock.ANY,
             "js_capture_time_to_see_data": False,
@@ -122,6 +121,40 @@ class TestGetContextForTemplate(APIBaseTest):
             "region": None,
             "self_capture": True,
         }
+
+    @parameterized.expand(
+        [
+            ("no_collector", {}, None, None),
+            (
+                "collector",
+                {
+                    "POSTHOG_TELEMETRY_HOST": "https://telemetry.example.com/",
+                    "POSTHOG_TELEMETRY_API_KEY": "phc_test_key",
+                },
+                "phc_test_key",
+                "https://telemetry.example.com",
+            ),
+            (
+                "opted_out",
+                {
+                    "POSTHOG_TELEMETRY_HOST": "https://telemetry.example.com",
+                    "POSTHOG_TELEMETRY_API_KEY": "phc_test_key",
+                    "OPT_OUT_CAPTURE": True,
+                },
+                None,
+                None,
+            ),
+        ]
+    )
+    def test_browser_sends_only_to_the_configured_collector(
+        self, _name: str, overrides: dict, api_key: str | None, host: str | None
+    ) -> None:
+        with self.settings(SELF_CAPTURE=False, E2E_TESTING=False, **overrides):
+            actual = get_context_for_template("index.html", MagicMock())
+
+        assert actual.get("js_posthog_api_key") == api_key
+        assert actual.get("js_posthog_host") == host
+        assert "js_posthog_ui_host" not in actual
 
     @parameterized.expand(
         [

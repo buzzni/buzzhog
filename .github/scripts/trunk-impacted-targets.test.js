@@ -1300,8 +1300,6 @@ test('an unmapped path widens rather than yielding an empty target set', () => {
 test('every target the rules can emit appears in the enumerated universe', () => {
     const everyRule = [
         'posthog/models/team.py',
-        'ee/settings.py',
-        'ee/frontend/x.tsx',
         'frontend/src/index.tsx',
         'packages/quill/src/index.ts',
         'playwright/spec.ts',
