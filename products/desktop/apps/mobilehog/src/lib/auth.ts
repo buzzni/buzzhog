@@ -19,7 +19,7 @@ export interface Session {
   region: Region;
   host: string;
   apiKey: string;
-  // OAuth sessions only; a local dev key never expires.
+  // OAuth sessions only; a local personal API key never expires.
   refreshToken?: string;
   expiresAt?: number;
   // The projects an OAuth token may reach; empty or missing means no limit.
@@ -61,9 +61,17 @@ async function readJson<T>(response: Response, what: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+const LOCAL_KEY_LABEL = "mobilehog local";
+
+// Django rejects a CSRF cookie that is not 32 or 64 letters and digits, and
+// reads it only under CSRF_COOKIE_NAME (posthog_csrftoken). With the cookie jar
+// off, the app sends this value as both the cookie and the header, which
+// satisfies the double-submit check.
+const LOCAL_CSRF_TOKEN = "mobilehoglocalcsrfmobilehoglocal";
+
 // Log in without touching the cookie jar (a stale session there would trip the
 // CSRF check), pull the session id out of the response, and swap it for the
-// seeded local dev personal API key so every later call is a plain bearer.
+// app's personal API key, so every later call is a plain bearer.
 async function loginWithPassword(
   email: string,
   password: string,
@@ -82,18 +90,54 @@ async function loginWithPassword(
     throw new Error("Login succeeded but no session cookie came back.");
   }
 
+  const sessionHeaders = {
+    "Content-Type": "application/json",
+    Cookie: `sessionid=${sessionId}; posthog_csrftoken=${LOCAL_CSRF_TOKEN}`,
+    "X-CSRFToken": LOCAL_CSRF_TOKEN,
+    // Over HTTPS, Django also requires a same-origin Referer when the request
+    // has no Origin header, and native fetch sends neither.
+    Referer: `${POSTHOG_HOST}/`,
+  };
   const keysResponse = await fetch(`${POSTHOG_HOST}/api/personal_api_keys/`, {
-    headers: { Cookie: `sessionid=${sessionId}` },
+    headers: sessionHeaders,
     credentials: "omit",
   });
-  const keys = await readJson<Array<{ local_dev_value?: string | null }>>(
+  const keys = await readJson<Array<{ id: string; label: string }>>(
     keysResponse,
     "Reading API keys",
   );
-  const apiKey = keys.find((key) => key.local_dev_value)?.local_dev_value;
+  // Roll the key that an earlier login made instead of minting another one.
+  // The server caps each user at 10 personal API keys and logout cannot revoke
+  // a key, so a new key per login would block login once the user hits the cap.
+  const existing = keys.find((key) => key.label === LOCAL_KEY_LABEL);
+  const keyResponse = await fetch(
+    existing
+      ? `${POSTHOG_HOST}/api/personal_api_keys/${existing.id}/roll/`
+      : `${POSTHOG_HOST}/api/personal_api_keys/`,
+    {
+      method: "POST",
+      headers: sessionHeaders,
+      body: JSON.stringify(
+        existing
+          ? {}
+          : {
+              label: LOCAL_KEY_LABEL,
+              scopes: ["*"],
+              scoped_teams: [],
+              scoped_organizations: [],
+            },
+      ),
+      credentials: "omit",
+    },
+  );
+  const minted = await readJson<{ value?: string | null }>(
+    keyResponse,
+    existing ? "Rolling API key" : "Creating API key",
+  );
+  const apiKey = minted.value;
   if (!apiKey) {
     throw new Error(
-      "No local dev API key found. Run `python manage.py setup_local_api_key` and set ALLOW_DEV_API_KEY_REVEAL=1, then restart the stack.",
+      "The server did not return a personal API key. Check that your local stack runs the latest code, then sign in again.",
     );
   }
 

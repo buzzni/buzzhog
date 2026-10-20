@@ -623,7 +623,7 @@ procs:
         # Idempotent local-dev bootstrap (wizard and task sandbox OAuth apps). phrocs has no
         # depends_on, so wait for the tables it touches before running (same approach as
         # migrate-clickhouse waiting on posthog_instancesetting).
-        shell: 'bin/wait-for-docker && bin/wait-for-postgres-tables posthog_featureflag posthog_personalapikey posthog_oauthapplication && bin/ensure-local-setup'
+        shell: 'bin/wait-for-docker && bin/wait-for-postgres-tables posthog_oauthapplication && bin/ensure-local-setup'
         capability: core_infra
         ready_pattern: 'Local setup complete'
         # Unlike the other Tools-layer entries (manual `autostart: false` utilities), this one
