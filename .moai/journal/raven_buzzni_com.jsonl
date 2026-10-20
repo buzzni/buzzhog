@@ -831,3 +831,8 @@
 {"ts":"2026-10-20T04:00:22Z","id":"buzzhog-sy8u","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"의존성 라이선스 정책·검사"}
 {"ts":"2026-10-20T04:13:58Z","id":"buzzhog-gn83","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"위키: 로컬 개발 기동과 배포 안내를 이번 마일스톤 상태에 맞춰 정리"}
 {"ts":"2026-10-20T04:14:15Z","id":"buzzhog-gn83","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a90daad856a37016d (sonnet medium, docs)"}
+{"ts":"2026-10-20T04:16:08Z","id":"buzzhog-ozkf","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"위키 런북: 로컬 기동과 hobby 배포 갱신"}
+{"ts":"2026-10-20T04:16:08Z","id":"buzzhog-ozkf.g1f","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"runbook.md 로컬 기동 절과 hobby 배포 절을 마일스톤 상태로 갱신"}
+{"ts":"2026-10-20T04:16:08Z","id":"buzzhog-ozkf","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"buzzhog-gn83 에서 펼쳤다 — 위키: 로컬 개발 기동과 배포 안내를 이번 마일스톤 상태에 맞춰 정리"}
+{"ts":"2026-10-20T04:16:08Z","id":"buzzhog-gn83","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"buzzhog-ozkf 로 펼쳤다 (이슈 1건)"}
+{"ts":"2026-10-20T04:16:11Z","id":"buzzhog-ozkf.g1f","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
