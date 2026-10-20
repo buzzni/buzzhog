@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from parameterized import parameterized
+
+from common.migration_utils import get_managed_app_names, get_managed_app_paths
 
 
 class TestPathTraversalValidation:
@@ -14,7 +18,7 @@ class TestPathTraversalValidation:
         [
             # Valid cases - standard PostHog apps
             ("posthog", "0001_initial"),
-            ("ee", "0952_add_sync_test_branch_two"),
+            ("access_control", "0952_add_sync_test_branch_two"),
             ("rbac", "0123_some_migration_name"),
             # Valid cases - product apps
             ("web_analytics", "0001_initial"),
@@ -110,7 +114,7 @@ class TestIsValidMigrationPath:
         [
             # Valid cases
             ("posthog", "0001_initial", True),
-            ("ee", "0952_add_feature", True),
+            ("access_control", "0952_add_feature", True),
             # Invalid cases - path traversal
             ("../etc", "0001_passwd", False),
             ("posthog", "../../../etc/passwd", False),
@@ -201,10 +205,35 @@ class TestSharedMigrationUtils:
 
     def test_cache_migration_file_returns_false_for_invalid(self) -> None:
         """cache_migration_file should return False for invalid inputs."""
-        from pathlib import Path
-
         from common.migration_utils import cache_migration_file
 
         # Invalid inputs should return False (not raise)
         assert cache_migration_file("../etc", "0001_passwd", Path("/fake")) is False
         assert cache_migration_file("posthog", "bad", Path("/fake")) is False
+
+
+class TestManagedApps:
+    @pytest.fixture(autouse=True)
+    def _tmp(self, tmp_path: Path) -> None:
+        self._tmp_path = tmp_path
+
+    @parameterized.expand(
+        [
+            ("ee_absent", (), False),
+            ("ee_package", ("__init__.py",), True),
+            ("ee_bytecode_left_by_git", ("__pycache__/0001_initial.cpython-312.pyc",), False),
+        ]
+    )
+    def test_ee_is_managed_only_while_its_migrations_package_exists(
+        self, _name: str, ee_files: tuple[str, ...], ee_managed: bool
+    ) -> None:
+        base_dir = self._tmp_path
+        (base_dir / "products" / "access_control" / "backend" / "migrations").mkdir(parents=True)
+        for rel_path in ee_files:
+            ee_file = base_dir / "ee" / "migrations" / rel_path
+            ee_file.parent.mkdir(parents=True, exist_ok=True)
+            ee_file.touch()
+
+        expected = {"posthog", "rbac", "access_control"} | ({"ee"} if ee_managed else set())
+        assert get_managed_app_names(base_dir) == expected
+        assert set(get_managed_app_paths(base_dir)) == expected
