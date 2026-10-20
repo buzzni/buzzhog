@@ -1837,6 +1837,117 @@ class TestEventsSchemaPropertyParity(ClickhouseTestMixin, BaseTest):
                 context=HogQLContext(team_id=self.team.pk, enable_select_queries=True, use_new_events_schema=True),
             )
 
+    @parameterized.expand(
+        [
+            (
+                "runtime_json_keys",
+                _RUNTIME_JSON_KEY_SELECT,
+                None,
+                [
+                    ("1", 1, "String", '"s1"', ["1", "s1"], "user@example.com", "user@example.com", 1, 1),
+                    ("s2", 1, "String", '"s2"', ["3", "s2"], "", "", 0, 0),
+                    ("", 0, "Null", "", ["", ""], "", "", 0, 0),
+                ],
+            ),
+            (
+                "runtime_json_keys_restricted",
+                _RUNTIME_JSON_KEY_SELECT,
+                "secret",
+                [
+                    ("1", 1, "String", "", ["1", ""], "user@example.com", "user@example.com", 1, 1),
+                    ("", 0, "Null", "", ["3", ""], "", "", 0, 0),
+                    ("", 0, "Null", "", ["", ""], "", "", 0, 0),
+                ],
+            ),
+            (
+                "runtime_json_keys_restricted_moved",
+                _RUNTIME_JSON_KEY_SELECT,
+                "$set",
+                [
+                    ("1", 1, "String", '"s1"', ["1", "s1"], "", "", 0, 0),
+                    ("s2", 1, "String", '"s2"', ["3", "s2"], "", "", 0, 0),
+                    ("", 0, "Null", "", ["", ""], "", "", 0, 0),
+                ],
+            ),
+            (
+                "moved_key_read_as_a_deeper_key",
+                "SELECT JSONExtractString(properties, 'by_tier', JSONExtractString(properties, '$set_once', 'tier'))",
+                None,
+                [("ok",), ("",), ("",)],
+            ),
+            (
+                "array_index_over_mixed_types",
+                "SELECT properties.arr.1, properties.arr[1], properties.nested_arr.1.2, properties.arr_obj.1.id, "
+                "toFloat(properties.nested_arr.1.2)",
+                None,
+                [("x", "x", "2", "1", 2.0), (None, None, None, None, None), (None, None, None, None, None)],
+            ),
+            (
+                "array_index_on_a_declared_array",
+                "SELECT properties.$exception_functions[-1], properties.$exception_functions.1",
+                None,
+                [("second", "first"), (None, None), (None, None)],
+            ),
+            (
+                "percent_in_key",
+                "SELECT JSONExtractString(properties, 'completion%'), JSONHas(properties, 'completion%'), "
+                "JSONExtractRaw(properties, 'completion%'), JSONExtractInt(properties, 'completion%')",
+                None,
+                [("50", 1, '"50"', 50), ("", 0, "", 0), ("", 0, "", 0)],
+            ),
+        ]
+    )
+    def test_query_shapes_read_the_same_on_both_schemas(
+        self,
+        _name: str,
+        select: str,
+        restricted_property: str | None,
+        expected: list[tuple[Any, ...]],
+    ) -> None:
+        for minute, properties in (
+            (
+                30,
+                {
+                    "k": "a",
+                    "a": "1",
+                    "secret": "s1",
+                    "arr": ["x", "y"],
+                    "nested_arr": [[1, 2], [3]],
+                    "arr_obj": [{"id": 1}],
+                    "completion%": "50",
+                    "by_tier": {"gold": "ok"},
+                    "$exception_functions": ["first", "second"],
+                    "$set": {"email": "user@example.com"},
+                    "$set_once": {"tier": "gold"},
+                },
+            ),
+            (31, {"k": "secret", "a": "3", "secret": "s2", "arr": "notarr", "nested_arr": 7, "arr_obj": "o"}),
+            (32, {"k": "missing", "arr": 5}),
+        ):
+            _create_event(
+                team=self.team,
+                distinct_id="shape-parity",
+                event="shape-parity",
+                timestamp=f"2024-01-15T10:{minute}:00Z",
+                properties=properties,
+            )
+        flush_persons_and_events()
+
+        for use_new_events_schema in (False, True):
+            context = HogQLContext(
+                team_id=self.team.pk, enable_select_queries=True, use_new_events_schema=use_new_events_schema
+            )
+            if restricted_property is not None:
+                context.restricted_properties = {
+                    RestrictedProperty(name=restricted_property, property_type=PropertyDefinition.Type.EVENT)
+                }
+            response = execute_hogql_query(
+                f"{select} FROM events WHERE event = 'shape-parity' ORDER BY timestamp",
+                team=self.team,
+                context=context,
+            )
+            assert response.results == expected, use_new_events_schema
+
 
 # ── Timezone index pruning tests ──────────────────────────────────────────────
 #

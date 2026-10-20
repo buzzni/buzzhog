@@ -15,6 +15,7 @@ from posthog.models.organization import Organization
 from posthog.models.project_secret_api_key import ProjectSecretAPIKey
 from posthog.models.team.team import Team
 from posthog.redis import get_client
+from posthog.storage import team_llm_gateway_quota_cache as quota_cache
 from posthog.storage.team_llm_gateway_quota_cache import (
     LLM_GATEWAY_QUOTA_CACHE_EXPIRY_SORTED_SET,
     LLM_GATEWAY_QUOTA_DEACTIVATED_TTL,
@@ -42,6 +43,10 @@ class QuotaProjectionTestMixin(BaseTest):
 
 
 class TestQuotaBlob(SimpleTestCase):
+    def test_lapsed_score_is_not_a_limit(self):
+        past = (_NOW - timedelta(seconds=1)).timestamp()
+        self.assertIsNone(build_quota_blob(42, {"ai_credits": past}, True, _NOW))
+
     def test_unlimited_active_team_has_no_blob(self):
         self.assertIsNone(build_quota_blob(42, {}, True, _NOW))
 
@@ -118,6 +123,40 @@ class TestProjectTeamQuota(QuotaProjectionTestMixin):
             self.assertTrue(blob["org_deactivated"])
             self.assertEqual(blob["buckets"]["posthog_code_credits"], {"limited": True, "limited_until": None})
 
+    def test_noop_without_gateway_redis_url(self, mock_settings):
+        mock_settings.AI_GATEWAY_REDIS_URL = None
+        self.organization.is_active = False
+        self.organization.save()
+        self.assertIsNone(project_team_quota(self.team))
+        self.assertIsNone(get_team_quota_blob(self.team))
+        self.assertEqual(reconcile_quota_projection(), {"candidates": 0, "written": 0, "cleared": 0, "failed": 0})
+
+    def test_redis_failure_is_captured_not_raised(self, mock_settings):
+        self._enable(mock_settings)
+        self.organization.is_active = False
+        self.organization.save()
+        with (
+            patch.object(hypercache, "set_cache_value_redis_only", side_effect=ConnectionError("redis down")),
+            patch("posthog.storage.team_llm_gateway_quota_cache.capture_exception") as capture,
+        ):
+            self.assertIsNone(project_team_quota(self.team))
+        capture.assert_called_once()
+
+    def test_batches_are_bounded_and_every_team_is_projected(self, mock_settings):
+        self._enable(mock_settings)
+        teams = [self.team] + [Team.objects.create(organization=self.organization, name=f"b{i}") for i in range(4)]
+        self.organization.is_active = False
+        self.organization.save()
+
+        with (
+            patch.object(quota_cache, "_BATCH_SIZE", 2),
+            patch.object(quota_cache, "_derive_blobs", wraps=quota_cache._derive_blobs) as derive,
+        ):
+            self.assertEqual(project_org_quota(self.organization), 5)
+        self.assertLessEqual(max(len(call.args[0]) for call in derive.call_args_list), 2)
+        for team in teams:
+            self.assertIsNotNone(get_team_quota_blob(team), team.id)
+
     def test_state_that_never_settles_gives_up_after_three_writes(self, mock_settings):
         self._enable(mock_settings)
         flips = iter(range(100))
@@ -137,10 +176,9 @@ class TestProjectTeamQuota(QuotaProjectionTestMixin):
     def test_a_failed_batch_read_is_not_retried_team_by_team(self, mock_settings):
         self._enable(mock_settings)
         teams = [self.team] + [Team.objects.create(organization=self.organization, name=f"f{i}") for i in range(3)]
-        from posthog.storage import team_llm_gateway_quota_cache as module
 
         with (
-            patch.object(module, "_derive_blobs", side_effect=ConnectionError("store down")) as derive,
+            patch.object(quota_cache, "_derive_blobs", side_effect=ConnectionError("store down")) as derive,
             patch("posthog.storage.team_llm_gateway_quota_cache.capture_exception") as capture,
         ):
             self.assertEqual(project_org_quota(self.organization), 0)
