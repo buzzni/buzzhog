@@ -5380,8 +5380,6 @@ class TestBillableTeams(TestCase):
 
 @time_machine.travel("2021-10-10T23:01:00Z", tick=False)
 class TestOrganizationFiltering(ClickhouseDestroyTablesMixin, APIBaseTest):
-    """Test organization_ids filtering for send_all_org_usage_reports"""
-
     def setUp(self) -> None:
         super().setUp()
 

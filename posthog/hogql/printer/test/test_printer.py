@@ -1,6 +1,5 @@
 import json
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, Optional, cast
 from uuid import UUID
@@ -14,6 +13,7 @@ from posthog.test.base import (
     _create_event,
     _create_person,
     clean_varying_query_parts,
+    flush_persons_and_events,
     get_index_from_explain,
     snapshot_clickhouse_queries,
 )
@@ -52,12 +52,15 @@ from posthog.hogql.errors import ExposedHogQLError, ImpossibleASTError, QueryErr
 from posthog.hogql.modifiers import create_default_modifiers_for_team
 from posthog.hogql.parser import parse_expr, parse_select
 from posthog.hogql.printer import prepare_and_print_ast, prepare_ast_for_printing, print_prepared_ast, to_printed_hogql
+from posthog.hogql.property import property_to_expr
 from posthog.hogql.property_access_types import RestrictedProperty
 from posthog.hogql.query import execute_hogql_query
 from posthog.hogql.test.utils import json_dynamic_read_sql, json_dynamic_read_sql_from_parts
 
 from posthog.clickhouse.client.execute import sync_execute
 from posthog.clickhouse.events_json import TEMPORARY_PROPERTIES_JSON_TYPE
+from posthog.clickhouse.kafka_engine import json_extract_trim_quotes
+from posthog.dataclasses import frozen
 from posthog.models import PropertyDefinition
 from posthog.models.event.sql import EVENTS_JSON_DATA_TABLE, EVENTS_PROPERTIES_JSON_TYPE
 from posthog.models.exchange_rate.sql import EXCHANGE_RATE_DICTIONARY_NAME
@@ -81,7 +84,7 @@ def _find_query_plan_node(node: dict, condition: Callable[[dict], bool]) -> dict
     return None
 
 
-@dataclass(frozen=True)
+@frozen
 class FakeMaterializedColumn:
     name: str
     is_nullable: bool
@@ -3492,7 +3495,7 @@ class TestPrinter(BaseTest):
 
     @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
     def test_ai_trace_id_optimizations(self, mock_matcols_by_table):
-        """Test that $ai_trace_id uses the active storage path without wrappers that block skip indexes."""
+        # A wrapper such as ifNull or nullIf around the read stops ClickHouse from using a skip index on it.
         # The column is in the registry either way; JSON-backed event properties must ignore it.
         mat_col = FakeMaterializedColumn(name="mat_$ai_trace_id", is_nullable=True, type="Nullable(String)")
         mock_matcols_by_table.return_value = {"events": {("$ai_trace_id", "properties"): mat_col}}
@@ -3570,7 +3573,6 @@ class TestPrinter(BaseTest):
 
     @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
     def test_ai_session_id_optimizations(self, mock_matcols_by_table):
-        """Test that $ai_session_id uses the active storage path without wrappers that block skip indexes."""
         # The column is in the registry either way; JSON-backed event properties must ignore it.
         mat_col = FakeMaterializedColumn(name="mat_$ai_session_id", is_nullable=True, type="Nullable(String)")
         mock_matcols_by_table.return_value = {"events": {("$ai_session_id", "properties"): mat_col}}
@@ -3637,8 +3639,6 @@ class TestPrinter(BaseTest):
         # Legacy materialized columns store the first key as a raw JSON string, so deeper reads must extract the tail
         # keys with the same SQL shape as ingest and backfill. JSON subcolumns can address the full string-key path
         # directly.
-        from posthog.clickhouse.kafka_engine import json_extract_trim_quotes
-
         # The column is in the registry either way; JSON-backed event properties must ignore it.
         mat_col = FakeMaterializedColumn(name="mat_foo", is_nullable=False, type="String")
         mock_matcols_by_table.return_value = {"events": {("foo", "properties"): mat_col}}
@@ -5567,6 +5567,250 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
 
         if expected_context_values is not None:
             self.assertLessEqual(expected_context_values.items(), context.values.items())
+
+    @parameterized.expand(
+        [
+            ("joined", PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED),
+            ("on_events", PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS),
+        ]
+    )
+    def test_person_property_is_not_set_behavior(self, _name: str, poe_mode: PersonsOnEventsMode) -> None:
+        distinct_id_with_email = "test_with_email"
+        distinct_id_with_empty = "test_with_empty_string"
+        distinct_id_with_null = "test_with_null"
+        distinct_id_without = "test_without"
+        event_name = "is_not_set_test"
+
+        # Create four persons with different email property states:
+        # 1. email set to a real value
+        _create_person(
+            distinct_ids=[distinct_id_with_email],
+            team=self.team,
+            properties={"email": "test@example.com"},
+            immediate=True,
+        )
+        # 2. email set to empty string
+        _create_person(
+            distinct_ids=[distinct_id_with_empty],
+            team=self.team,
+            properties={"email": ""},
+            immediate=True,
+        )
+        # 3. email set to null
+        _create_person(
+            distinct_ids=[distinct_id_with_null],
+            team=self.team,
+            properties={"email": None},
+            immediate=True,
+        )
+        # 4. email not set at all
+        _create_person(
+            distinct_ids=[distinct_id_without],
+            team=self.team,
+            properties={},
+            immediate=True,
+        )
+
+        _create_event(team=self.team, event=event_name, distinct_id=distinct_id_with_email)
+        _create_event(team=self.team, event=event_name, distinct_id=distinct_id_with_empty)
+        _create_event(team=self.team, event=event_name, distinct_id=distinct_id_with_null)
+        _create_event(team=self.team, event=event_name, distinct_id=distinct_id_without)
+        flush_persons_and_events()
+
+        is_not_set_expr = property_to_expr(
+            {"type": "person", "key": "email", "operator": "is_not_set"},
+            team=self.team,
+            scope="event",
+        )
+
+        query_ast = ast.SelectQuery(
+            select=[
+                ast.Alias(alias="distinct_id", expr=ast.Field(chain=["distinct_id"])),
+                ast.Alias(alias="email_value", expr=ast.Field(chain=["person", "properties", "email"])),
+                ast.Alias(alias="is_not_set_result", expr=is_not_set_expr),
+                ast.Alias(
+                    alias="is_not_set_result_historical",
+                    expr=ast.Or(
+                        exprs=[
+                            is_not_set_expr,
+                            ast.Not(
+                                expr=ast.Call(
+                                    name="JSONHas",
+                                    args=[ast.Field(chain=["person", "properties"]), ast.Constant(value="email")],
+                                )
+                            ),
+                        ]
+                    ),
+                ),  # this is the historical behaviour for is_not_set, was removed in https://github.com/PostHog/posthog/pull/44346 but test for equivalence here
+            ],
+            select_from=ast.JoinExpr(table=ast.Field(chain=["events"])),
+            where=ast.CompareOperation(
+                op=ast.CompareOperationOp.Eq,
+                left=ast.Field(chain=["event"]),
+                right=ast.Constant(value=event_name),
+            ),
+            order_by=[ast.OrderExpr(expr=ast.Field(chain=["distinct_id"]))],
+        )
+
+        result = execute_hogql_query(
+            team=self.team,
+            query=query_ast,
+            modifiers=HogQLQueryModifiers(personsOnEventsMode=poe_mode),
+        )
+        assert result.clickhouse
+
+        # Native String paths use empty strings for missing values.
+        empty_string_reads_as_null = (
+            settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
+            and poe_mode == PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS
+        )
+        expected_results = {
+            (distinct_id_with_email, "test@example.com", 0, 0),
+            (
+                distinct_id_with_empty,
+                None if empty_string_reads_as_null else "",
+                1 if empty_string_reads_as_null else 0,
+                1 if empty_string_reads_as_null else 0,
+            ),
+            (distinct_id_with_null, None, 1, 1),
+            (distinct_id_without, None, 1, 1),
+        }
+        self.assertEqual(set(result.results), expected_results)
+
+        # These asserts protect against regression of the performance the bug fixed in
+        # https://posthog.slack.com/archives/C09B0SSQEDA/p1767698123669229?thread_ts=1767672165.250289&cid=C09B0SSQEDA
+        sql_lower = result.clickhouse.lower()
+        if empty_string_reads_as_null:
+            assert "jsonextractraw" not in sql_lower
+            assert "tojsonstring(events.person_properties)" not in sql_lower
+        elif not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
+            # JSONHas is used in calculating is_not_set_result_historical, but nowhere else
+            assert sql_lower.count("jsonhas") == 1
+
+    def test_ilike_and_not_ilike_give_correct_results(self) -> None:
+        event_name = "mat_col_opt_ilike_test"
+
+        # do multiple test cases per test run, as setup and teardown are a bit slow
+        cases: set[str] = {
+            "hello@posthog.com",
+            "Hello@PostHog.com",
+            "other_value",
+            "null",
+            "NULL",
+            "'null'",
+            "contains null in the middle",
+            "null@posthog.com",
+            "",
+            "None",  # Store None (i.e. actual NULL value) as a string, because we can't have a NULL distinct_id and it makes things easier
+        }
+
+        patterns_and_expected: dict[str, set[str]] = {
+            "%@posthog.com": {"hello@posthog.com", "Hello@PostHog.com", "null@posthog.com"},
+            "hello@posthog.com": {"hello@posthog.com", "Hello@PostHog.com"},
+            "%null%": {"null", "NULL", "'null'", "null@posthog.com", "contains null in the middle"},
+            "%": {
+                "",
+                "hello@posthog.com",
+                "Hello@PostHog.com",
+                "other_value",
+                "null",
+                "NULL",
+                "'null'",
+                "contains null in the middle",
+                "null@posthog.com",
+            },
+            "": {""},
+            "None": {"None"},
+        }
+
+        for case in cases:
+            _create_event(
+                team=self.team,
+                distinct_id=case,
+                event=event_name,
+                properties={"test_prop": case if case != "None" else None},
+            )
+        flush_persons_and_events()
+
+        for pattern, ilike_expected in patterns_and_expected.items():
+            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
+                ilike_expected = (ilike_expected | {""}) if pattern == "None" else ilike_expected - {""}
+            pattern_expr = ast.Constant(value=pattern if pattern != "None" else None)
+            ilike_result = execute_hogql_query(
+                team=self.team,
+                query="SELECT distinct_id FROM events WHERE event = {event} AND ilike(properties.test_prop, {pattern}) ORDER BY distinct_id",
+                placeholders={"pattern": pattern_expr, "event": ast.Constant(value=event_name)},
+            )
+            ilike_matches = {d for (d,) in ilike_result.results}
+            assert ilike_matches == ilike_expected, "ilike " + str(pattern)
+
+            not_ilike_expected = cases.difference(ilike_expected)
+            not_ilike_result = execute_hogql_query(
+                team=self.team,
+                query="SELECT distinct_id FROM events WHERE event = {event} AND notILike(properties.test_prop, {pattern}) ORDER BY distinct_id",
+                placeholders={"pattern": pattern_expr, "event": ast.Constant(value=event_name)},
+            )
+            not_ilike_matches = {d for (d,) in not_ilike_result.results}
+            assert not_ilike_matches == not_ilike_expected, "not_ilike " + str(pattern)
+
+    def test_in_and_not_in_give_correct_results(self) -> None:
+        event_name = "mat_col_opt_in_test"
+
+        cases: set[str] = {
+            "hello@posthog.com",
+            "Hello@PostHog.com",
+            "other_value",
+            "null",
+            "NULL",
+            "'null'",
+            "contains null in the middle",
+            "null@posthog.com",
+            "",
+            "None",
+        }
+
+        in_values_and_expected: dict[tuple[str, ...], set[str]] = {
+            ("hello@posthog.com",): {"hello@posthog.com"},
+            ("hello@posthog.com", "other_value"): {"hello@posthog.com", "other_value"},
+            ("null",): {"null"},
+            ("NULL",): {"NULL"},
+            ("null", "NULL"): {"null", "NULL"},
+            ("",): {""},
+            ("hello@posthog.com", "null"): {"hello@posthog.com", "null"},
+            ("hello@posthog.com", ""): {"hello@posthog.com", ""},
+        }
+
+        for case in cases:
+            _create_event(
+                team=self.team,
+                distinct_id=case,
+                event=event_name,
+                properties={"test_prop": case if case != "None" else None},
+            )
+        flush_persons_and_events()
+
+        for in_values, in_expected in in_values_and_expected.items():
+            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
+                in_expected = in_expected - {""}
+            in_values_exprs: list[ast.Expr] = [ast.Constant(value=v) for v in in_values]
+            in_tuple = ast.Tuple(exprs=in_values_exprs)
+
+            in_result = execute_hogql_query(
+                team=self.team,
+                query="SELECT distinct_id FROM events WHERE event = {event} AND properties.test_prop IN {in_values} ORDER BY distinct_id",
+                placeholders={"in_values": in_tuple, "event": ast.Constant(value=event_name)},
+            )
+            in_matches = {d for (d,) in in_result.results}
+            assert in_matches == in_expected, f"IN {in_values}"
+
+            not_in_expected = cases.difference(in_expected)
+            not_in_result = execute_hogql_query(
+                team=self.team,
+                query="SELECT distinct_id FROM events WHERE event = {event} AND properties.test_prop NOT IN {in_values} ORDER BY distinct_id",
+                placeholders={"in_values": in_tuple, "event": ast.Constant(value=event_name)},
+            )
+            not_in_matches = {d for (d,) in not_in_result.results}
+            assert not_in_matches == not_in_expected, f"NOT IN {in_values}"
 
     def test_recursive_cte_raises(self):
         query = """

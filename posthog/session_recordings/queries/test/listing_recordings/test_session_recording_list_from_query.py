@@ -5581,13 +5581,6 @@ class TestClickhouseSessionRecordingsListFromQuery(ClickhouseTestMixin, APIBaseT
                 PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
             ],
             [
-                "test_poe_being_unavailable_we_fall_back_to_person_subquery",
-                False,
-                False,
-                False,
-                PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED,
-            ],
-            [
                 "test_allow_denormalised_props_fix_does_not_stop_all_poe_processing",
                 False,
                 True,

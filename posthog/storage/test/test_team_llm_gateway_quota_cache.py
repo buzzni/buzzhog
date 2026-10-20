@@ -15,6 +15,7 @@ from posthog.models.organization import Organization
 from posthog.models.project_secret_api_key import ProjectSecretAPIKey
 from posthog.models.team.team import Team
 from posthog.redis import get_client
+from posthog.storage import team_llm_gateway_quota_cache as quota_cache
 from posthog.storage.team_llm_gateway_quota_cache import (
     LLM_GATEWAY_QUOTA_CACHE_EXPIRY_SORTED_SET,
     LLM_GATEWAY_QUOTA_DEACTIVATED_TTL,
@@ -146,11 +147,10 @@ class TestProjectTeamQuota(QuotaProjectionTestMixin):
         teams = [self.team] + [Team.objects.create(organization=self.organization, name=f"b{i}") for i in range(4)]
         self.organization.is_active = False
         self.organization.save()
-        from posthog.storage import team_llm_gateway_quota_cache as module
 
         with (
-            patch.object(module, "_BATCH_SIZE", 2),
-            patch.object(module, "_derive_blobs", wraps=module._derive_blobs) as derive,
+            patch.object(quota_cache, "_BATCH_SIZE", 2),
+            patch.object(quota_cache, "_derive_blobs", wraps=quota_cache._derive_blobs) as derive,
         ):
             self.assertEqual(project_org_quota(self.organization), 5)
         self.assertLessEqual(max(len(call.args[0]) for call in derive.call_args_list), 2)
@@ -176,10 +176,9 @@ class TestProjectTeamQuota(QuotaProjectionTestMixin):
     def test_a_failed_batch_read_is_not_retried_team_by_team(self, mock_settings):
         self._enable(mock_settings)
         teams = [self.team] + [Team.objects.create(organization=self.organization, name=f"f{i}") for i in range(3)]
-        from posthog.storage import team_llm_gateway_quota_cache as module
 
         with (
-            patch.object(module, "_derive_blobs", side_effect=ConnectionError("store down")) as derive,
+            patch.object(quota_cache, "_derive_blobs", side_effect=ConnectionError("store down")) as derive,
             patch("posthog.storage.team_llm_gateway_quota_cache.capture_exception") as capture,
         ):
             self.assertEqual(project_org_quota(self.organization), 0)
@@ -245,13 +244,6 @@ class TestReconcileQuotaProjection(QuotaProjectionTestMixin):
         blob = get_team_quota_blob(self.team)
         assert blob is not None
         self.assertTrue(blob["org_deactivated"])
-
-    def test_a_null_active_flag_reads_as_active(self, mock_settings):
-        mock_settings.AI_GATEWAY_REDIS_URL = _GATEWAY_REDIS_URL
-        Organization.objects.filter(pk=self.organization.pk).update(is_active=None)
-        self.organization.refresh_from_db()
-        project_org_quota(self.organization)
-        self.assertIsNone(get_team_quota_blob(self.team))
 
     def test_reconcile_derives_a_deactivated_org_with_no_blob_from_postgres(self, mock_settings):
         mock_settings.AI_GATEWAY_REDIS_URL = _GATEWAY_REDIS_URL

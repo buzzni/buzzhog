@@ -121,8 +121,10 @@ class TestDesktopAccessPolicy(APIBaseTest):
             level=OrganizationMembership.Level.MEMBER,
         )
 
-        def gate_paused_for_the_first_organization(key: str, _distinct_id: str, *_args, **kwargs) -> bool:
-            return key == DESKTOP_SIGNUP_GATE_FLAG and kwargs["groups"]["organization"] == str(self.organization.id)
+        def gate_paused_for_the_first_organization(
+            key: str, _distinct_id: str, *_args: object, groups: dict[str, str], **_kwargs: object
+        ) -> bool:
+            return key == DESKTOP_SIGNUP_GATE_FLAG and groups["organization"] == str(self.organization.id)
 
         self.mock_feature_flag.side_effect = gate_paused_for_the_first_organization
 
