@@ -22,21 +22,21 @@ buzzhog는 PostHog 포크다.
 
 ## 전체 페이지
 
-| 페이지 | 내용 |
-| --- | --- |
-| [architecture.md](architecture.md) | 시스템 구성도 |
-| [data-flow.md](data-flow.md) | 수집→저장 경로, Kafka 토픽, 테이블 |
-| [glossary.md](glossary.md) | 용어집 |
-| [modules.md](modules.md) | 모듈 지도 |
-| [licenses.md](licenses.md) | 라이선스 |
-| [external-calls.md](external-calls.md) | 외부 호출 |
-| [branding.md](branding.md) | 브랜딩 |
-| [upstream.md](upstream.md) | 업스트림 동기화 |
-| [runbook.md](runbook.md) | 운영 런북 |
-| [configuration.md](configuration.md) | 설정 |
-| [testing.md](testing.md) | 테스트 |
-| [adr/README.md](adr/README.md) | 결정 기록 목차 |
-| [adr/0001-remove-non-foss.md](adr/0001-remove-non-foss.md) | 비 FOSS 코드 제거 결정 |
+| 페이지                                                     | 내용                                                                       |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [architecture.md](architecture.md)                         | 시스템 구성도                                                              |
+| [data-flow.md](data-flow.md)                               | 수집→저장 경로, Kafka 토픽, 테이블                                         |
+| [glossary.md](glossary.md)                                 | 용어집                                                                     |
+| [modules.md](modules.md)                                   | 모듈 지도                                                                  |
+| [licenses.md](licenses.md)                                 | 라이선스                                                                   |
+| [external-calls.md](external-calls.md)                     | 외부 호출                                                                  |
+| [branding.md](branding.md)                                 | 브랜딩                                                                     |
+| [upstream.md](upstream.md)                                 | 업스트림 동기화                                                            |
+| [runbook.md](runbook.md)                                   | 운영 런북: 빌드, hobby 배포, 마이그레이션, 업그레이드·롤백, 로컬 개발 기동 |
+| [configuration.md](configuration.md)                       | 설정                                                                       |
+| [testing.md](testing.md)                                   | 테스트                                                                     |
+| [adr/README.md](adr/README.md)                             | 결정 기록 목차                                                             |
+| [adr/0001-remove-non-foss.md](adr/0001-remove-non-foss.md) | 비 FOSS 코드 제거 결정                                                     |
 
 아직 작성되지 않은 페이지도 링크해 두었다.
 다른 묶음이 작성하면 링크가 살아난다.
