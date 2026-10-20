@@ -2,8 +2,6 @@ List LLM traces to inspect AI/LLM usage across your application. Returns traces 
 
 Set `detail: "summary"` for event metadata without any prompts or outputs when picking candidate traces, then read the one you pick with `query-llm-trace`. Omitting `detail` returns the retained properties in full, subject to size limits.
 
-Use 'read-data-schema' to discover available event properties for filtering (e.g. `$ai_model`, `$ai_provider`).
-
 Examples of use cases include:
 
 - How much are we spending on LLM tokens per day?
@@ -26,11 +24,11 @@ IMPORTANT: Do not check if a property is set unless the user explicitly asks for
 When using a property filter, you should:
 
 - **Prioritize properties directly related to the context or objective of the user's query.** Common AI properties include `$ai_model`, `$ai_provider`, `$ai_trace_id`, `$ai_session_id`, `$ai_latency`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_total_cost_usd`, `$ai_is_error`, `$ai_http_status`, `$ai_span_name`.
-- **Note:** `$ai_is_error` and `$ai_error` are valid filter properties but may not appear via `read-data-schema`. Use `$ai_is_error` with operator `exact` and value `["true"]` to find error traces, or use `$ai_error` with `is set` to find traces with error messages.
+- **Note:** `$ai_is_error` and `$ai_error` are valid filter properties. Use `$ai_is_error` with operator `exact` and value `["true"]` to find error traces, or use `$ai_error` with `is set` to find traces with error messages.
 - **Ensure that you find both the property group and name.** Property groups should be one of the following: event, person, session, group.
 - After selecting a property, **validate that the property value accurately reflects the intended criteria**.
 - **Find the suitable operator for type** (e.g., `contains`, `is set`).
-- If the operator requires a value, use the `read-data-schema` tool to find the property values.
+- If the operator requires a value, use the values the user gave, and tell the user which values you could not confirm.
 
 Infer the property groups from the user's request. If your first guess doesn't yield any results, try to adjust the property group.
 
@@ -132,7 +130,7 @@ Generations (`$ai_generation`) and embeddings (`$ai_embedding`) are always leaf 
 
 Only `$ai_*` properties PostHog's taxonomy defines, plus the ones first-party code writes without describing (`$ai_generation_id`, `$ai_cache_read_cost_usd`, `$ai_cache_creation_cost_usd`, `$ai_effort`) and `$session_id`, `$lib`, and `$lib_version`, reach you. Every other event property, and every person property, is withheld whichever `detail` you ask for, and its name is listed in `_redactedKeys` beside the bag. `$ai_base_url` and `$ai_request_url` arrive as the origin and path only, without the query string a provider key often sits in. A value that is not an `http` or `https` URL is withheld instead, because there is no endpoint to keep.
 
-A withheld property is unchanged in PostHog: it still works as a filter here, and you can read its value in the PostHog UI or with `execute-sql`.
+A withheld property is unchanged in PostHog: it still works as a filter here, and you can read its value in the PostHog UI.
 
 ## Detail level
 

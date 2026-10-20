@@ -93,10 +93,7 @@ fixtures:
                           operator: exact
                     rollout_percentage: 25
 
-    # `flag-create-killswitch-no-experiment` creates this key, so the seeder clears it
-    # first. `flag-create-routes-to-experiment` has no counterpart here: the agent picks
-    # the key of the flag the experiment manages, so the seeder cannot name it. That
-    # task's leftovers still accumulate across runs.
+    # `flag-create-killswitch-no-experiment` creates this key, so the seeder clears it first.
     absent_feature_flags:
         - mcp-eval-billing-killswitch
 
@@ -310,21 +307,6 @@ tasks:
           lifecycle tool, which cannot change targeting. Sending `filters` replaces the whole object, so the written
           filters must keep the seeded email condition, both variants and both payloads, and change only the 10%
           group to 25%. If the flag does not exist, says so.
-
-    # The description asks the agent to weigh an experiment before it creates a flag. The
-    # pair below scores both directions: a user-visible change should route to an experiment,
-    # an operational flag should not. A description that pushes experiments too hard fails the
-    # second task. Both intents settle the choice up front, so a correct agent has a mutation
-    # to make and tool selection scores cleanly.
-    - id: flag-create-routes-to-experiment
-      category: feature-flags
-      intent: "We're putting a new version of our checkout page in front of 20% of users. Set that up — and if an
-          experiment is the better way to tell whether it helped, set that up instead of a plain flag."
-      expected_tools: [experiment-create]
-      acceptable_tools: [feature-flag-get-all, experiment-list]
-      success_criteria: >
-          Creates an experiment rather than a bare feature flag, and says the experiment manages its own flag. Does
-          not leave a separate feature flag behind alongside it.
 
     - id: flag-create-killswitch-no-experiment
       category: feature-flags

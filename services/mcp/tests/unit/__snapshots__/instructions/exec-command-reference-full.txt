@@ -15,7 +15,7 @@ call [--json] [--confirm] <tool_name> [json_input] — call a tool with JSON inp
 
 #### Metric discovery (semantic layer)
 
-Catalog-first is decided by request shape, not by whether the noun sounds like a KPI: a count, sum, or amount of X per day/hour/week/month/year, a rate or percentage of X, an average/percentile/latency of X, a cost per X, or a conversion between two events — plus their rankings, breakdowns, comparisons, synonyms, derived forms, and definition questions. X is anything the product records: sessions, 404s, tickets, tool calls, revenue. Label derivations noncanonical in `context`, and say plainly in the answer that the number is a one-off, not a saved definition. One-off exploration and debugging aggregates stay schema-first.
+Catalog-first is decided by request shape, not by whether the noun sounds like a KPI: a count, sum, or amount of X per day/hour/week/month/year, a rate or percentage of X, an average/percentile/latency of X, a cost per X, or a conversion between two events — plus their rankings, breakdowns, comparisons, synonyms, derived forms, and definition questions. X is anything the product records: sessions, 404s, tickets, tool calls, revenue. Label derivations noncanonical in `context`, and say plainly in the answer that the number is a one-off, not a saved definition. One-off exploration and debugging aggregates go through the typed query tools.
 
 The first call for that shape is `metric-list`; `info query-*` and `search <noun>` are not substitutes. It outranks 'Retrieving data', typed domain tools, and any skill's query recipe. Paginated, it returns each metric's name, meaning, lifecycle, drift state, unit, and definition kind. `exec search` finds tools, not catalog rows. Use `metric-describe` to read a candidate's stored HogQL or SQL before adapting it.
 
@@ -106,16 +106,16 @@ For analytics, run the matching typed query through `exec` first. If the result 
 ALWAYS run `exec` first. `render-ui` is the final presentation step, never a discovery step — use `exec` (`search`/`info`/`schema`/`call`) to resolve the entity's real ID and confirm the data, then render. Never render before exec, and never with a guessed `tool_input`.
 
 <example>
-User: How is the "File engagement boost" experiment going?
-Assistant: [exec first: search/info/call to resolve it to id 2 and read its results]
-Assistant: <concise summary of the results>, then renders it so the user can verify.
-[Runs render-ui({ "tool_name": "experiment-get", "tool_input": { "id": 2 } })]
+User: How is the "NPS pulse" survey going?
+Assistant: [exec first: search/info/call to resolve it to id "abc123" and read its stats]
+Assistant: <concise summary of the stats>, then renders it so the user can verify.
+[Runs render-ui({ "tool_name": "survey-stats", "tool_input": { "id": "abc123" } })]
 </example>
 
 <bad-example>
-User: How is the "File engagement boost" experiment going?
-Assistant: [Reads the results via exec, then replies with a long text-only breakdown of every metric and never calls render-ui]
-WRONG — the answer centers on a single experiment, which has a UI app (`experiment-get` is in `render-ui`'s enum). Render it with render-ui so the user can see and verify the results, then add your summary. Strongly prefer render-and-summarize over a text dump alone.
+User: How is the "NPS pulse" survey going?
+Assistant: [Reads the stats via exec, then replies with a long text-only breakdown of every question and never calls render-ui]
+WRONG — the answer centers on a single survey, which has a UI app (`survey-stats` is in `render-ui`'s enum). Render it with render-ui so the user can see and verify the stats, then add your summary. Strongly prefer render-and-summarize over a text dump alone.
 </bad-example>
 
 ### Basic functionality
@@ -153,7 +153,7 @@ PostHog tools have lowercase kebab-case naming. Tools are organized by category:
 
 
 Typical action names: list/retrieve/get/create/update/delete/query.
-Example tool names: experiment-create, feature-flag-get-all, insight-get.
+Example tool names: survey-create, feature-flag-get-all, insight-get.
 
 ### Retrieving data
 

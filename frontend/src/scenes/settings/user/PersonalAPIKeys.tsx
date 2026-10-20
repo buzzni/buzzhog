@@ -17,7 +17,6 @@ import {
     Tooltip,
 } from '@posthog/lemon-ui'
 
-import { CopyToClipboardInline } from 'lib/components/CopyToClipboard'
 import { ScopeAccessGroup } from 'lib/components/ScopeAccessRow/ScopeAccessGroup'
 import { LemonButton } from 'lib/lemon-ui/LemonButton'
 import { LemonField } from 'lib/lemon-ui/LemonField'
@@ -489,18 +488,7 @@ function PersonalAPIKeysTable(): JSX.Element {
                     </div>
                 )}
                 renderMaskValue={(key) =>
-                    key.local_dev_value ? (
-                        <CopyToClipboardInline
-                            description="personal API key"
-                            tooltipMessage="Local development key. Its full value is shown because this instance has DEBUG and ALLOW_DEV_API_KEY_REVEAL set."
-                            selectable
-                            isValueSensitive
-                            iconSize="xsmall"
-                            className="font-mono text-xs max-w-60 whitespace-normal"
-                        >
-                            {key.local_dev_value}
-                        </CopyToClipboardInline>
-                    ) : key.mask_value ? (
+                    key.mask_value ? (
                         <span className="font-mono ph-no-capture">{key.mask_value}</span>
                     ) : (
                         <Tooltip title="This key was created before the introduction of previews" placement="right">

@@ -132,7 +132,7 @@ function makeState(): ResolvedState {
             min_session_age_seconds: 0,
         }),
         requestContext: { mcpConversationId: 'conversation-a', mcpClientName: 'test-client' },
-        allTools: [{ name: 'project-get' }, { name: 'skill-get' }, { name: 'docs-search' }],
+        allTools: [{ name: 'project-get' }, { name: 'skill-get' }],
         clientProfile: { capabilities: { supportsInstructions: false } },
     } as unknown as ResolvedState
 }
@@ -343,7 +343,7 @@ describe('MCP interview recruitment', () => {
         expect(executeTool).toHaveBeenCalledTimes(3)
     })
 
-    it.each(['failed', 'search', 'learn', 'skill', 'docs'])(
+    it.each(['failed', 'search', 'learn', 'skill', 'unknown'])(
         'does not count %s calls toward the warm-up',
         async (kind) => {
             vi.useFakeTimers()
@@ -358,7 +358,7 @@ describe('MCP interview recruitment', () => {
                     search: 'search project',
                     learn: 'learn -s project',
                     skill: 'call skill-get {}',
-                    docs: 'call docs-search {}',
+                    unknown: 'call not-a-tool {}',
                 }[kind],
             }
             for (let i = 0; i < 3; i++) {

@@ -1,7 +1,5 @@
 List session recordings in the project. Returns recording metadata including duration, activity counts, console errors, start URL, and interaction metrics. Use this tool to find, filter, and explore session recordings.
 
-Use 'read-data-schema' to discover available person, session, and event properties for filtering.
-
 Examples of use cases include:
 
 - Find recordings with console errors in the last week
@@ -21,7 +19,7 @@ When using a property filter, you should:
 
 - **Prioritize properties directly related to the user's query.**
 - **Ensure the correct filter type.** Types: `person`, `session`, `event`, `recording`, `cohort`.
-- **Use `read-data-schema` to discover property names and values** before creating filters.
+- **Use the property names and values the user gave**, and tell the user which ones you could not confirm.
 
 ## Common properties
 
@@ -154,4 +152,4 @@ When you have known `$session_id` values (e.g., from `$exception` events or othe
 - Deep-link to a specific recording as `{posthog_base_url}/replay/{id}`, never `/replay/home?sessionRecordingId={id}`.
 - For detailed analysis of a single recording, use `session-recording-get` with the recording's `id`.
 - For an AI summary of what happened in a recording, read `vision-observations-list` for an existing one, or generate one with `vision-scanners-inline-scan` using `scanner_type: "summarizer"` and a `prompt` (the investigating-replay skill carries the exact config the Summarize button uses).
-- **If no recordings are found** or the user asks why recordings aren't being captured, diagnose with `execute-sql`: query `$recording_status`, `$session_recording_start_reason`, `$replay_sample_rate`, and `$sdk_debug_recording_script_not_loaded` from recent events (no `$session_id` filter needed for project-wide issues). Common causes: sampling excluded sessions, recording disabled in project settings, ad blocker blocked the recorder script, or SDK misconfigured.
+- **If no recordings are found or the user asks why recordings aren't being captured**, check `project-get` for the project's session recording settings. Then run `query-trends` on `$pageview` over recent days, once for each breakdown: `$recording_status`, `$session_recording_start_reason`, `$replay_sample_rate` and `$sdk_debug_recording_script_not_loaded` (no `$session_id` filter needed for project-wide issues). Common causes: sampling excluded sessions, recording disabled in project settings, ad blocker blocked the recorder script, or SDK misconfigured.

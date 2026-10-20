@@ -350,7 +350,7 @@ export const FeedbackSubmitSchema = z
             .array(z.string())
             .optional()
             .describe(
-                'The MCP tool names you called while working on the user\'s task (e.g. ["read-data-schema", "query-trends"]). Helps us correlate feedback to specific tools.'
+                'The MCP tool names you called while working on the user\'s task (e.g. ["insights-list", "query-trends"]). Helps us correlate feedback to specific tools.'
             ),
         friction_points: z
             .string()
@@ -671,7 +671,7 @@ export const PathCleaningRulesUpdateSchema = z.object({
         .max(25)
         .optional()
         .describe(
-            'Optional real paths (e.g. "/users/123/profile") to preview against, up to 25. The response shows how the resulting rule set rewrites each one. Approximate (JS regex, not re2) — use execute-sql with replaceRegexpAll to confirm edge cases.'
+            'Optional real paths (e.g. "/users/123/profile") to preview against, up to 25. The response shows how the resulting rule set rewrites each one. Approximate (JS regex, not re2).'
         ),
     confirm: z
         .boolean()

@@ -17,9 +17,11 @@ const CATALOG = new Set(CATALOG_TOOL_NAMES)
  *  live instance of the same defect, kept as a ratchet rather than fixed here:
  *  `analysis-artifacts` and `url-patterns` name dashboard and link tools, the
  *  metric-discovery sections name the data-catalog trio, and `examples`,
- *  `retrieving-data` and `schema-workflow` name query and skill tools. `cli-rendering` names a tool as an example of one
- *  `render-ui` can render, and `cli-syntax` names one as an example of a namespaced
- *  reference. Remove a name once its section gates the mention. */
+ *  `retrieving-data` and `schema-workflow` name query and skill tools. `cli-rendering`
+ *  names `survey-stats` as an example of one `render-ui` can render, although the
+ *  `render-ui` enum is built from the connection's tools and can leave it out.
+ *  `cli-syntax` names one as an example of a namespaced reference. Remove a name
+ *  once its section gates the mention. */
 const UNGATED_BY_DESIGN = new Set([
     'agent-feedback',
     'dashboard-create',
@@ -41,6 +43,7 @@ const UNGATED_BY_DESIGN = new Set([
     'query-stickiness',
     'query-trends',
     'skill-get',
+    'survey-stats',
 ])
 
 /** Backticked kebab-case names the guidance uses, which is the shape every tool
@@ -57,7 +60,7 @@ function backtickedNames(text: string): string[] {
 }
 
 /** Unlike `backtickedNames`, this scans inside the span, so a name still counts
- *  when the span holds a whole invocation (`call docs-search <json_input>`). URL
+ *  when the span holds a whole invocation (`call business-knowledge-documents-search <json_input>`). URL
  *  slugs that share the shape drop out against the catalog. */
 function namedCatalogTools(text: string): string[] {
     const named = new Set<string>()
@@ -73,10 +76,8 @@ function namedCatalogTools(text: string): string[] {
 
 /** Kebab-case names that are deliberately not exec commands: a built-in skill
  *  loaded by name, and the render-ui tool, which MCP Apps hosts get as its own
- *  MCP tool rather than through the exec catalog. `experiment-get` is an example
- *  tool name in the render-ui prose; the experiments API is off, so no such
- *  command exists. */
-const NOT_EXEC_COMMANDS = new Set(['querying-posthog-data', 'render-ui', 'experiment-get'])
+ *  MCP tool rather than through the exec catalog. */
+const NOT_EXEC_COMMANDS = new Set(['querying-posthog-data', 'render-ui'])
 
 function advertisedCommands(text: string): string[] {
     return namedCatalogTools(text)

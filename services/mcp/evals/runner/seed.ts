@@ -9,10 +9,6 @@
  * and every key in `fixtures.absent_feature_flags` is cleared, so those tasks start a
  * second run where they started the first.
  *
- * `flag-create-routes-to-experiment` is the exception. The agent picks the key of the
- * flag its experiment manages, so the seeder cannot name that key in
- * `absent_feature_flags`, and that task's experiment and flag accumulate across runs.
- *
  * It talks to the REST API rather than to the MCP server on purpose: the tools under
  * test must not also be the thing that builds the state they are measured against.
  *

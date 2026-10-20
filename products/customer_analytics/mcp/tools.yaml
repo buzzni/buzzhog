@@ -205,9 +205,8 @@ tools:
             deep-link it with the path `/customer_analytics/accounts/<id>/<tab>` (using the account `id`; tab is
             optional — one of notes/users/usage/spend, e.g. `/customer_analytics/accounts/<id>/usage`). This filters the
             list to that account, expands it, and opens the tab. Churned and ignored accounts are hidden by default. Set
-            `include_churned` or `include_ignored` to true to include them. To filter across relationship assignments
-            and custom property values, use `execute-sql` after discovering this project's definition ids; the account
-            list parameters do not support that combination.
+            `include_churned` or `include_ignored` to true to include them. The account list parameters do not filter across
+            relationship assignments and custom property values.
         param_overrides:
             include_churned:
                 description: Include churned accounts. Churned accounts are hidden by default.

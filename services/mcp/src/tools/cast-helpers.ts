@@ -110,7 +110,7 @@ const MAX_PREPROCESS_DEPTH = 8
  * layers, or undefined when it applies none. Walks the pipe chain that `z.preprocess` builds
  * (`ZodPipe` with the transform on `.in`), the same way `schemaHasOutputFormat` walks `.out`.
  * Only a `normalizeParamAliases(...)` closure passed straight to `z.preprocess` is found; a tool
- * that calls it from inside its own preprocess function (`read-data-schema`) reads as alias-free.
+ * that calls it from inside its own preprocess function reads as alias-free.
  */
 export function readParamAliases(schema: z.ZodType): Record<string, readonly string[]> | undefined {
     let merged: Record<string, readonly string[]> | undefined

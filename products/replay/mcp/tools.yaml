@@ -67,10 +67,11 @@ tools:
             `vision-observations-list`. The investigating-replay skill carries the exact prompt and `scanner_config` the
             Summarize button in the player uses, so pass those to land on the same summary (scanning is slow).
             `vision-scanners-scan-session` points a saved scanner at the session instead. If a recording is missing
-            (`found: false`) or the user asks why recordings aren't being captured, diagnose with `execute-sql`: query
-            `$recording_status`, `$session_recording_start_reason`, `$replay_sample_rate`, and
-            `$sdk_debug_recording_script_not_loaded` from the events table (filter by `$session_id` for a specific
-            session, or sample recent events for project-wide issues).
+            (`found: false`) or the user asks why recordings aren't being captured, check `project-get` for the
+            project's session recording settings. Then run `query-trends` on `$pageview`, once for each breakdown:
+            `$recording_status`, `$session_recording_start_reason`, `$replay_sample_rate` and
+            `$sdk_debug_recording_script_not_loaded`. Filter by `$session_id` for a specific session, or use recent
+            days for project-wide issues.
         ui_app: session-recording
         hooks: replay/sessionRecordingGetHooks
         response:

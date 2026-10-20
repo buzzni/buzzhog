@@ -74,7 +74,7 @@
             "type": "boolean"
         },
         "tools_used": {
-            "description": "The MCP tool names you called while working on the user's task (e.g. [\"read-data-schema\", \"query-trends\"]). Helps us correlate feedback to specific tools.",
+            "description": "The MCP tool names you called while working on the user's task (e.g. [\"insights-list\", \"query-trends\"]). Helps us correlate feedback to specific tools.",
             "items": {
                 "type": "string"
             },
