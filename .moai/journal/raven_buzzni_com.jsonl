@@ -805,3 +805,4 @@
 {"ts":"2026-10-20T02:02:05Z","id":"buzzhog-dket","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Next: g58 merged into milestone/buzzhog-tfjd. Left for the person: review #7 (ExperimentResultsSummary wording), #12 (ExperimentRecord as Zod schema), #13 (allowlist-before-backend PR order)."}
 {"ts":"2026-10-20T02:02:38Z","id":"buzzhog-dket","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: c30e49d02d7 (merged into milestone/buzzhog-tfjd, epic 5/5 done, worktree gone). model: anthropic/claude-sonnet-5-5 medium (develop), anthropic/claude-opus-5-5 (review)"}
 {"ts":"2026-10-20T02:03:15Z","id":"buzzhog-r0gt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a3aec30b27dfb26ce (4b4, sonnet medium; dket.g58 merged c30e49d02d7)"}
+{"ts":"2026-10-20T02:03:35Z","id":"buzzhog-r0gt.4b4","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
