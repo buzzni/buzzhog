@@ -5912,19 +5912,6 @@ export namespace Schemas {
         detail: string;
         error_type?: string | undefined;
     };
-    /**
-     * * `won` - won
-     * * `lost` - lost
-     * * `inconclusive` - inconclusive
-     * * `stopped_early` - stopped_early
-     * * `invalid` - invalid
-     */
-    export type ConclusionEnum =
-        | "won"
-        | "lost"
-        | "inconclusive"
-        | "stopped_early"
-        | "invalid";
     export type ConversionGoalFilter1 = {
         conversion_goal_id: string;
         conversion_goal_name: string;
@@ -6205,7 +6192,6 @@ export namespace Schemas {
         timestamp_field: string;
         version?: (number | null) | undefined;
     };
-    export type ConversionRateInputType = "manual" | "automatic";
     /**
      * * `0` - Disabled
      * * `1` - Stateless
@@ -8992,6 +8978,11 @@ export namespace Schemas {
      */
     export type DeviceTypesEnum = "Desktop" | "Mobile" | "Tablet";
     /**
+     * * `number` - number
+     * * `emoji` - emoji
+     */
+    export type DisplayEnum = "number" | "emoji";
+    /**
      * * `off` - Off
      * * `opt_out` - Opt Out
      * * `opt_in` - Opt In
@@ -9480,951 +9471,6 @@ export namespace Schemas {
         | "exit_on_trigger_not_matched"
         | "exit_on_trigger_not_matched_or_conversion"
         | "exit_only_at_end";
-    export type MinimalFeatureFlag = {
-        id: number;
-        team_id: number;
-        name?: string | undefined;
-        key: string;
-        filters?: Record<string, unknown> | undefined;
-        deleted?: boolean | undefined;
-        active?: boolean | undefined;
-        ensure_experience_continuity?: (boolean | null) | undefined;
-        version?: (number | null) | undefined;
-        evaluation_runtime?:
-            | (EvaluationRuntimeEnum | BlankEnum | NullEnum)
-            | undefined;
-        bucketing_identifier?:
-            | (BucketingIdentifierEnum | BlankEnum | NullEnum)
-            | undefined;
-        evaluation_contexts: Array<string>;
-    };
-    /**
-     * * `cohort` - cohort
-     * * `person` - person
-     * * `group` - group
-     */
-    export type PropertyGroupTypeEnum = "cohort" | "person" | "group";
-    /**
-     * * `exact` - exact
-     * * `is_not` - is_not
-     * * `icontains` - icontains
-     * * `not_icontains` - not_icontains
-     * * `starts_with` - starts_with
-     * * `not_starts_with` - not_starts_with
-     * * `ends_with` - ends_with
-     * * `not_ends_with` - not_ends_with
-     * * `regex` - regex
-     * * `not_regex` - not_regex
-     * * `gt` - gt
-     * * `gte` - gte
-     * * `lt` - lt
-     * * `lte` - lte
-     */
-    export type FeatureFlagFilterPropertyGenericSchemaOperatorEnum =
-        | "exact"
-        | "is_not"
-        | "icontains"
-        | "not_icontains"
-        | "starts_with"
-        | "not_starts_with"
-        | "ends_with"
-        | "not_ends_with"
-        | "regex"
-        | "not_regex"
-        | "gt"
-        | "gte"
-        | "lt"
-        | "lte";
-    export type FeatureFlagFilterPropertyGenericSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        type?: PropertyGroupTypeEnum | undefined;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Comparison value for the property filter. Supports strings, numbers, booleans, and arrays.
-         */
-        value: unknown;
-        /**
-         * Operator used to compare the property value.
-         *
-         * * `exact` - exact
-         * * `is_not` - is_not
-         * * `icontains` - icontains
-         * * `not_icontains` - not_icontains
-         * * `starts_with` - starts_with
-         * * `not_starts_with` - not_starts_with
-         * * `ends_with` - ends_with
-         * * `not_ends_with` - not_ends_with
-         * * `regex` - regex
-         * * `not_regex` - not_regex
-         * * `gt` - gt
-         * * `gte` - gte
-         * * `lt` - lt
-         * * `lte` - lte
-         */
-        operator: FeatureFlagFilterPropertyGenericSchemaOperatorEnum;
-    };
-    export type FeatureFlagFilterPropertyExistsSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        type?: PropertyGroupTypeEnum | undefined;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Existence operator.
-         *
-         * * `is_set` - is_set
-         * * `is_not_set` - is_not_set
-         */
-        operator: ExistenceOperatorEnum;
-        value?: unknown | undefined;
-    };
-    export type FeatureFlagFilterPropertyDateSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        type?: PropertyGroupTypeEnum | undefined;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Date comparison operator.
-         *
-         * * `is_date_exact` - is_date_exact
-         * * `is_date_after` - is_date_after
-         * * `is_date_before` - is_date_before
-         */
-        operator: DateOperatorEnum;
-        /**
-         * Date value in ISO format or relative date expression.
-         */
-        value: string;
-    };
-    /**
-     * * `semver_gt` - semver_gt
-     * * `semver_gte` - semver_gte
-     * * `semver_lt` - semver_lt
-     * * `semver_lte` - semver_lte
-     * * `semver_eq` - semver_eq
-     * * `semver_neq` - semver_neq
-     * * `semver_tilde` - semver_tilde
-     * * `semver_caret` - semver_caret
-     * * `semver_wildcard` - semver_wildcard
-     */
-    export type FeatureFlagFilterPropertySemverSchemaOperatorEnum =
-        | "semver_gt"
-        | "semver_gte"
-        | "semver_lt"
-        | "semver_lte"
-        | "semver_eq"
-        | "semver_neq"
-        | "semver_tilde"
-        | "semver_caret"
-        | "semver_wildcard";
-    export type FeatureFlagFilterPropertySemverSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        type?: PropertyGroupTypeEnum | undefined;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Semantic version comparison operator.
-         *
-         * * `semver_gt` - semver_gt
-         * * `semver_gte` - semver_gte
-         * * `semver_lt` - semver_lt
-         * * `semver_lte` - semver_lte
-         * * `semver_eq` - semver_eq
-         * * `semver_neq` - semver_neq
-         * * `semver_tilde` - semver_tilde
-         * * `semver_caret` - semver_caret
-         * * `semver_wildcard` - semver_wildcard
-         */
-        operator: FeatureFlagFilterPropertySemverSchemaOperatorEnum;
-        /**
-         * Semantic version string.
-         */
-        value: string;
-    };
-    /**
-     * * `icontains_multi` - icontains_multi
-     * * `not_icontains_multi` - not_icontains_multi
-     */
-    export type FeatureFlagFilterPropertyMultiContainsSchemaOperatorEnum =
-        | "icontains_multi"
-        | "not_icontains_multi";
-    export type FeatureFlagFilterPropertyMultiContainsSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        type?: PropertyGroupTypeEnum | undefined;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Multi-contains operator.
-         *
-         * * `icontains_multi` - icontains_multi
-         * * `not_icontains_multi` - not_icontains_multi
-         */
-        operator: FeatureFlagFilterPropertyMultiContainsSchemaOperatorEnum;
-        /**
-         * List of strings to evaluate against.
-         */
-        value: Array<string>;
-    };
-    /**
-     * * `cohort` - cohort
-     */
-    export type FeatureFlagFilterPropertyCohortInSchemaTypeEnum = "cohort";
-    /**
-     * * `in` - in
-     * * `not_in` - not_in
-     */
-    export type FeatureFlagFilterPropertyCohortInSchemaOperatorEnum =
-        | "in"
-        | "not_in";
-    export type FeatureFlagFilterPropertyCohortInSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        /**
-         * Cohort property type required for in/not_in operators.
-         *
-         * * `cohort` - cohort
-         */
-        type: FeatureFlagFilterPropertyCohortInSchemaTypeEnum;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Membership operator for cohort properties.
-         *
-         * * `in` - in
-         * * `not_in` - not_in
-         */
-        operator: FeatureFlagFilterPropertyCohortInSchemaOperatorEnum;
-        /**
-         * Cohort comparison value (single or list, depending on usage).
-         */
-        value: unknown;
-    };
-    /**
-     * * `flag` - flag
-     */
-    export type FeatureFlagFilterPropertyFlagEvaluatesSchemaTypeEnum = "flag";
-    /**
-     * * `flag_evaluates_to` - flag_evaluates_to
-     */
-    export type FeatureFlagFilterPropertyFlagEvaluatesSchemaOperatorEnum =
-        "flag_evaluates_to";
-    export type FeatureFlagFilterPropertyFlagEvaluatesSchema = {
-        /**
-         * Property key used in this feature flag condition.
-         */
-        key: string;
-        /**
-         * Flag property type required for flag dependency checks.
-         *
-         * * `flag` - flag
-         */
-        type: FeatureFlagFilterPropertyFlagEvaluatesSchemaTypeEnum;
-        cohort_name?: (string | null) | undefined;
-        group_type_index?: (number | null) | undefined;
-        /**
-         * Operator for feature flag dependency evaluation.
-         *
-         * * `flag_evaluates_to` - flag_evaluates_to
-         */
-        operator: FeatureFlagFilterPropertyFlagEvaluatesSchemaOperatorEnum;
-        /**
-         * Value to compare flag evaluation against.
-         */
-        value: unknown;
-    };
-    export type FeatureFlagFilterPropertySchema =
-        | FeatureFlagFilterPropertyGenericSchema
-        | FeatureFlagFilterPropertyExistsSchema
-        | FeatureFlagFilterPropertyDateSchema
-        | FeatureFlagFilterPropertySemverSchema
-        | FeatureFlagFilterPropertyMultiContainsSchema
-        | FeatureFlagFilterPropertyCohortInSchema
-        | FeatureFlagFilterPropertyFlagEvaluatesSchema;
-    export type FeatureFlagConditionGroupSchema = Partial<{
-        properties: Array<FeatureFlagFilterPropertySchema>;
-        rollout_percentage: number;
-        variant: string | null;
-        aggregation_group_type_index: number | null;
-    }>;
-    /**
-     * A holdout group — a stable slice of users excluded from experiment exposure.
-     */
-    export type ExperimentHoldout = {
-        id: number;
-        /**
-         * Human-readable name for the holdout group.
-         */
-        name: string;
-        /**
-         * A holdout group — a stable slice of users excluded from experiment exposure.
-         */
-        description?: (string | null) | undefined;
-        /**
-         * A holdout group — a stable slice of users excluded from experiment exposure.
-         */
-        filters?: Array<FeatureFlagConditionGroupSchema> | undefined;
-        created_by: UserBasic & unknown;
-        created_at: string;
-        updated_at: string;
-        /**
-         * The effective access level the user has for this object
-         */
-        user_access_level: string | null;
-    };
-    export type ExperimentParameters = Partial<{
-        minimum_detectable_effect: number | null;
-        variant_notes: Record<string, string> | null;
-    }>;
-    export type ManualMetricType = "funnel" | "mean_count" | "mean_sum_or_avg";
-    export type ExperimentExposureEstimateConfig = {
-        /**
-         * 'manual' when the baseline value and exposure rate were entered by hand, 'automatic' when derived from live experiment data.
-         */
-        conversionRateInputType: ConversionRateInputType;
-        manualBaselineValue?: (number | null) | undefined;
-        manualExposureRate?: (number | null) | undefined;
-        manualMetricType?: (ManualMetricType | null) | undefined;
-    };
-    export type ExperimentRunningTimeCalculation = Partial<{
-        exposure_estimate_config: ExperimentExposureEstimateConfig | null;
-        minimum_detectable_effect: number | null;
-        recommended_running_time: number | null;
-        recommended_sample_size: number | null;
-    }>;
-    export type ExperimentMetric =
-        | ExperimentMeanMetric
-        | ExperimentFunnelMetric
-        | ExperimentRatioMetric
-        | ExperimentRetentionMetric;
-    /**
-     * A shared metric's link to one experiment, as the experiment API returns it.
-     */
-    export type ExperimentToSavedMetric = {
-        id: number;
-        experiment: number;
-        saved_metric: number;
-        /**
-         * A shared metric's link to one experiment, as the experiment API returns it.
-         */
-        metadata?: unknown | undefined;
-        created_at: string;
-        query: unknown;
-        name: string;
-        /**
-         * The metric this experiment calculates for this shared metric: `query` with the per-experiment overrides from `metadata` applied (breakdowns, breakdown_limit, and funnel breakdown attribution). Results, fingerprints and queries for this metric use this definition, not `query`. Null when `query` is not an ExperimentMetric, such as a legacy shared metric (kind ExperimentTrendsQuery or ExperimentFunnelsQuery), which takes no overrides.
-         */
-        effective_query: ExperimentMetric | null;
-    };
-    /**
-     * * `web` - web
-     * * `product` - product
-     */
-    export type ExperimentTypeEnum = "web" | "product";
-    export type Kind2 = "ExperimentEventExposureConfig" | "ActionsNode";
-    export type ExperimentApiExposureConfig = {
-        event?: (string | null) | undefined;
-        id?: (number | null) | undefined;
-        kind?: (Kind2 | null) | undefined;
-        /**
-         * Property filters (event, person, and other supported types). Pass an empty array if no filters needed.
-         */
-        properties: Array<
-            | EventPropertyFilter
-            | PersonPropertyFilter
-            | PersonMetadataPropertyFilter
-            | ElementPropertyFilter
-            | EventMetadataPropertyFilter
-            | SessionPropertyFilter
-            | CohortPropertyFilter
-            | RecordingPropertyFilter
-            | LogEntryPropertyFilter
-            | GroupPropertyFilter
-            | FeaturePropertyFilter
-            | FlagPropertyFilter
-            | HogQLPropertyFilter
-            | EmptyPropertyFilter
-            | DataWarehousePropertyFilter
-            | DataWarehousePersonPropertyFilter
-            | ErrorTrackingIssueFilter
-            | LogPropertyFilter
-            | MetricPropertyFilter
-            | SpanPropertyFilter
-            | RevenueAnalyticsPropertyFilter
-            | AccountCustomPropertyFilter
-            | WorkflowVariablePropertyFilter
-            | BehavioralPropertyFilter
-        >;
-    };
-    export type ExperimentApiExposureCriteria = Partial<{
-        activation_config: ExperimentApiExposureConfig | null;
-        exposure_config: ExperimentApiExposureConfig | null;
-        filterTestAccounts: boolean | null;
-        multiple_variant_handling: MultipleVariantHandling | null;
-    }>;
-    export type ExperimentApiBreakdownAttributionType =
-        | "first_touch"
-        | "last_touch"
-        | "step";
-    export type ExperimentApiPropertyBreakdownType =
-        | "event"
-        | "person"
-        | "session";
-    export type ExperimentApiPropertyBreakdown = {
-        /**
-         * Property name to break down by.
-         */
-        property: string;
-        type?: (ExperimentApiPropertyBreakdownType | null) | undefined;
-    };
-    export type GroupTypeIndex = 0 | 1 | 2 | 3 | 4;
-    export type ExperimentApiGroupBreakdown = {
-        /**
-         * Which group type the property belongs to.
-         */
-        group_type_index: GroupTypeIndex;
-        /**
-         * Property name to break down by.
-         */
-        property: string;
-        type?: string | undefined;
-    };
-    export type ExperimentApiBreakdownFilter = Partial<{
-        breakdown_limit: number | null;
-        breakdowns: Array<
-            ExperimentApiPropertyBreakdown | ExperimentApiGroupBreakdown
-        > | null;
-    }>;
-    export type Kind1 = "EventsNode" | "ActionsNode";
-    export type ExperimentApiEventSource = {
-        event?: (string | null) | undefined;
-        id?: (number | null) | undefined;
-        kind: Kind1;
-        math?: (ExperimentMetricMathType | null) | undefined;
-        math_group_type_index?: (MathGroupTypeIndex | null) | undefined;
-        math_hogql?: (string | null) | undefined;
-        math_property?: (string | null) | undefined;
-        properties?: (Array<EventPropertyFilter> | null) | undefined;
-    };
-    export type ExperimentMetricType =
-        | "funnel"
-        | "mean"
-        | "ratio"
-        | "retention";
-    export type Kind3 = "EventsNode" | "ActionsNode" | "ExperimentExposureNode";
-    export type ExperimentApiRetentionStart = {
-        event?: (string | null) | undefined;
-        id?: (number | null) | undefined;
-        /**
-         * Pass 'ExperimentExposureNode' to start retention from the experiment's own exposure event; the other fields then stay unset.
-         */
-        kind: Kind3;
-        math?: (ExperimentMetricMathType | null) | undefined;
-        math_group_type_index?: (MathGroupTypeIndex | null) | undefined;
-        math_hogql?: (string | null) | undefined;
-        math_property?: (string | null) | undefined;
-        properties?: (Array<EventPropertyFilter> | null) | undefined;
-    };
-    export type ExperimentApiMetric = {
-        breakdownAttributionType?:
-            | (ExperimentApiBreakdownAttributionType | null)
-            | undefined;
-        breakdownAttributionValue?: (number | null) | undefined;
-        breakdownFilter?: (ExperimentApiBreakdownFilter | null) | undefined;
-        completion_event?: (ExperimentApiEventSource | null) | undefined;
-        conversion_window?: (number | null) | undefined;
-        conversion_window_unit?:
-            | (FunnelConversionWindowTimeUnit | null)
-            | undefined;
-        denominator?: (ExperimentApiEventSource | null) | undefined;
-        denominator_outlier_handling?:
-            | (ExperimentMetricOutlierHandling | null)
-            | undefined;
-        funnel_order_type?: (StepOrderValue | null) | undefined;
-        goal?: (ExperimentMetricGoal | null) | undefined;
-        ignore_zeros?: (boolean | null) | undefined;
-        kind?: string | undefined;
-        lower_bound_percentile?: (number | null) | undefined;
-        metric_type: ExperimentMetricType;
-        name?: (string | null) | undefined;
-        numerator?: (ExperimentApiEventSource | null) | undefined;
-        numerator_outlier_handling?:
-            | (ExperimentMetricOutlierHandling | null)
-            | undefined;
-        retention_window_end?: (number | null) | undefined;
-        retention_window_start?: (number | null) | undefined;
-        retention_window_unit?:
-            | (FunnelConversionWindowTimeUnit | null)
-            | undefined;
-        series?: (Array<ExperimentApiEventSource> | null) | undefined;
-        source?: (ExperimentApiEventSource | null) | undefined;
-        start_event?: (ExperimentApiRetentionStart | null) | undefined;
-        start_handling?: (StartHandling | null) | undefined;
-        threshold?: (number | null) | undefined;
-        upper_bound_percentile?: (number | null) | undefined;
-        uuid?: (string | null) | undefined;
-    };
-    /**
-     * List wrapper for OpenAPI schema generation — the field stores an array of metrics.
-     */
-    export type _ExperimentApiMetricsList = Array<ExperimentApiMetric>;
-    export type ExperimentStatusEnum =
-        | "draft"
-        | "running"
-        | "paused"
-        | "exposure_frozen"
-        | "stopped";
-    /**
-     * * `flag_off_while_running` - Flag Off While Running
-     * * `variant_shipped_while_running` - Variant Shipped While Running
-     * * `flag_live_after_end` - Flag Live After End
-     * * `flag_live_before_launch` - Flag Live Before Launch
-     * * `bias_risk_multiple_excluded` - Bias Risk Multiple Excluded
-     * * `no_metric` - No Metric
-     * * `srm` - Sample Ratio Mismatch
-     * * `zero_exposures` - Zero Exposures
-     * * `forced_variant_release_condition` - Forced Variant Release Condition
-     * * `flag_variants_mismatch` - Flag Variants Mismatch
-     * * `split_changed_mid_run` - Split Changed Mid Run
-     */
-    export type ExperimentHealthFindingCodeEnum =
-        | "flag_off_while_running"
-        | "variant_shipped_while_running"
-        | "flag_live_after_end"
-        | "flag_live_before_launch"
-        | "bias_risk_multiple_excluded"
-        | "no_metric"
-        | "srm"
-        | "zero_exposures"
-        | "forced_variant_release_condition"
-        | "flag_variants_mismatch"
-        | "split_changed_mid_run";
-    /**
-     * * `critical` - Critical severity
-     * * `warning` - Warning severity
-     * * `info` - Info severity
-     */
-    export type ExperimentHealthFindingSeverityEnum =
-        | "critical"
-        | "warning"
-        | "info";
-    /**
-     * * `open_feature_flag` - Open Feature Flag
-     * * `open_feature_flag_history` - Open Feature Flag History
-     * * `adjust_distribution` - Adjust Distribution
-     * * `use_first_seen_variant` - Use First Seen Variant
-     * * `add_primary_metric` - Add Primary Metric
-     * * `add_secondary_metric` - Add Secondary Metric
-     * * `edit_exposure_criteria` - Edit Exposure Criteria
-     * * `edit_release_conditions` - Edit Release Conditions
-     */
-    export type ExperimentHealthFindingActionKindEnum =
-        | "open_feature_flag"
-        | "open_feature_flag_history"
-        | "adjust_distribution"
-        | "use_first_seen_variant"
-        | "add_primary_metric"
-        | "add_secondary_metric"
-        | "edit_exposure_criteria"
-        | "edit_release_conditions";
-    export type ExperimentHealthFinding = {
-        /**
-         * Stable identifier of the problem. Each code has one meaning across every surface that reports it.
-         *
-         * * `flag_off_while_running` - Flag Off While Running
-         * * `variant_shipped_while_running` - Variant Shipped While Running
-         * * `flag_live_after_end` - Flag Live After End
-         * * `flag_live_before_launch` - Flag Live Before Launch
-         * * `bias_risk_multiple_excluded` - Bias Risk Multiple Excluded
-         * * `no_metric` - No Metric
-         * * `srm` - Sample Ratio Mismatch
-         * * `zero_exposures` - Zero Exposures
-         * * `forced_variant_release_condition` - Forced Variant Release Condition
-         * * `flag_variants_mismatch` - Flag Variants Mismatch
-         * * `split_changed_mid_run` - Split Changed Mid Run
-         */
-        code: ExperimentHealthFindingCodeEnum;
-        /**
-         * The case within the code, when a code covers several, for example 'running_but_no_rollout' within 'flag_off_while_running'. Null when the code has one case.
-         */
-        subcode: string | null;
-        /**
-         * How much the problem affects the results: critical, warning, or info.
-         *
-         * * `critical` - Critical severity
-         * * `warning` - Warning severity
-         * * `info` - Info severity
-         */
-        severity: ExperimentHealthFindingSeverityEnum;
-        /**
-         * One-line summary of the problem.
-         */
-        title: string;
-        /**
-         * What is wrong, what it does to the experiment, and how to fix it.
-         */
-        detail: string;
-        /**
-         * The values behind the finding, such as the key of a shipped variant or the share of users exposed to multiple variants. The keys depend on the code.
-         */
-        evidence: Record<string, string | number | boolean | null>;
-        /**
-         * The actions that fix the problem, in order of preference, for example 'open_feature_flag' or 'add_primary_metric'.
-         */
-        actions: Array<ExperimentHealthFindingActionKindEnum>;
-        /**
-         * The id of the matching diagnostic in the diagnosing-experiment-health skill, for example 'A5'. Null when the skill has none.
-         */
-        diagnostic_ref: string | null;
-    };
-    export type ExperimentHealth = {
-        /**
-         * Problems that the health checks found in the experiment's configuration and its feature flag. Empty when every check passed.
-         */
-        findings: Array<ExperimentHealthFinding>;
-    };
-    /**
-     * Full experiment representation for the detail, create, and update endpoints.
-     *
-     * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-     * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-     * fields, and refreshes stale action names while serializing. The list endpoint uses the
-     * leaner ``ExperimentBasicSerializer`` instead.
-     */
-    export type Experiment = {
-        id: number;
-        /**
-         * Name of the experiment.
-         */
-        name: string;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        description?: (string | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        start_date?: (string | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        end_date?: (string | null) | undefined;
-        /**
-         * Unique key for the experiment's feature flag. Letters, numbers, hyphens, and underscores only. Search existing flags with the feature-flag-get-all tool first — reuse an existing flag when possible.
-         */
-        feature_flag_key: string;
-        feature_flag: MinimalFeatureFlag & unknown;
-        holdout: ExperimentHoldout & unknown;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        holdout_id?: (number | null) | undefined;
-        exposure_cohort: number | null;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        parameters?: (ExperimentParameters | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        running_time_calculation?:
-            | (ExperimentRunningTimeCalculation | null)
-            | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        excluded_variants?: (Array<string> | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        secondary_metrics?: unknown | undefined;
-        saved_metrics: Array<ExperimentToSavedMetric>;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        saved_metrics_ids?: (Array<unknown> | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        filters?: unknown | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        archived?: boolean | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        deleted?: (boolean | null) | undefined;
-        created_by: UserBasic & unknown;
-        created_at: string;
-        updated_at: string;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        type?: (ExperimentTypeEnum | NullEnum) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        exposure_criteria?: (ExperimentApiExposureCriteria | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        metrics?: (_ExperimentApiMetricsList | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        metrics_secondary?: (_ExperimentApiMetricsList | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        stats_config?: unknown | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        scheduling_config?: unknown | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        allow_unknown_events?: boolean | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        _create_in_folder?: string | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        conclusion?: (ConclusionEnum | NullEnum) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        conclusion_comment?: (string | null) | undefined;
-        /**
-         * ID of the Desktop task opened to remove the experiment's feature-flag code, when one was requested via open_cleanup_pr on end/ship_variant. Read its status via the flag_cleanup_task action.
-         */
-        flag_cleanup_task_id: string | null;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        repository?: (string | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        primary_metrics_ordered_uuids?: (Array<string> | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        secondary_metrics_ordered_uuids?: (Array<string> | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        only_count_matured_users?: boolean | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        update_feature_flag_params?: boolean | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        version?: (number | null) | undefined;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        original_experiment?: (Record<string, unknown> | null) | undefined;
-        /**
-         * Experiment lifecycle state: 'draft' (not yet launched), 'running' (launched with active feature flag), 'paused' (running with feature flag deactivated — virtual state derived from feature_flag.active, not stored), 'exposure_frozen' (running with enrollment frozen to the already-exposed cohort while metrics keep flowing — virtual state derived from the flag's release groups, not stored), 'stopped' (ended).
-         */
-        status: ExperimentStatusEnum & unknown;
-        /**
-         * Whether the experiment uses any legacy-engine metrics (ExperimentTrendsQuery or ExperimentFunnelsQuery). Used to flag legacy experiments and gate actions that don't support them, such as duplicate and copy-to-project.
-         */
-        is_legacy: boolean;
-        /**
-         * Whether enrollment can be frozen right now: the experiment must be running (not draft, paused, stopped, or already frozen) and its feature flag must have release conditions that a person cohort can narrow (no group aggregation, no holdout, no early access conditions).
-         */
-        can_freeze_exposure: boolean;
-        /**
-         * The event exposures are actually counted on when the experiment doesn't configure a custom one — `$feature_flag_called`, or `$experiment_exposure` once the team is in the rollout and the experiment started at or after the cutoff. Resolved server-side so clients display the same event the results queries read. For a draft, this is what the experiment would resolve to if launched now.
-         */
-        resolved_exposure_event: string;
-        /**
-         * Always null. Read the health findings from `GET /api/projects/{project_id}/experiments/{id}/health/`: problems in this experiment's configuration and its feature flag that keep it from producing trustworthy results, each with a fix.
-         */
-        health: ExperimentHealth | null;
-        /**
-         * The effective access level the user has for this object
-         */
-        user_access_level: string | null;
-        /**
-         * Full experiment representation for the detail, create, and update endpoints.
-         *
-         * Extends the shared read-side fields in ``ExperimentBaseSerializer`` with the metric
-         * definitions (``metrics``/``metrics_secondary``/``saved_metrics``) and the write-side
-         * fields, and refreshes stale action names while serializing. The list endpoint uses the
-         * leaner ``ExperimentBasicSerializer`` instead.
-         */
-        tags?: Array<string> | undefined;
-    };
     export type ExperimentExposureHealthFindingActionKind =
         | "edit_exposure_criteria"
         | "adjust_distribution"
@@ -10491,236 +9537,6 @@ export namespace Schemas {
         timeseries: Array<ExperimentExposureTimeSeries>;
         total_exposures: Record<string, number>;
         warnings?: (Array<DataWarehouseSyncWarning> | null) | undefined;
-    };
-    /**
-     * A single release-condition group carrying only the overall rollout percentage, the one
-     * groups entry the experiment input applies.
-     */
-    export type ExperimentFlagRolloutGroup = Partial<{
-        rollout_percentage: number | null;
-        properties: Array<unknown>;
-    }>;
-    /**
-     * A single multivariate variant. Extra per-variant keys are dropped.
-     */
-    export type ExperimentFlagVariant = {
-        /**
-         * Unique variant key. The baseline defaults to the variant keyed 'control' when present, else the first variant.
-         */
-        key: string;
-        /**
-         * A single multivariate variant. Extra per-variant keys are dropped.
-         */
-        name?: string | undefined;
-        /**
-         * Variant rollout percentage (0-100). Across variants these must sum to 100.
-         */
-        rollout_percentage: number;
-    };
-    /**
-     * Multivariate config for the experiment's feature flag.
-     */
-    export type ExperimentFlagMultivariate = {
-        /**
-         * Variant definitions (2 to 20). The baseline defaults to the variant keyed 'control' when present, else the first variant.
-         */
-        variants: Array<ExperimentFlagVariant>;
-    };
-    /**
-     * Feature-flag filters accepted by the experiment endpoints: the flag's own filters shape,
-     * minus the keys experiments don't apply.
-     */
-    export type ExperimentFeatureFlagFilters = Partial<{
-        groups: Array<ExperimentFlagRolloutGroup>;
-        multivariate: ExperimentFlagMultivariate | null;
-        aggregation_group_type_index: number | null;
-        payloads: Record<string, string>;
-    }>;
-    /**
-     * Flag config for experiment create/update, sent through the linked feature flag's own shape.
-     *
-     * Validated both as the OpenAPI request field (via ``ExperimentWriteSerializer``) and at runtime
-     * (``ExperimentSerializer._normalize_feature_flag_input`` runs it against the raw feature_flag
-     * object). Echoed read-only flag objects (carrying a non-null id) are handled upstream and never
-     * reach this validation.
-     */
-    export type ExperimentFeatureFlagInput = Partial<{
-        filters: ExperimentFeatureFlagFilters;
-        ensure_experience_continuity: boolean | null;
-    }>;
-    /**
-     * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-     */
-    export type ExperimentWrite = {
-        id: number;
-        /**
-         * Name of the experiment.
-         */
-        name: string;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        description?: (string | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        start_date?: (string | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        end_date?: (string | null) | undefined;
-        /**
-         * Unique key for the experiment's feature flag. Letters, numbers, hyphens, and underscores only. Search existing flags with the feature-flag-get-all tool first — reuse an existing flag when possible.
-         */
-        feature_flag_key: string;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        feature_flag?: ExperimentFeatureFlagInput | undefined;
-        holdout: ExperimentHoldout & unknown;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        holdout_id?: (number | null) | undefined;
-        exposure_cohort: number | null;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        parameters?: (ExperimentParameters | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        running_time_calculation?:
-            | (ExperimentRunningTimeCalculation | null)
-            | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        excluded_variants?: (Array<string> | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        secondary_metrics?: unknown | undefined;
-        saved_metrics: Array<ExperimentToSavedMetric>;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        saved_metrics_ids?: (Array<unknown> | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        filters?: unknown | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        archived?: boolean | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        deleted?: (boolean | null) | undefined;
-        created_by: UserBasic & unknown;
-        created_at: string;
-        updated_at: string;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        type?: (ExperimentTypeEnum | NullEnum) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        exposure_criteria?: (ExperimentApiExposureCriteria | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        metrics?: (_ExperimentApiMetricsList | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        metrics_secondary?: (_ExperimentApiMetricsList | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        stats_config?: unknown | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        scheduling_config?: unknown | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        allow_unknown_events?: boolean | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        _create_in_folder?: string | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        conclusion?: (ConclusionEnum | NullEnum) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        conclusion_comment?: (string | null) | undefined;
-        /**
-         * ID of the Desktop task opened to remove the experiment's feature-flag code, when one was requested via open_cleanup_pr on end/ship_variant. Read its status via the flag_cleanup_task action.
-         */
-        flag_cleanup_task_id: string | null;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        repository?: (string | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        primary_metrics_ordered_uuids?: (Array<string> | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        secondary_metrics_ordered_uuids?: (Array<string> | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        only_count_matured_users?: boolean | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        update_feature_flag_params?: boolean | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        version?: (number | null) | undefined;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        original_experiment?: (Record<string, unknown> | null) | undefined;
-        /**
-         * Experiment lifecycle state: 'draft' (not yet launched), 'running' (launched with active feature flag), 'paused' (running with feature flag deactivated — virtual state derived from feature_flag.active, not stored), 'exposure_frozen' (running with enrollment frozen to the already-exposed cohort while metrics keep flowing — virtual state derived from the flag's release groups, not stored), 'stopped' (ended).
-         */
-        status: ExperimentStatusEnum & unknown;
-        /**
-         * Whether the experiment uses any legacy-engine metrics (ExperimentTrendsQuery or ExperimentFunnelsQuery). Used to flag legacy experiments and gate actions that don't support them, such as duplicate and copy-to-project.
-         */
-        is_legacy: boolean;
-        /**
-         * Whether enrollment can be frozen right now: the experiment must be running (not draft, paused, stopped, or already frozen) and its feature flag must have release conditions that a person cohort can narrow (no group aggregation, no holdout, no early access conditions).
-         */
-        can_freeze_exposure: boolean;
-        /**
-         * The event exposures are actually counted on when the experiment doesn't configure a custom one — `$feature_flag_called`, or `$experiment_exposure` once the team is in the rollout and the experiment started at or after the cutoff. Resolved server-side so clients display the same event the results queries read. For a draft, this is what the experiment would resolve to if launched now.
-         */
-        resolved_exposure_event: string;
-        /**
-         * Always null. Read the health findings from `GET /api/projects/{project_id}/experiments/{id}/health/`: problems in this experiment's configuration and its feature flag that keep it from producing trustworthy results, each with a fix.
-         */
-        health: ExperimentHealth | null;
-        /**
-         * The effective access level the user has for this object
-         */
-        user_access_level: string | null;
-        /**
-         * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-         */
-        tags?: Array<string> | undefined;
     };
     /**
      * * `full_refresh` - full_refresh
@@ -15400,6 +14216,271 @@ export namespace Schemas {
          */
         is_eligible_for_experiment: boolean;
     };
+    /**
+     * * `cohort` - cohort
+     * * `person` - person
+     * * `group` - group
+     */
+    export type PropertyGroupTypeEnum = "cohort" | "person" | "group";
+    /**
+     * * `exact` - exact
+     * * `is_not` - is_not
+     * * `icontains` - icontains
+     * * `not_icontains` - not_icontains
+     * * `starts_with` - starts_with
+     * * `not_starts_with` - not_starts_with
+     * * `ends_with` - ends_with
+     * * `not_ends_with` - not_ends_with
+     * * `regex` - regex
+     * * `not_regex` - not_regex
+     * * `gt` - gt
+     * * `gte` - gte
+     * * `lt` - lt
+     * * `lte` - lte
+     */
+    export type FeatureFlagFilterPropertyGenericSchemaOperatorEnum =
+        | "exact"
+        | "is_not"
+        | "icontains"
+        | "not_icontains"
+        | "starts_with"
+        | "not_starts_with"
+        | "ends_with"
+        | "not_ends_with"
+        | "regex"
+        | "not_regex"
+        | "gt"
+        | "gte"
+        | "lt"
+        | "lte";
+    export type FeatureFlagFilterPropertyGenericSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        type?: PropertyGroupTypeEnum | undefined;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Comparison value for the property filter. Supports strings, numbers, booleans, and arrays.
+         */
+        value: unknown;
+        /**
+         * Operator used to compare the property value.
+         *
+         * * `exact` - exact
+         * * `is_not` - is_not
+         * * `icontains` - icontains
+         * * `not_icontains` - not_icontains
+         * * `starts_with` - starts_with
+         * * `not_starts_with` - not_starts_with
+         * * `ends_with` - ends_with
+         * * `not_ends_with` - not_ends_with
+         * * `regex` - regex
+         * * `not_regex` - not_regex
+         * * `gt` - gt
+         * * `gte` - gte
+         * * `lt` - lt
+         * * `lte` - lte
+         */
+        operator: FeatureFlagFilterPropertyGenericSchemaOperatorEnum;
+    };
+    export type FeatureFlagFilterPropertyExistsSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        type?: PropertyGroupTypeEnum | undefined;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Existence operator.
+         *
+         * * `is_set` - is_set
+         * * `is_not_set` - is_not_set
+         */
+        operator: ExistenceOperatorEnum;
+        value?: unknown | undefined;
+    };
+    export type FeatureFlagFilterPropertyDateSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        type?: PropertyGroupTypeEnum | undefined;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Date comparison operator.
+         *
+         * * `is_date_exact` - is_date_exact
+         * * `is_date_after` - is_date_after
+         * * `is_date_before` - is_date_before
+         */
+        operator: DateOperatorEnum;
+        /**
+         * Date value in ISO format or relative date expression.
+         */
+        value: string;
+    };
+    /**
+     * * `semver_gt` - semver_gt
+     * * `semver_gte` - semver_gte
+     * * `semver_lt` - semver_lt
+     * * `semver_lte` - semver_lte
+     * * `semver_eq` - semver_eq
+     * * `semver_neq` - semver_neq
+     * * `semver_tilde` - semver_tilde
+     * * `semver_caret` - semver_caret
+     * * `semver_wildcard` - semver_wildcard
+     */
+    export type FeatureFlagFilterPropertySemverSchemaOperatorEnum =
+        | "semver_gt"
+        | "semver_gte"
+        | "semver_lt"
+        | "semver_lte"
+        | "semver_eq"
+        | "semver_neq"
+        | "semver_tilde"
+        | "semver_caret"
+        | "semver_wildcard";
+    export type FeatureFlagFilterPropertySemverSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        type?: PropertyGroupTypeEnum | undefined;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Semantic version comparison operator.
+         *
+         * * `semver_gt` - semver_gt
+         * * `semver_gte` - semver_gte
+         * * `semver_lt` - semver_lt
+         * * `semver_lte` - semver_lte
+         * * `semver_eq` - semver_eq
+         * * `semver_neq` - semver_neq
+         * * `semver_tilde` - semver_tilde
+         * * `semver_caret` - semver_caret
+         * * `semver_wildcard` - semver_wildcard
+         */
+        operator: FeatureFlagFilterPropertySemverSchemaOperatorEnum;
+        /**
+         * Semantic version string.
+         */
+        value: string;
+    };
+    /**
+     * * `icontains_multi` - icontains_multi
+     * * `not_icontains_multi` - not_icontains_multi
+     */
+    export type FeatureFlagFilterPropertyMultiContainsSchemaOperatorEnum =
+        | "icontains_multi"
+        | "not_icontains_multi";
+    export type FeatureFlagFilterPropertyMultiContainsSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        type?: PropertyGroupTypeEnum | undefined;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Multi-contains operator.
+         *
+         * * `icontains_multi` - icontains_multi
+         * * `not_icontains_multi` - not_icontains_multi
+         */
+        operator: FeatureFlagFilterPropertyMultiContainsSchemaOperatorEnum;
+        /**
+         * List of strings to evaluate against.
+         */
+        value: Array<string>;
+    };
+    /**
+     * * `cohort` - cohort
+     */
+    export type FeatureFlagFilterPropertyCohortInSchemaTypeEnum = "cohort";
+    /**
+     * * `in` - in
+     * * `not_in` - not_in
+     */
+    export type FeatureFlagFilterPropertyCohortInSchemaOperatorEnum =
+        | "in"
+        | "not_in";
+    export type FeatureFlagFilterPropertyCohortInSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        /**
+         * Cohort property type required for in/not_in operators.
+         *
+         * * `cohort` - cohort
+         */
+        type: FeatureFlagFilterPropertyCohortInSchemaTypeEnum;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Membership operator for cohort properties.
+         *
+         * * `in` - in
+         * * `not_in` - not_in
+         */
+        operator: FeatureFlagFilterPropertyCohortInSchemaOperatorEnum;
+        /**
+         * Cohort comparison value (single or list, depending on usage).
+         */
+        value: unknown;
+    };
+    /**
+     * * `flag` - flag
+     */
+    export type FeatureFlagFilterPropertyFlagEvaluatesSchemaTypeEnum = "flag";
+    /**
+     * * `flag_evaluates_to` - flag_evaluates_to
+     */
+    export type FeatureFlagFilterPropertyFlagEvaluatesSchemaOperatorEnum =
+        "flag_evaluates_to";
+    export type FeatureFlagFilterPropertyFlagEvaluatesSchema = {
+        /**
+         * Property key used in this feature flag condition.
+         */
+        key: string;
+        /**
+         * Flag property type required for flag dependency checks.
+         *
+         * * `flag` - flag
+         */
+        type: FeatureFlagFilterPropertyFlagEvaluatesSchemaTypeEnum;
+        cohort_name?: (string | null) | undefined;
+        group_type_index?: (number | null) | undefined;
+        /**
+         * Operator for feature flag dependency evaluation.
+         *
+         * * `flag_evaluates_to` - flag_evaluates_to
+         */
+        operator: FeatureFlagFilterPropertyFlagEvaluatesSchemaOperatorEnum;
+        /**
+         * Value to compare flag evaluation against.
+         */
+        value: unknown;
+    };
+    export type FeatureFlagFilterPropertySchema =
+        | FeatureFlagFilterPropertyGenericSchema
+        | FeatureFlagFilterPropertyExistsSchema
+        | FeatureFlagFilterPropertyDateSchema
+        | FeatureFlagFilterPropertySemverSchema
+        | FeatureFlagFilterPropertyMultiContainsSchema
+        | FeatureFlagFilterPropertyCohortInSchema
+        | FeatureFlagFilterPropertyFlagEvaluatesSchema;
+    export type FeatureFlagConditionGroupSchema = Partial<{
+        properties: Array<FeatureFlagFilterPropertySchema>;
+        rollout_percentage: number;
+        variant: string | null;
+        aggregation_group_type_index: number | null;
+    }>;
     export type FeatureFlagMultivariateVariantSchema = {
         /**
          * Unique key for this variant.
@@ -16823,6 +15904,24 @@ export namespace Schemas {
      * Mapping of external data source id to that source's column mapping.
      */
     export type MarketingAnalyticsSourceMapping = Record<string, SourceMap>;
+    export type MinimalFeatureFlag = {
+        id: number;
+        team_id: number;
+        name?: string | undefined;
+        key: string;
+        filters?: Record<string, unknown> | undefined;
+        deleted?: boolean | undefined;
+        active?: boolean | undefined;
+        ensure_experience_continuity?: (boolean | null) | undefined;
+        version?: (number | null) | undefined;
+        evaluation_runtime?:
+            | (EvaluationRuntimeEnum | BlankEnum | NullEnum)
+            | undefined;
+        bucketing_identifier?:
+            | (BucketingIdentifierEnum | BlankEnum | NullEnum)
+            | undefined;
+        evaluation_contexts: Array<string>;
+    };
     export type MinimalPerson = {
         /**
          * Numeric person ID.
@@ -18634,7 +17733,7 @@ export namespace Schemas {
         preview_available?: boolean | undefined;
     };
     /**
-     * Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.
+     * Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.
      */
     export type TaskUserBasicInfo = {
         id: number;
@@ -18644,15 +17743,15 @@ export namespace Schemas {
         last_name: string;
         email: string;
         /**
-         * Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.
+         * Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.
          */
         is_email_verified?: (boolean | null) | undefined;
         /**
-         * Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.
+         * Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.
          */
         hedgehog_config?: (Record<string, unknown> | null) | undefined;
         /**
-         * Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.
+         * Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.
          */
         role_at_organization?: (string | null) | undefined;
     };
@@ -19237,58 +18336,6 @@ export namespace Schemas {
         created_by: UserBasic | null;
         deleted: boolean;
         user_access_level: string | null;
-    }>;
-    /**
-     * Experiment write payload. Identical to Experiment, plus the writable `feature_flag` config input.
-     */
-    export type PatchedExperimentWrite = Partial<{
-        id: number;
-        name: string;
-        description: string | null;
-        start_date: string | null;
-        end_date: string | null;
-        feature_flag_key: string;
-        feature_flag: ExperimentFeatureFlagInput;
-        holdout: ExperimentHoldout & unknown;
-        holdout_id: number | null;
-        exposure_cohort: number | null;
-        parameters: ExperimentParameters | null;
-        running_time_calculation: ExperimentRunningTimeCalculation | null;
-        excluded_variants: Array<string> | null;
-        secondary_metrics: unknown;
-        saved_metrics: Array<ExperimentToSavedMetric>;
-        saved_metrics_ids: Array<unknown> | null;
-        filters: unknown;
-        archived: boolean;
-        deleted: boolean | null;
-        created_by: UserBasic & unknown;
-        created_at: string;
-        updated_at: string;
-        type: ExperimentTypeEnum | NullEnum;
-        exposure_criteria: ExperimentApiExposureCriteria | null;
-        metrics: _ExperimentApiMetricsList | null;
-        metrics_secondary: _ExperimentApiMetricsList | null;
-        stats_config: unknown;
-        scheduling_config: unknown;
-        allow_unknown_events: boolean;
-        _create_in_folder: string;
-        conclusion: ConclusionEnum | NullEnum;
-        conclusion_comment: string | null;
-        flag_cleanup_task_id: string | null;
-        repository: string | null;
-        primary_metrics_ordered_uuids: Array<string> | null;
-        secondary_metrics_ordered_uuids: Array<string> | null;
-        only_count_matured_users: boolean;
-        update_feature_flag_params: boolean;
-        version: number | null;
-        original_experiment: Record<string, unknown> | null;
-        status: ExperimentStatusEnum & unknown;
-        is_legacy: boolean;
-        can_freeze_exposure: boolean;
-        resolved_exposure_event: string;
-        health: ExperimentHealth | null;
-        user_access_level: string | null;
-        tags: Array<string>;
     }>;
     /**
      * Mixin for serializers to add user access control fields
@@ -20946,11 +19993,6 @@ export namespace Schemas {
      * * `rating` - rating
      */
     export type SurveyRatingQuestionSchemaTypeEnum = "rating";
-    /**
-     * * `number` - number
-     * * `emoji` - emoji
-     */
-    export type SurveyRatingQuestionSchemaDisplayEnum = "number" | "emoji";
     export type SurveyRatingQuestionSchema = {
         id?: string | undefined;
         type: SurveyRatingQuestionSchemaTypeEnum;
@@ -20962,7 +20004,7 @@ export namespace Schemas {
         descriptionContentType?: DescriptionContentTypeEnum | undefined;
         optional?: boolean | undefined;
         buttonText?: string | undefined;
-        display?: SurveyRatingQuestionSchemaDisplayEnum | undefined;
+        display?: DisplayEnum | undefined;
         scale?: number | undefined;
         lowerBoundLabel?: string | undefined;
         upperBoundLabel?: string | undefined;
@@ -22099,62 +21141,6 @@ export namespace Endpoints {
         responses: { 200: Schemas.EventDefinitionRecord };
     };
     /**
-     * Retrieve a single experiment by ID, including its current status, metrics, feature flag, and results metadata.
-     */
-    export type get_Experiments_retrieve = {
-        method: "GET";
-        path: "/api/projects/{project_id}/experiments/{id}/";
-        requestFormat: "json";
-        parameters: {
-            path: { id: number; project_id: string };
-        };
-        responses: { 200: Schemas.Experiment };
-    };
-    /**
-     * Mixin for ViewSets to handle approval-gate exceptions raised from decorated serializers.
-     *
-     * Intercepts ApprovalRequired (409) and PolicyConflict (400) raised by the @approval_gate
-     * decorator on serializer methods and converts them into the same responses the viewset path
-     * produces (see decorators._result_to_response), so both paths share one contract.
-     */
-    export type put_Experiments_update = {
-        method: "PUT";
-        path: "/api/projects/{project_id}/experiments/{id}/";
-        requestFormat: "json";
-        parameters: {
-            path: { id: number; project_id: string };
-
-            body: Schemas.ExperimentWrite;
-        };
-        responses: { 200: Schemas.Experiment };
-    };
-    /**
-     * Update an experiment. Use this to modify experiment properties such as name, description, metrics, variants, and configuration. Metrics can be added, changed and removed at any time. Feature-flag config (variants, rollout, payloads) is sent via the feature_flag object.
-     */
-    export type patch_Experiments_partial_update = {
-        method: "PATCH";
-        path: "/api/projects/{project_id}/experiments/{id}/";
-        requestFormat: "json";
-        parameters: {
-            path: { id: number; project_id: string };
-
-            body: Schemas.PatchedExperimentWrite;
-        };
-        responses: { 200: Schemas.Experiment };
-    };
-    /**
-     * Hard delete of this model is not allowed. Use a patch API call to set "deleted" to true
-     */
-    export type delete_Experiments_destroy = {
-        method: "DELETE";
-        path: "/api/projects/{project_id}/experiments/{id}/";
-        requestFormat: "json";
-        parameters: {
-            path: { id: number; project_id: string };
-        };
-        responses: { 405: unknown };
-    };
-    /**
      * Create, Read, Update and Delete External data Sources.
      */
     export type get_External_data_sources_list = {
@@ -23170,7 +22156,6 @@ export type EndpointByMethod = {
         "/api/projects/{project_id}/evaluations/": Endpoints.get_Evaluations_list;
         "/api/projects/{project_id}/evaluations/{id}/": Endpoints.get_Evaluations_retrieve;
         "/api/projects/{project_id}/event_definitions/by_name/": Endpoints.get_Event_definitions_by_name_retrieve;
-        "/api/projects/{project_id}/experiments/{id}/": Endpoints.get_Experiments_retrieve;
         "/api/projects/{project_id}/external_data_sources/": Endpoints.get_External_data_sources_list;
         "/api/projects/{project_id}/external_data_sources/{id}/": Endpoints.get_External_data_sources_retrieve;
         "/api/projects/{project_id}/feature_flags/": Endpoints.get_Feature_flags_list;
@@ -23201,7 +22186,6 @@ export type EndpointByMethod = {
         "/api/projects/{project_id}/dashboards/{id}/": Endpoints.put_Dashboards_update;
         "/api/projects/{project_id}/error_tracking/issues/{id}/": Endpoints.put_Error_tracking_issues_update;
         "/api/projects/{project_id}/evaluations/{id}/": Endpoints.put_Evaluations_update;
-        "/api/projects/{project_id}/experiments/{id}/": Endpoints.put_Experiments_update;
         "/api/projects/{project_id}/external_data_sources/{id}/": Endpoints.put_External_data_sources_update;
         "/api/projects/{project_id}/feature_flags/{id}/": Endpoints.put_Feature_flags_update;
         "/api/projects/{project_id}/hog_flows/{id}/": Endpoints.put_Hog_flows_update;
@@ -23219,7 +22203,6 @@ export type EndpointByMethod = {
         "/api/projects/{project_id}/dashboards/{id}/": Endpoints.patch_Dashboards_partial_update;
         "/api/projects/{project_id}/error_tracking/issues/{id}/": Endpoints.patch_Error_tracking_issues_partial_update;
         "/api/projects/{project_id}/evaluations/{id}/": Endpoints.patch_Evaluations_partial_update;
-        "/api/projects/{project_id}/experiments/{id}/": Endpoints.patch_Experiments_partial_update;
         "/api/projects/{project_id}/external_data_sources/{id}/": Endpoints.patch_External_data_sources_partial_update;
         "/api/projects/{project_id}/external_data_sources/{id}/bulk_update_schemas/": Endpoints.patch_External_data_sources_bulk_update_schemas_partial_update;
         "/api/projects/{project_id}/feature_flags/{id}/": Endpoints.patch_Feature_flags_partial_update;
@@ -23240,7 +22223,6 @@ export type EndpointByMethod = {
         "/api/projects/{project_id}/dashboards/{id}/": Endpoints.delete_Dashboards_destroy;
         "/api/projects/{project_id}/error_tracking/issues/{id}/": Endpoints.delete_Error_tracking_issues_destroy;
         "/api/projects/{project_id}/evaluations/{id}/": Endpoints.delete_Evaluations_destroy;
-        "/api/projects/{project_id}/experiments/{id}/": Endpoints.delete_Experiments_destroy;
         "/api/projects/{project_id}/external_data_sources/{id}/": Endpoints.delete_External_data_sources_destroy;
         "/api/projects/{project_id}/feature_flags/{id}/": Endpoints.delete_Feature_flags_destroy;
         "/api/projects/{project_id}/hog_flows/{id}/": Endpoints.delete_Hog_flows_destroy;

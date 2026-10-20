@@ -5,6 +5,7 @@ import {
   dailySparkPoints,
   decorateFlagPreview,
   decorateSurveyPreview,
+  type ExperimentRecord,
   exposureFact,
   gridRows,
   hogqlEscape,
@@ -30,33 +31,31 @@ import type { Schemas } from "./generated";
 // The shapers only read the fields they show; build minimal inputs and cast.
 describe("evidence preview shaping", () => {
   const experimentWithMetrics = (
-    overrides: Partial<Schemas.Experiment> = {},
-  ): Schemas.Experiment =>
-    ({
-      id: 1234,
-      name: "Checkout prompt",
-      feature_flag_key: "checkout-prompt",
-      feature_flag: { id: 3, key: "checkout-prompt" },
-      start_date: "2026-01-01T00:00:00Z",
-      metrics: [
-        {
-          kind: "ExperimentMetric",
-          uuid: "primary-1",
-          name: "Checkout conversion",
-          metric_type: "funnel",
-        },
-      ],
-      metrics_secondary: [
-        {
-          kind: "ExperimentMetric",
-          uuid: "secondary-1",
-          name: "Orders per user",
-          metric_type: "mean",
-        },
-      ],
-      saved_metrics: [],
-      ...overrides,
-    }) as unknown as Schemas.Experiment;
+    overrides: Partial<ExperimentRecord> = {},
+  ): ExperimentRecord => ({
+    id: 1234,
+    name: "Checkout prompt",
+    feature_flag_key: "checkout-prompt",
+    start_date: "2026-01-01T00:00:00Z",
+    metrics: [
+      {
+        kind: "ExperimentMetric",
+        uuid: "primary-1",
+        name: "Checkout conversion",
+        metric_type: "funnel",
+      },
+    ],
+    metrics_secondary: [
+      {
+        kind: "ExperimentMetric",
+        uuid: "secondary-1",
+        name: "Orders per user",
+        metric_type: "mean",
+      },
+    ],
+    saved_metrics: [],
+    ...overrides,
+  });
 
   const exposureResponse = {
     kind: "ExperimentExposureQuery",
@@ -150,7 +149,7 @@ describe("evidence preview shaping", () => {
         },
       ],
       metrics_secondary: [],
-    } as unknown as Partial<Schemas.Experiment>);
+    });
     const response = {
       ...readyMetricResponse,
       baseline: {
@@ -375,7 +374,7 @@ describe("evidence preview shaping", () => {
         id: 7,
         name: "Reminder timing",
         ...dates,
-      } as Schemas.Experiment);
+      } as ExperimentRecord);
       expect(preview.title).toBe("Reminder timing");
       expect(preview.status?.label).toBe(statusLabel);
       if (detail) {
@@ -397,7 +396,7 @@ describe("evidence preview shaping", () => {
         name: "Reminder timing",
         start_date: "2024-01-03T10:00:00Z",
         status: apiStatus,
-      } as unknown as Schemas.Experiment);
+      });
       expect(preview.status).toEqual({ label, tone });
     },
   );
@@ -976,7 +975,7 @@ describe("evidence preview shaping", () => {
           { key: "test", rollout_percentage: 50 },
         ],
       },
-    } as unknown as Schemas.Experiment);
+    });
     expect(preview.detail).toMatch(/^Day 12 ·/);
     expect(preview.facts).toEqual([
       "2 variants (50/50)",
