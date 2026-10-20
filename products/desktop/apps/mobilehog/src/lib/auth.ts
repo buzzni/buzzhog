@@ -19,7 +19,7 @@ export interface Session {
   region: Region;
   host: string;
   apiKey: string;
-  // OAuth sessions only; a local dev key never expires.
+  // OAuth sessions only; a local personal API key never expires.
   refreshToken?: string;
   expiresAt?: number;
   // The projects an OAuth token may reach; empty or missing means no limit.
@@ -63,7 +63,7 @@ async function readJson<T>(response: Response, what: string): Promise<T> {
 
 // Log in without touching the cookie jar (a stale session there would trip the
 // CSRF check), pull the session id out of the response, and swap it for the
-// seeded local dev personal API key so every later call is a plain bearer.
+// personal API key it creates, so every later call is a plain bearer.
 async function loginWithPassword(
   email: string,
   password: string,
@@ -82,19 +82,26 @@ async function loginWithPassword(
     throw new Error("Login succeeded but no session cookie came back.");
   }
 
-  const keysResponse = await fetch(`${POSTHOG_HOST}/api/personal_api_keys/`, {
-    headers: { Cookie: `sessionid=${sessionId}` },
+  // Session auth enforces CSRF; with the cookie jar off, a matching cookie and
+  // header pair satisfies the double-submit check.
+  const csrfToken = "mobilehog-local-csrf";
+  const keyResponse = await fetch(`${POSTHOG_HOST}/api/personal_api_keys/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `sessionid=${sessionId}; csrftoken=${csrfToken}`,
+      "X-CSRFToken": csrfToken,
+    },
+    body: JSON.stringify({ label: "mobilehog local", scopes: ["*"] }),
     credentials: "omit",
   });
-  const keys = await readJson<Array<{ local_dev_value?: string | null }>>(
-    keysResponse,
-    "Reading API keys",
+  const created = await readJson<{ value?: string | null }>(
+    keyResponse,
+    "Creating API key",
   );
-  const apiKey = keys.find((key) => key.local_dev_value)?.local_dev_value;
+  const apiKey = created.value;
   if (!apiKey) {
-    throw new Error(
-      "No local dev API key found. Run `python manage.py setup_local_api_key` and set ALLOW_DEV_API_KEY_REVEAL=1, then restart the stack.",
-    );
+    throw new Error("The server did not return a personal API key.");
   }
 
   return describeSession({ region: "local", host: POSTHOG_HOST, apiKey });
