@@ -440,7 +440,7 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 
 저장소 루트의 `license-policy.toml`이 어느 라이선스를 허용하고 막을지 적는 정책 원본이다.
 2026-10-16에 레이븐이 채택했다(`status = "adopted"`, buzzhog-djp9).
-`wiki/_tools/gen_licenses.py --check`가 이 파일을 읽는다([집계 방법](#집계-방법)). PR 게이트와 저장소 전체 스캔은 아직 읽지 않는다. 각각 buzzhog-djp9.m0z, .fai에서 붙인다.
+`wiki/_tools/gen_licenses.py --check`와 PR 게이트(`.github/workflows/license-gate.yml`, [PR 게이트](#pr-게이트))가 이 파일을 읽는다([집계 방법](#집계-방법)). 저장소 전체 스캔은 아직 읽지 않는다. buzzhog-djp9.fai에서 붙인다.
 이 결정은 법률 자문이 아니다. 판매 전 법무 검토는 따로 받는다.
 
 - 판정은 `allow`, `review`, `deny` 세 가지다. `review`는 사람이 보고 결정을 적기 전까지 검사 실패로 센다. 어느 목록에도 없는 식별자, `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류, `license_file`만 있는 크레이트는 `review`다.
@@ -474,6 +474,26 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 - `@posthog/brand`와 복사본 Hogfetti PNG: `rejected`. 상업 사용이 허가되지 않아 제거·대체가 결정됐다. 대체 작업은 buzzhog-9ies다. RoundHog 글꼴 항목은 OFL과 PolyForm 중 어느 쪽이 걸리는지 정하지 않았으므로 `proposed`로 두고, 같은 작업에서 바꾼다.
 - `@anthropic-ai/claude-agent-sdk`, `react-doctor`, `linkedin-api-client`, `tbb`(`deny`), 터미널 GPL 바이너리, `nvidia-*`, `gsap`(`review`): `proposed`다. 항목별 조사(buzzhog-wrap, buzzhog-2txv, buzzhog-ra0l, buzzhog-auf6, buzzhog-nhi6)에서 예외로 둘지 제거할지 정한다.
 - 나머지 `[[package]]`·`[[path]]` 항목도 `proposed`다. 위 "법무 검토가 필요한 항목"과 "잠금 파일 밖 제3자 구성요소" 표에서 옮겼다. `OFL-1.1`·`CC-BY` 글꼴·데이터 항목의 `review`는 라이선스가 아니라 고지 파일이 없어서 남은 것이다. `proposed`라서 라이선스가 `allow`여도 고지 파일을 넣고 `approved`로 닫기 전까지 검사 실패다.
+
+### PR 게이트
+
+`.github/workflows/license-gate.yml`이 `pull_request`와 `develop`로의 push, 수동 실행(`workflow_dispatch`)에서 돈다. 이 포크의 다른 CI는 `.depot/workflows/`에 있고 `.github/workflows/`에는 이 파일 하나뿐이다.
+작업은 셋이다.
+
+| 작업 | 하는 일 | 실행 시점 |
+| --- | --- | --- |
+| `Dependency review` | GitHub `actions/dependency-review-action`(v4.9.0)이 PR이 더하거나 바꾼 의존성의 라이선스를 본다. 정책의 deny 목록에 걸리면 실패한다 | `pull_request`만 |
+| `Policy check` | `python3 -I wiki/_tools/gen_licenses.py --check`. 잠금 파일 전체와 `[[path]]` 항목을 정책으로 판정한다 | 항상 |
+| `License gate pass` | 위 둘의 결과를 모아 한 개의 상태 검사로 낸다. 브랜치 보호에서 필수 검사로 고를 이름이다 | 항상 |
+
+- **보고만 한다(report-only).** 지금 트리에는 알려진 위반이 169건(deny 3, review 166)이라 켜 두면 모든 PR이 막힌다. 저장소 변수 `LICENSE_GATE_ENFORCE`가 `true`가 아니면 두 검사는 돌고 결과를 작업 요약(job summary)과 경고 주석으로 보이되 작업은 성공으로 끝난다. 켜는 것은 코드 변경이 아니라 GitHub 설정(Settings, Variables)에서 이 변수를 `true`로 두는 일이다. 켜기 전에 위반 169건을 먼저 줄이거나 `[[package]]`·`[[path]]`로 닫는다.
+- **머지를 막는 것은 별개 설정이다.** 워크플로가 실패해도 브랜치 보호에서 `License gate pass`를 필수 상태 검사로 지정하지 않으면 머지는 막히지 않는다. 그것은 사람이 GitHub에서 하는 설정이다.
+- **`deny-licenses`를 골랐다.** 이 액션은 `allow-licenses`와 `deny-licenses`를 같이 받지 못한다. `allow-licenses`는 목록에 없는 모든 라이선스를 실패로 세므로 review 목록(GPL, LGPL, MPL 등)과 알 수 없는 라이선스까지 기계가 막게 된다. 정책은 그것을 사람이 정하게 둔다. 확정된 거부인 deny 목록만 diff에 대한 기계 판정이 될 수 있다.
+- **deny 목록은 `license-policy.toml`의 `[deny]`에서 실행할 때마다 만든다.** 액션은 정확한 SPDX 식별자만 맞추고 번들된 SPDX 목록에 없는 식별자는 설정 오류로 끝난다. 그래서 `licenses`는 그대로 쓰고(`LicenseRef-*`는 GitHub 의존성 그래프가 내지 않으므로 뺀다), `prefixes`는 워크플로 안의 표(`PREFIX_IDS`)로 식별자로 풀어 쓴다. 정책에 표에 없는 접두사를 더하면 이 단계가 실패하므로 워크플로의 표를 같이 고친다.
+- **한계.** `Dependency review`는 PR이 바꾼 것만 본다. 이미 트리에 있는 것과 GitHub가 라이선스를 못 찾은 패키지는 잡지 못하므로 `Policy check`가 필요하다. 이 액션은 GitHub 의존성 그래프를 쓴다. 비공개 저장소에서는 GitHub Advanced Security가 필요하고, 없으면 이 작업이 실패한다(미확인: 이 저장소의 설정). pnpm·uv·Cargo·Go 잠금 파일을 그래프가 읽는지는 PR을 실제로 열어 봐야 안다(미확인). 저장소 안 바이너리·글꼴·이미지는 어느 쪽도 보지 않는다.
+- **`Policy check`가 러너에서 도는 조건.** PyPI, npm 레지스트리, Go 모듈 프록시, crates.io에 닿는 공개 네트워크와 `ubuntu-24.04` 이미지에 든 `cargo`면 된다. 인증이 필요한 레지스트리는 쓰지 않는다. 2026-10-21에 캐시 없이 돌려 약 100초가 걸렸고, 위반 169건(deny 3, review 166)과 종료 코드 1이 나왔다. GitHub 러너에서 돌려 본 것은 아니다(미확인).
+- 정책 파일을 PR이 바꾸면 그 PR의 검사는 바뀐 정책으로 돈다. 정책 변경은 사람의 검토로 막는다.
+- 액션은 전체 커밋 SHA로 고정했다. 다음 버전은 Renovate나 사람이 올린다.
 
 ## 집계 방법
 

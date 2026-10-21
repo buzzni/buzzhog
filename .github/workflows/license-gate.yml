@@ -1,0 +1,216 @@
+# License gate for dependencies (buzzhog-djp9.m0z).
+#
+# Two checks read the one policy file, license-policy.toml:
+#   1. dependency-review: GitHub's dependency graph diff of a pull request. It fails on a NEW or
+#      CHANGED dependency whose license is on the deny list. It never looks at what is already
+#      in the tree, and it does not fail on a package whose license GitHub cannot find.
+#   2. policy-check: wiki/_tools/gen_licenses.py --check. It rules on EVERY dependency of every
+#      lockfile (pnpm, uv, cargo, go) and on the [[path]] entries for files outside a lockfile.
+#      It needs only public registry access (PyPI, npm, the Go module proxy, crates.io) and the
+#      cargo that the runner image ships. It takes about two minutes.
+#
+# REPORT-ONLY. The tree holds known violations today (see wiki/licenses.md, "위반 목록"), so the
+# job would block every pull request on day one. Until the repository variable
+# LICENSE_GATE_ENFORCE is set to `true`, both checks run, print their findings in the job
+# summary, and leave the job green. Setting the variable needs no code change.
+# Making the check block a merge is a separate GitHub setting: add `License gate pass` as a
+# required status check in the branch protection of the target branch.
+#
+# deny-licenses, not allow-licenses. The action rejects a run that sets both. An allow list
+# fails every license it does not name, and that includes the review list (GPL, LGPL, MPL ...)
+# and every unknown license, which the policy leaves to a person to decide. The deny list is
+# the part of the policy that is a hard no, so only it can be a machine verdict on a diff.
+# The list is derived from [deny] in license-policy.toml on every run, so the two do not drift.
+#
+# This fork has no other workflow under .github/workflows. Its other CI runs from .depot/workflows.
+name: License gate
+
+on:
+    pull_request:
+    push:
+        branches:
+            - develop
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.head_ref || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+    dependency-review:
+        name: Dependency review
+        # The action compares two refs of a pull request. A push has no base to compare.
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 10
+        permissions:
+            contents: read
+        env:
+            ENFORCE: ${{ vars.LICENSE_GATE_ENFORCE }}
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  persist-credentials: false
+                  sparse-checkout: license-policy.toml
+                  sparse-checkout-cone-mode: false
+
+            - name: Derive the deny list from license-policy.toml
+              id: deny
+              continue-on-error: ${{ vars.LICENSE_GATE_ENFORCE != 'true' }}
+              run: |
+                  python3 -I - <<'PY'
+                  import os
+                  import sys
+                  import tomllib
+
+                  # The action matches exact SPDX identifiers and throws on one its bundled SPDX list
+                  # does not know. A policy prefix therefore stands for the ids below, which come from
+                  # the list bundled in the pinned action. A prefix with no row here stops the run,
+                  # so a new policy prefix is added here on purpose and never skipped.
+                  PREFIX_IDS = {
+                      "AGPL-": ["AGPL-1.0", "AGPL-3.0"],
+                      "SSPL-": [],
+                      "BUSL-": [],
+                      "Elastic-": [],
+                      "PolyForm-": ["PolyForm-Noncommercial-1.0.0", "PolyForm-Small-Business-1.0.0"],
+                      "CC-BY-NC": [
+                          "CC-BY-NC-1.0", "CC-BY-NC-2.0", "CC-BY-NC-2.5", "CC-BY-NC-3.0", "CC-BY-NC-3.0-DE", "CC-BY-NC-4.0",
+                          "CC-BY-NC-ND-1.0", "CC-BY-NC-ND-2.0", "CC-BY-NC-ND-2.5", "CC-BY-NC-ND-3.0", "CC-BY-NC-ND-3.0-DE",
+                          "CC-BY-NC-ND-3.0-IGO", "CC-BY-NC-ND-4.0",
+                          "CC-BY-NC-SA-1.0", "CC-BY-NC-SA-2.0", "CC-BY-NC-SA-2.0-DE", "CC-BY-NC-SA-2.0-FR",
+                          "CC-BY-NC-SA-2.0-UK", "CC-BY-NC-SA-2.5", "CC-BY-NC-SA-3.0", "CC-BY-NC-SA-3.0-DE",
+                          "CC-BY-NC-SA-3.0-IGO", "CC-BY-NC-SA-4.0",
+                      ],
+                  }
+
+                  with open("license-policy.toml", "rb") as f:
+                      deny = tomllib.load(f)["deny"]
+
+                  ids = []
+                  # LicenseRef-* names a license SPDX has no id for. GitHub's dependency graph never
+                  # reports one, so the action has nothing to match it against.
+                  for lic in deny["licenses"]:
+                      if not lic.startswith("LicenseRef-"):
+                          ids.append(lic)
+                  for prefix in deny["prefixes"]:
+                      if prefix.startswith("LicenseRef-"):
+                          continue
+                      if prefix not in PREFIX_IDS:
+                          sys.exit(f"deny prefix {prefix!r} of license-policy.toml has no row in PREFIX_IDS of license-gate.yml")
+                      ids.extend(PREFIX_IDS[prefix])
+
+                  ids = sorted(set(ids))
+                  with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                      out.write("licenses=" + ", ".join(ids) + "\n")
+                  print(f"{len(ids)} denied license ids: {', '.join(ids)}")
+                  PY
+
+            # Pinned by commit. The tag comment is v4.9.0.
+            - name: Review the dependency changes
+              id: review
+              if: ${{ !cancelled() && steps.deny.outcome == 'success' }}
+              continue-on-error: ${{ vars.LICENSE_GATE_ENFORCE != 'true' }}
+              uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+              with:
+                  license-check: true
+                  vulnerability-check: false
+                  deny-licenses: ${{ steps.deny.outputs.licenses }}
+                  # The policy applies the deny list to development dependencies too.
+                  fail-on-scopes: runtime, development, unknown
+                  comment-summary-in-pr: never
+
+            - name: Report the mode
+              if: ${{ !cancelled() }}
+              env:
+                  DENY_OUTCOME: ${{ steps.deny.outcome }}
+                  REVIEW_OUTCOME: ${{ steps.review.outcome }}
+              run: |
+                  if [ "$ENFORCE" = "true" ]; then mode="enforcing"; else mode="report-only"; fi
+                  {
+                      echo "### Dependency review ($mode)"
+                      echo
+                      echo "- Deny list from license-policy.toml: $DENY_OUTCOME"
+                      echo "- Dependency review of the pull request: $REVIEW_OUTCOME"
+                      if [ "$mode" = "report-only" ]; then
+                          echo
+                          echo "Report-only: a failure above does not fail the job until the repository variable LICENSE_GATE_ENFORCE is \`true\`."
+                      fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$mode" = "report-only" ] && { [ "$DENY_OUTCOME" = "failure" ] || [ "$REVIEW_OUTCOME" = "failure" ]; }; then
+                      echo "::warning title=License gate (report-only)::Dependency review found a problem. See the job summary and the step log."
+                  fi
+
+    policy-check:
+        name: Policy check
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        permissions:
+            contents: read
+        env:
+            ENFORCE: ${{ vars.LICENSE_GATE_ENFORCE }}
+        steps:
+            # The check reads git ls-files and the files that [[path]] entries name, so it needs the tree.
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  persist-credentials: false
+
+            - name: Check the dependencies against license-policy.toml
+              id: check
+              continue-on-error: ${{ vars.LICENSE_GATE_ENFORCE != 'true' }}
+              run: |
+                  violations="$RUNNER_TEMP/license-violations.tsv"
+                  set +e
+                  python3 -I wiki/_tools/gen_licenses.py --check > "$violations"
+                  status=$?
+                  set -e
+                  count=$(wc -l < "$violations")
+                  if [ "$ENFORCE" = "true" ]; then mode="enforcing"; else mode="report-only"; fi
+                  {
+                      echo "### License policy check ($mode)"
+                      echo
+                      echo "Exit status $status, $count violation lines (verdict, lockfile, name, version, license, rule)."
+                      if [ "$count" -gt 0 ]; then
+                          echo
+                          echo "<details><summary>Violations</summary>"
+                          echo
+                          echo '```tsv'
+                          cat "$violations"
+                          echo '```'
+                          echo
+                          echo "</details>"
+                      fi
+                      if [ "$mode" = "report-only" ]; then
+                          echo
+                          echo "Report-only: a failure here does not fail the job until the repository variable LICENSE_GATE_ENFORCE is \`true\`."
+                      fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$status" -ne 0 ] && [ "$mode" = "report-only" ]; then
+                      echo "::warning title=License gate (report-only)::gen_licenses.py --check exited $status with $count violation lines. See the job summary."
+                  fi
+                  exit "$status"
+
+    license-gate-pass:
+        name: License gate pass
+        needs: [dependency-review, policy-check]
+        # Only the cancelled state is excluded, so a superseded run records `cancelled`.
+        if: ${{ !cancelled() }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        permissions: {}
+        steps:
+            - name: Verify the jobs
+              env:
+                  DEPENDENCY_REVIEW: ${{ needs.dependency-review.result }}
+                  POLICY_CHECK: ${{ needs.policy-check.result }}
+              run: |
+                  # dependency-review is skipped on a push, and a skipped job is not a failure.
+                  if [[ "$DEPENDENCY_REVIEW" != "success" && "$DEPENDENCY_REVIEW" != "skipped" ]]; then
+                      echo "dependency-review: $DEPENDENCY_REVIEW"
+                      exit 1
+                  fi
+                  if [[ "$POLICY_CHECK" != "success" && "$POLICY_CHECK" != "skipped" ]]; then
+                      echo "policy-check: $POLICY_CHECK"
+                      exit 1
+                  fi
