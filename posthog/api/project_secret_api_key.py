@@ -31,16 +31,12 @@ from posthog.scopes import (
     PROJECT_SECRET_API_KEY_ALLOWED_API_SCOPE_ACTION,
     scopes_not_covered,
 )
-from posthog.settings import EE_AVAILABLE
 from posthog.tasks.email import send_feature_flags_secure_api_key_exposed, send_project_secret_api_key_exposed
 from posthog.utils import get_trusted_client_ip
 
 from products.security.backend.facade.api import access_refused as security_access_refused
 from products.security.backend.facade.contracts import SubjectInput as SecuritySubject
 from products.security.backend.facade.enums import Surface as SecuritySurface
-
-if EE_AVAILABLE:
-    from ee.billing.grants import BillingEntitlement, effective_billing_grants
 
 logger = structlog.get_logger(__name__)
 
@@ -66,17 +62,7 @@ def _enforce_caller_may_grant_billing_read(request: Request, organization: Organ
     someone with full access to the organization's billing may grant it."""
     if "billing:read" not in scopes:
         return
-    if not EE_AVAILABLE:
-        raise PermissionDenied("The billing:read scope needs PostHog's enterprise billing, which this instance lacks.")
-    user = request.user if isinstance(request.user, User) else None
-    grants = effective_billing_grants(
-        organization=organization, user=user, authenticator=getattr(request, "successful_authenticator", None)
-    )
-    if BillingEntitlement.FULL_ACCESS.value not in grants.entitlements:
-        raise PermissionDenied(
-            "Only someone with full access to the organization's billing can give a project secret API key "
-            "the billing:read scope."
-        )
+    raise PermissionDenied("The billing:read scope needs PostHog's enterprise billing, which this instance lacks.")
 
 
 def _enforce_gateway_bans(request: Request, team) -> None:

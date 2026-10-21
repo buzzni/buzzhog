@@ -1415,7 +1415,6 @@ class TestRoutePostHogCodeEventToRelevantRegion(TestCase):
 
     @patch("products.slack_app.backend.api.does_other_region_claim_workspace", return_value=False)
     @patch("products.slack_app.backend.api._post_slack_user_feedback")
-    @patch("ee.billing.quota_limiting.is_team_limited", return_value=True)
     @patch("products.slack_app.backend.api.SlackIntegration")
     @patch("products.slack_app.backend.api.asyncio.run")
     @patch("products.slack_app.backend.api.sync_connect")
@@ -1425,7 +1424,6 @@ class TestRoutePostHogCodeEventToRelevantRegion(TestCase):
         mock_sync_connect,
         mock_asyncio_run,
         mock_slack_cls,
-        _mock_is_team_limited,
         mock_post_feedback,
         _mock_us_claim,
     ):

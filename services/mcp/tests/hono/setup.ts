@@ -60,13 +60,6 @@ vi.mock('@/templates/cli-proxy-tool.md', async () => {
         return { default: '' }
     }
 })
-vi.mock('@/templates/execute-sql-prompt.md', async () => {
-    try {
-        return await vi.importActual('@/templates/execute-sql-prompt.md')
-    } catch {
-        return { default: '' }
-    }
-})
 vi.mock('@/templates/single-exec-instructions.md', async () => {
     try {
         return await vi.importActual('@/templates/single-exec-instructions.md')

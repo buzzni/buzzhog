@@ -34,7 +34,7 @@ print(url)  # https://pen-….boxes.hogland.prod-us.posthog.dev/  (stable across
    image, pg + ClickHouse migrated, demo-data seeded. A warm restore resumes a
    live, serving PostHog in ~30s (no cold boot, no rebuild). Sizing must match
    the golden (8 vCPU / 16 GiB / 100 GiB).
-2. **Mount the PR's backend** (`posthog`, `ee`, `products`) over the image's
+2. **Mount the PR's backend** (`posthog`, `products`) over the image's
    `/code` — so the backend runs the PR code with **no per-PR image build**.
 3. **Frontend** (only when the PR touches `frontend/**`): the untrusted
    `build-frontend` CI job compiles the PR's `frontend/dist` on the runner **in

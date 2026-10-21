@@ -15,67 +15,6 @@
                 }
             }
         },
-        "BillingSpendBreakdownsSchema": {
-            "description": "Dimensions to break spend down by. Pass `[\"type\"]` for per-product series, `[\"team\"]` for one series per project summed across products, or `[\"type\",\"team\"]` for per-project series within each product. Omit for one aggregate series.",
-            "anyOf": [
-                {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "enum": ["type", "team"]
-                    }
-                },
-                {
-                    "type": "null"
-                }
-            ]
-        },
-        "BillingTeamIdsSchema": {
-            "description": "Project IDs to filter by, e.g. `[1,2]`. Omit for every project this request can see: all organization projects for full billing access, or the member-visible and token-scoped projects for member read-only access.",
-            "anyOf": [
-                {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991
-                    }
-                },
-                {
-                    "type": "null"
-                }
-            ]
-        },
-        "BillingUsageBreakdownsSchema": {
-            "description": "Dimensions to break usage down by. Pass `[\"type\"]` for per-usage-type series or `[\"type\",\"team\"]` for per-project series within each usage type. Team breakdowns require `\"type\"`; do not pass `[\"team\"]` by itself. Omit for one aggregate series.",
-            "anyOf": [
-                {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "enum": ["type", "team"]
-                    }
-                },
-                {
-                    "type": "null"
-                }
-            ]
-        },
-        "BillingUsageTypesSchema": {
-            "description": "Array of usage type identifiers to filter on. Valid values: event_count_in_period, exceptions_captured_in_period, recording_count_in_period, rows_synced_in_period, free_historical_rows_synced_in_period, survey_responses_count_in_period, mobile_recording_count_in_period, mobile_billable_recording_count_in_period, billable_feature_flag_requests_count_in_period, enhanced_persons_event_count_in_period, ai_event_count_in_period, cdp_billable_invocations_in_period, rows_exported_in_period, ai_credits_used_in_period, signals_credits_used_in_period, posthog_code_credits_used_in_period, posthog_code_token_credits_used_in_period, sandbox_compute_credits_used_in_period, sandbox_compute_cpu_millicore_seconds_in_period, sandbox_compute_memory_mib_seconds_in_period, workflow_emails_sent_in_period, workflow_billable_invocations_in_period, logs_mb_in_period, logs_retention_30d_mb_in_period, logs_retention_mb_days_in_period, replay_vision_credits_used_in_period, data_pipelines, group_analytics. E.g. [\"event_count_in_period\",\"recording_count_in_period\"]. Omit for all types.",
-            "anyOf": [
-                {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minLength": 1
-                    }
-                },
-                {
-                    "type": "null"
-                }
-            ]
-        },
         "BusinessKnowledgeUrlSourceCreateSchema": {
             "type": "object",
             "properties": {
@@ -544,34 +483,6 @@
             },
             "required": ["eventName", "data"]
         },
-        "ExecuteSQLSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "The final SQL query to be executed."
-                },
-                "context": {
-                    "description": "Why this query runs, and the governed-catalog outcome behind it: state \"governed catalog consulted: no match\" here when no approved metric covered the measure. This rides alongside the query and never reaches the person who asked, so catalog bookkeeping belongs here instead of in the answer.",
-                    "type": "string"
-                },
-                "truncate": {
-                    "default": true,
-                    "description": "Whether to truncate large blob/JSON values in results. Defaults to true. Set to false when you need full untruncated results (e.g., for dumping to a file).",
-                    "type": "boolean"
-                },
-                "connectionId": {
-                    "description": "Optional id of a data warehouse connection (e.g. Postgres, MySQL, Snowflake, Redshift). When set, the query runs live against that source instead of the ClickHouse catalog, and may only reference that source's tables. Discover connection ids with external-data-sources-connections-list, then list a connection's tables by running `SELECT table_name FROM system.information_schema.tables` with that connectionId set.",
-                    "type": "string"
-                },
-                "sendRawQuery": {
-                    "description": "Send `query` to the connection verbatim instead of compiling it from HogQL first. Use this for SQL only that connection's own engine understands, such as vendor-specific functions. Requires connectionId, and works only on a pure direct connection (access_method 'direct'), not on a synced source with live queries enabled. The connection is read-only and accepts a single statement.",
-                    "type": "boolean"
-                }
-            },
-            "required": ["query"]
-        },
         "ExperimentResultsGetSchema": {
             "type": "object",
             "properties": {
@@ -678,7 +589,7 @@
                     "type": "boolean"
                 },
                 "tools_used": {
-                    "description": "The MCP tool names you called while working on the user's task (e.g. [\"read-data-schema\", \"query-trends\"]). Helps us correlate feedback to specific tools.",
+                    "description": "The MCP tool names you called while working on the user's task (e.g. [\"insights-list\", \"query-trends\"]). Helps us correlate feedback to specific tools.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1243,7 +1154,7 @@
                     "description": "Ordered list of edits to apply to the current path cleaning rules, in sequence."
                 },
                 "sample_paths": {
-                    "description": "Optional real paths (e.g. \"/users/123/profile\") to preview against, up to 25. The response shows how the resulting rule set rewrites each one. Approximate (JS regex, not re2) — use execute-sql with replaceRegexpAll to confirm edge cases.",
+                    "description": "Optional real paths (e.g. \"/users/123/profile\") to preview against, up to 25. The response shows how the resulting rule set rewrites each one. Approximate (JS regex, not re2).",
                     "maxItems": 25,
                     "type": "array",
                     "items": {
@@ -1375,148 +1286,6 @@
                 }
             },
             "required": ["propertyName", "data"]
-        },
-        "ReadDataSchemaSchema": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "oneOf": [
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "events"
-                                },
-                                "limit": {
-                                    "description": "Number of events to return per page.",
-                                    "default": 500,
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 500
-                                },
-                                "offset": {
-                                    "description": "Number of events to skip for pagination.",
-                                    "default": 0,
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 9007199254740991
-                                }
-                            },
-                            "required": ["kind"],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "event_properties"
-                                },
-                                "event_name": {
-                                    "type": "string",
-                                    "description": "The name of the event that you want to retrieve properties for."
-                                }
-                            },
-                            "required": ["kind", "event_name"],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "entity_properties"
-                                },
-                                "entity": {
-                                    "type": "string",
-                                    "description": "The entity to read: `person`, `session` for the columns of the `sessions` table, or a group type name. The plural form of any of these is accepted too."
-                                }
-                            },
-                            "required": ["kind", "entity"],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "action_properties"
-                                },
-                                "action_id": {
-                                    "type": "integer",
-                                    "minimum": -9007199254740991,
-                                    "maximum": 9007199254740991,
-                                    "description": "The ID of the action that you want to retrieve properties for."
-                                }
-                            },
-                            "required": ["kind", "action_id"],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "entity_property_values"
-                                },
-                                "entity": {
-                                    "type": "string",
-                                    "description": "The entity to read: `person`, `session` for the columns of the `sessions` table, or a group type name. The plural form of any of these is accepted too."
-                                },
-                                "property_name": {
-                                    "type": "string",
-                                    "description": "Verified property name of an entity."
-                                }
-                            },
-                            "required": ["kind", "entity", "property_name"],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "event_property_values"
-                                },
-                                "event_name": {
-                                    "type": "string",
-                                    "description": "Verified event name"
-                                },
-                                "property_name": {
-                                    "type": "string",
-                                    "description": "Verified property name of an event."
-                                }
-                            },
-                            "required": ["kind", "event_name", "property_name"],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "kind": {
-                                    "type": "string",
-                                    "const": "action_property_values"
-                                },
-                                "action_id": {
-                                    "type": "integer",
-                                    "minimum": -9007199254740991,
-                                    "maximum": 9007199254740991,
-                                    "description": "Verified action ID"
-                                },
-                                "property_name": {
-                                    "type": "string",
-                                    "description": "Verified property name of an action."
-                                }
-                            },
-                            "required": ["kind", "action_id", "property_name"],
-                            "additionalProperties": false
-                        }
-                    ],
-                    "description": "The data schema query to execute."
-                }
-            },
-            "required": ["query"]
         },
         "SavedMetricsAttachSchema": {
             "type": "array",
@@ -1821,82 +1590,6 @@
                 }
             },
             "required": ["id"]
-        },
-        "UsageMetricFiltersSchema": {
-            "anyOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "source": {
-                            "type": "string",
-                            "const": "data_warehouse"
-                        },
-                        "table_name": {
-                            "type": "string",
-                            "description": "Name of a synced data warehouse table. Use `external-data-schemas-list` to discover available tables."
-                        },
-                        "timestamp_field": {
-                            "type": "string",
-                            "description": "Timestamp column or HogQL expression on the row (e.g. \"created\" or \"toDateTime(created_at)\"). Use `execute-sql` (`SELECT * FROM <table> LIMIT 1`) to inspect available columns."
-                        },
-                        "key_field": {
-                            "type": "string",
-                            "description": "Column on the row whose value matches the entity key. v1 supports group profiles only — the column value is compared to the group_key."
-                        }
-                    },
-                    "required": ["source", "table_name", "timestamp_field", "key_field"],
-                    "description": "Data-warehouse-source filter shape."
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "events": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "id": {
-                                        "type": "string",
-                                        "description": "Event name (e.g. \"$pageview\")."
-                                    },
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "type": {
-                                        "type": "string",
-                                        "const": "events"
-                                    },
-                                    "order": {
-                                        "type": "integer",
-                                        "minimum": -9007199254740991,
-                                        "maximum": 9007199254740991
-                                    },
-                                    "properties": {
-                                        "type": "array",
-                                        "items": {}
-                                    }
-                                },
-                                "required": ["id"]
-                            },
-                            "description": "Events to count or sum over."
-                        },
-                        "actions": {
-                            "type": "array",
-                            "items": {}
-                        },
-                        "properties": {
-                            "type": "array",
-                            "items": {}
-                        },
-                        "filter_test_accounts": {
-                            "type": "boolean"
-                        }
-                    },
-                    "required": ["events"],
-                    "description": "Events-source filter shape (default)."
-                }
-            ],
-            "description": "Filter definition. Pick exactly one branch: `data_warehouse` (set `source: \"data_warehouse\"` plus `table_name`/`timestamp_field`/`key_field`) or `events` (HogFunction filter shape with an `events` array)."
         },
         "WikiPageReadLimitSchema": {
             "default": 12000,

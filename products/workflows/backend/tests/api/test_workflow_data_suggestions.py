@@ -108,8 +108,6 @@ class TestWorkflowDataSuggestions(ClickhouseTestMixin, APIBaseTest):
         super().setUp()
         cache.delete(_cache_key(self.team))
         self.jev_configured = patch(f"{SERVICE}.system_one_configured", return_value=True).start()
-        # FLAG patches the shared feature_enabled, which the privacy mode check reads too.
-        self.privacy_mode = patch(f"{SERVICE}.is_privacy_mode_enabled", return_value=False).start()
         patch(f"{SERVICE}.classify_event_stages", return_value={}).start()
         self.addCleanup(patch.stopall)
         sync_template_to_db(_email_function_template())
@@ -376,9 +374,8 @@ class TestWorkflowDataSuggestions(ClickhouseTestMixin, APIBaseTest):
 
     @parameterized.expand(
         [
-            ("without ai data processing approval", False, True, False, "ai_not_approved"),
-            ("without jev", True, False, False, "unavailable"),
-            ("in privacy mode", True, True, True, "unavailable"),
+            ("without ai data processing approval", False, True, "ai_not_approved"),
+            ("without jev", True, False, "unavailable"),
         ]
     )
     @patch(f"{SERVICE}.suggest_ideas")
@@ -387,7 +384,6 @@ class TestWorkflowDataSuggestions(ClickhouseTestMixin, APIBaseTest):
         _name: str,
         approved: bool,
         jev_configured: bool,
-        privacy_mode: bool,
         status: str,
         suggest_ideas: MagicMock,
         _flag,
@@ -395,7 +391,6 @@ class TestWorkflowDataSuggestions(ClickhouseTestMixin, APIBaseTest):
         self.organization.is_ai_data_processing_approved = approved
         self.organization.save()
         self.jev_configured.return_value = jev_configured
-        self.privacy_mode.return_value = privacy_mode
 
         assert self._list() == {"status": status, "suggestions": [], "email_sender_ready": False}
         suggest_ideas.assert_not_called()

@@ -8,14 +8,12 @@ import {
     type ToolInfo,
 } from '@/lib/instructions'
 import { formatPrompt } from '@/lib/utils'
-import ACTIVITY_HISTORY_SQL from '@/templates/sections/activity-history-sql.md'
 import ACTIVITY_HISTORY from '@/templates/sections/activity-history.md'
 import AGENT_FEEDBACK from '@/templates/sections/agent-feedback.md'
 import ANALYSIS_ARTIFACTS from '@/templates/sections/analysis-artifacts.md'
 import BASIC_FUNCTIONALITY from '@/templates/sections/basic-functionality.md'
 import BUSINESS_KNOWLEDGE_FIRST from '@/templates/sections/business-knowledge-first.md'
 import CATALOG_TRUST_DISCOVERY from '@/templates/sections/catalog-trust-discovery.md'
-import CLI_DATA_DISCOVERY from '@/templates/sections/cli-data-discovery.md'
 import CLI_ERROR_HANDLING from '@/templates/sections/cli-error-handling.md'
 import CLI_EXAMPLES_CLAUDE from '@/templates/sections/cli-examples-claude.md'
 import CLI_EXAMPLES from '@/templates/sections/cli-examples.md'
@@ -25,7 +23,6 @@ import CLI_RENDERING from '@/templates/sections/cli-rendering.md'
 import CLI_SCHEMA_DRILLDOWN from '@/templates/sections/cli-schema-drilldown.md'
 import CLI_SYNTAX from '@/templates/sections/cli-syntax.md'
 import COMPACT_INSTRUCTIONS from '@/templates/sections/compact-instructions.md'
-import ENTITY_SCHEMA_DISCOVERY from '@/templates/sections/entity-schema-discovery.md'
 import ENV_CONTEXT from '@/templates/sections/env-context.md'
 import EXAMPLES from '@/templates/sections/examples.md'
 import EXEC_LEARN from '@/templates/sections/exec-learn.md'
@@ -43,14 +40,8 @@ import TOOL_SEARCH from '@/templates/sections/tool-search.md'
 import URL_PATTERNS from '@/templates/sections/url-patterns.md'
 import { type ExecLearnGuide, LEARN_COMMAND_LINE } from '@/tools/exec-learn'
 
-/** Naming a command the catalog withholds sends the agent down a path it cannot take. */
-const WHATS_NEW_WITH_DOCS_SEARCH =
-    "Check what's new with `call docs-search <json_input>` or the changelog (https://posthog.com/changelog.md)."
-const WHATS_NEW_CHANGELOG_ONLY = "Check what's new in the changelog (https://posthog.com/changelog.md)."
-
 const PROJECT_LOOKUP =
     'Call `project-get` without an ID to read the active project: its name, id, organization, timezone, person-on-events mode, test account filter default, and enabled products. Call it before you rely on one of these, for example the timezone for a date range.'
-const GROUP_TYPES_LOOKUP = "For the project's group types, run `execute-sql` on `system.group_type_mappings`."
 
 export interface InstructionsContext {
     guidelines: string
@@ -69,21 +60,23 @@ export interface InstructionsContext {
      *  run tool, and naming a command the catalog withholds sends the agent to a
      *  name `search` and `call` cannot resolve. */
     notebookRunEnabled?: boolean | undefined
-    /** Whether `docs-search` is advertised to this client. Gates every mention of
-     *  the tool, so the prompt never names a command `search` and `call` cannot
-     *  resolve. Carried as a field rather than derived from `tools`, which
-     *  `buildExecCommandReference` drops on purpose. */
-    docsSearchEnabled?: boolean | undefined
 }
 
-function businessKnowledgeSearchLine(execSyntax: boolean): string {
+export const BUSINESS_KNOWLEDGE_SEARCH_TOOL = 'business-knowledge-documents-search'
+export const BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL = 'business-knowledge-repositories-search'
+export const BUSINESS_KNOWLEDGE_WINDOW_TOOL = 'business-knowledge-document-window-retrieve'
+
+function businessKnowledgeSearchLine(execSyntax: boolean, windowEnabled: boolean): string {
     const search = execSyntax
-        ? 'run `call business-knowledge-documents-search <json_input>`'
-        : 'call `business-knowledge-documents-search`'
-    return `- First, ${search} with a short, broad query based on the user's topic. If \`business-knowledge-document-window-retrieve\` is also available, use it when a result needs more context.`
+        ? `run \`call ${BUSINESS_KNOWLEDGE_SEARCH_TOOL} <json_input>\``
+        : `call \`${BUSINESS_KNOWLEDGE_SEARCH_TOOL}\``
+    const window = !windowEnabled
+        ? ''
+        : execSyntax
+          ? ` Run \`call ${BUSINESS_KNOWLEDGE_WINDOW_TOOL} <json_input>\` when a result needs more context.`
+          : ` Call \`${BUSINESS_KNOWLEDGE_WINDOW_TOOL}\` when a result needs more context.`
+    return `- First, ${search} with a short, broad query based on the user's topic.${window}`
 }
-
-const BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL = 'business-knowledge-repositories-search'
 
 /** Document search does not read GitHub. Code questions and an empty document search use the repo tools.
  *  The exec line stays short to keep the exec description under Claude Code's 2048-char cap. */
@@ -100,9 +93,6 @@ function notebookSqlVars(ctx: InstructionsContext): Record<string, string> {
     const available = (tool: string): boolean => ctx.tools?.some(({ name }) => name === tool) ?? false
     const runAll = available('notebooks-run') ? ', or all at once with `notebooks-run`' : ''
     return {
-        throwaway_checks: available('execute-sql')
-            ? " Use `execute-sql` only for throwaway checks the notebook does not rely on, like confirming a table's columns."
-            : '',
         fix_in_place:
             available('notebooks-update-cell') && available('notebooks-delete-cell')
                 ? '- Fix a failing or wrong query in the same cell with `notebooks-update-cell`, and remove dead ends with `notebooks-delete-cell`, so the notebook keeps only the steps the conclusion rests on.'
@@ -113,18 +103,9 @@ function notebookSqlVars(ctx: InstructionsContext): Record<string, string> {
     }
 }
 
-/** Resolve the field, falling back to the advertised tool list for callers that
- *  build a context without it (the CLI's `--agent-help`). */
-function docsSearchAvailable(ctx: InstructionsContext): boolean {
-    return ctx.docsSearchEnabled ?? ctx.tools?.some(({ name }) => name === 'docs-search') ?? false
-}
-
 function envContextSections(ctx: InstructionsContext): string[] {
     const available = (tool: string): boolean => ctx.tools?.some(({ name }) => name === tool) ?? false
-    const lookups = [
-        ...(available('project-get') ? [PROJECT_LOOKUP] : []),
-        ...(available('execute-sql') ? [GROUP_TYPES_LOOKUP] : []),
-    ]
+    const lookups = available('project-get') ? [PROJECT_LOOKUP] : []
     return lookups.length > 0 ? [formatPrompt(ENV_CONTEXT, { env_lookups: lookups.join(' ') })] : []
 }
 
@@ -136,16 +117,15 @@ function envContextSections(ctx: InstructionsContext): string[] {
  */
 export class InstructionsFormatter {
     private knowledgeFirstSections(ctx: InstructionsContext): string[] {
-        const businessKnowledgeSearchEnabled = ctx.tools?.some(
-            ({ name }) => name === 'business-knowledge-documents-search'
-        )
+        const businessKnowledgeSearchEnabled = ctx.tools?.some(({ name }) => name === BUSINESS_KNOWLEDGE_SEARCH_TOOL)
         const businessKnowledgeRepoSearchEnabled = ctx.tools?.some(
             ({ name }) => name === BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL
         )
+        const businessKnowledgeWindowEnabled = ctx.tools?.some(({ name }) => name === BUSINESS_KNOWLEDGE_WINDOW_TOOL)
         return this.knowledgeFirstSectionsForCapabilities({
-            docsSearchEnabled: docsSearchAvailable(ctx),
             businessKnowledgeSearchEnabled,
             businessKnowledgeRepoSearchEnabled,
+            businessKnowledgeWindowEnabled,
             execSyntax: false,
         })
     }
@@ -154,27 +134,20 @@ export class InstructionsFormatter {
      *  mandate leads the tool description, ahead of the section that teaches the
      *  dispatcher grammar, so a bare name reads as a command and is rejected. */
     private knowledgeFirstSectionsForCapabilities(opts: {
-        docsSearchEnabled?: boolean
         businessKnowledgeSearchEnabled?: boolean
         businessKnowledgeRepoSearchEnabled?: boolean
+        businessKnowledgeWindowEnabled?: boolean
         execSyntax: boolean
     }): string[] {
-        if (!opts.docsSearchEnabled) {
+        if (!opts.businessKnowledgeSearchEnabled) {
             return []
         }
-        const businessKnowledgeLines = opts.businessKnowledgeSearchEnabled
-            ? [
-                  businessKnowledgeSearchLine(opts.execSyntax),
-                  ...(opts.businessKnowledgeRepoSearchEnabled
-                      ? [businessKnowledgeRepoSearchLine(opts.execSyntax)]
-                      : []),
-              ]
-            : []
+        const businessKnowledgeLines = [
+            businessKnowledgeSearchLine(opts.execSyntax, opts.businessKnowledgeWindowEnabled ?? false),
+            ...(opts.businessKnowledgeRepoSearchEnabled ? [businessKnowledgeRepoSearchLine(opts.execSyntax)] : []),
+        ]
         return [
             formatPrompt(BUSINESS_KNOWLEDGE_FIRST, {
-                docs_search_call: opts.execSyntax
-                    ? 'Run `call docs-search <json_input>`'
-                    : 'Call the `docs-search` tool',
                 business_knowledge_search: businessKnowledgeLines.join('\n'),
             }),
         ]
@@ -195,10 +168,7 @@ export class InstructionsFormatter {
         if (!ctx.tools?.some(({ name }) => name === 'advanced-activity-logs-list')) {
             return []
         }
-        return [
-            ACTIVITY_HISTORY,
-            ...(ctx.tools.some(({ name }) => name === 'execute-sql') ? [ACTIVITY_HISTORY_SQL] : []),
-        ]
+        return [ACTIVITY_HISTORY]
     }
 
     /** Build the system prompt for tools-mode clients (each tool registered separately). */
@@ -259,9 +229,9 @@ export class InstructionsFormatter {
     buildExecToolDescription(
         opts: {
             skillsEnabled?: boolean
-            docsSearchEnabled?: boolean
             businessKnowledgeSearchEnabled?: boolean
             businessKnowledgeRepoSearchEnabled?: boolean
+            businessKnowledgeWindowEnabled?: boolean
         } = {}
     ): string {
         const knowledgeSections = this.knowledgeFirstSectionsForCapabilities({ ...opts, execSyntax: true })
@@ -361,7 +331,6 @@ export class InstructionsFormatter {
                 ...(learnSection ? [learnSection] : []),
                 METRIC_DISCOVERY_COMPACT,
                 CLI_SCHEMA_DRILLDOWN,
-                CLI_DATA_DISCOVERY,
                 CLI_EXAMPLES_CLAUDE,
                 CLI_ERROR_HANDLING,
                 BASIC_FUNCTIONALITY,
@@ -394,7 +363,6 @@ export class InstructionsFormatter {
             ...(opts.learnEnabled ? [CLI_LEARN] : []),
             METRIC_DISCOVERY,
             CLI_SCHEMA_DRILLDOWN,
-            CLI_DATA_DISCOVERY,
             CLI_EXAMPLES,
             CLI_ERROR_HANDLING,
             ...(ctx.renderUiEnabled ? [CLI_RENDERING] : []),
@@ -410,7 +378,7 @@ export class InstructionsFormatter {
             AGENT_FEEDBACK,
             EXAMPLES,
         ]
-        const renderCtx: InstructionsContext = { ...ctx, tools: undefined, docsSearchEnabled: docsSearchAvailable(ctx) }
+        const renderCtx: InstructionsContext = { ...ctx, tools: undefined }
         // Tool domains are temporarily omitted from the command reference while we
         // probe claude.ai's per-tool size cap (it silently drops oversized entries);
         // agents still discover domains at runtime via the `search` command, and
@@ -441,9 +409,7 @@ export class InstructionsFormatter {
             available_tools: buildAvailableToolsBlock(ctx.renderUiEnabled),
             tool_domains: ctx.tools ? renderToolDomains(ctx.tools) : '',
             query_tools: ctx.queryTools ? buildQueryToolsBlock(ctx.queryTools) : '',
-            entity_schema_discovery: ENTITY_SCHEMA_DISCOVERY.trim(),
             extra_commands: opts.extraCommands ?? '',
-            whats_new_check: docsSearchAvailable(ctx) ? WHATS_NEW_WITH_DOCS_SEARCH : WHATS_NEW_CHANGELOG_ONLY,
         }
         const body = sections
             .map((s) => s.trim())

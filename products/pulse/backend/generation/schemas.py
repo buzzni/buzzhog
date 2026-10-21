@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 
 from products.pulse.backend.models import Opportunity
 
-# Single source of truth for what each opportunity kind means — interpolated into both the
-# synthesis prompt and the structured-output field description.
+# What each opportunity kind means. The structured-output field description is built from it,
+# and the assert below keeps it in step with Opportunity.Kind.
 KIND_DESCRIPTIONS: dict[str, str] = {
     Opportunity.Kind.BUILD.value: "a product opportunity",
     Opportunity.Kind.FIX.value: "a broken PostHog resource",

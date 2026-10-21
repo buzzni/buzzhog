@@ -33,12 +33,6 @@ class TestTerminalAI(APIBaseTest):
         self.enabled = self.enterContext(
             patch("products.posthog_ai.backend.presentation.terminal_ai.feature_enabled_or_false", return_value=True)
         )
-        self.limited = self.enterContext(
-            patch("products.posthog_ai.backend.presentation.terminal_ai.is_team_limited", return_value=False)
-        )
-        self.enterContext(
-            patch("products.posthog_ai.backend.presentation.terminal_ai.is_privacy_mode_enabled", return_value=True)
-        )
         self.url = f"/api/projects/{self.team.id}/terminal_ai/"
         self.body = {
             "model": "claude-opus-5",
@@ -55,7 +49,6 @@ class TestTerminalAI(APIBaseTest):
             ("flag_disabled", 403),
             ("consent_denied", 403),
             ("consent_unset", 403),
-            ("quota", 402),
         ]
     )
     def test_access_denied_before_gateway_call(self, scenario: str, expected_status: int) -> None:
@@ -79,8 +72,6 @@ class TestTerminalAI(APIBaseTest):
         elif scenario in ("consent_denied", "consent_unset"):
             self.organization.is_ai_data_processing_approved = False if scenario == "consent_denied" else None
             self.organization.save(update_fields=["is_ai_data_processing_approved"])
-        else:
-            self.limited.return_value = True
         with patch("products.posthog_ai.backend.presentation.terminal_ai._stream_generation") as stream:
             response = self.client.post(self.url, self.body, format="json")
         assert response.status_code == expected_status
@@ -139,7 +130,6 @@ class TestTerminalAI(APIBaseTest):
         assert request.headers["x-api-key"] == "phs_test_only"
         assert request.headers["X-PostHog-Distinct-Id"] == self.user.distinct_id
         assert request.headers["X-PostHog-Product"] == "posthog_ai"
-        assert request.headers["X-PostHog-Privacy-Mode"] == "true"
         assert request.headers["X-PostHog-Billable"] == "false"
         assert json.loads(request.headers["X-PostHog-Properties"])["team_id"] == str(self.team.id)
         assert json.loads(request.content)["model"] == model

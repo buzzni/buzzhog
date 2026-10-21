@@ -14,8 +14,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("ee", "0050_migrate_replay_models"),
         ("posthog", "1238_ducklakebackfill_earliest_event_date"),
+        ("access_control", "0000_rbac_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -168,7 +168,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         db_table="posthog_approvalpolicy_bypass_roles",
                         related_name="bypass_policies",
-                        to="ee.role",
+                        to="access_control.role",
                     ),
                 ),
                 (

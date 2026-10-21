@@ -14,11 +14,9 @@ import {
     type ErrorIssueListData,
 } from 'products/error_tracking/mcp/apps'
 import {
-    ExperimentListView,
     ExperimentResultsView,
     ExperimentView,
     type ExperimentData,
-    type ExperimentListData,
     type ExperimentResultsData,
 } from 'products/experiments/mcp/apps'
 import {
@@ -177,44 +175,6 @@ function ErrorIssueListContent({ data, app }: { data: ErrorIssueListData; app: A
     )
 
     return <ErrorIssueListView data={data} onIssueClick={handleClick} />
-}
-
-function ExperimentListContent({ data, app }: { data: ExperimentListData; app: App | null }): JSX.Element {
-    const fallbackToChat = useCallback(
-        (name: string) => {
-            app?.sendMessage({
-                role: 'user',
-                content: [{ type: 'text', text: `Show me the details for experiment "${name}"` }],
-            })
-        },
-        [app]
-    )
-
-    const handleClick = useCallback(
-        async (item: ExperimentData): Promise<ExperimentData | null> => {
-            if (!app) {
-                fallbackToChat(item.name)
-                return null
-            }
-            try {
-                const result = await app.callServerTool({
-                    name: 'experiment-get',
-                    arguments: { id: item.id },
-                })
-                if (result.isError || !result.structuredContent) {
-                    fallbackToChat(item.name)
-                    return null
-                }
-                return result.structuredContent as unknown as ExperimentData
-            } catch {
-                fallbackToChat(item.name)
-                return null
-            }
-        },
-        [app, fallbackToChat]
-    )
-
-    return <ExperimentListView data={data} onExperimentClick={handleClick} />
 }
 
 function FeatureFlagListContent({ data, app }: { data: FeatureFlagListData; app: App | null }): JSX.Element {
@@ -423,7 +383,6 @@ export const RENDER_DISPATCH: Partial<Record<UiAppKey, (props: RenderDispatchPro
     'error-issue': ({ data }) => <ErrorIssueView issue={data as ErrorIssueData} />,
     'error-issue-list': ({ data, app }) => <ErrorIssueListContent data={data as ErrorIssueListData} app={app} />,
     experiment: ({ data }) => <ExperimentView experiment={data as ExperimentData} />,
-    'experiment-list': ({ data, app }) => <ExperimentListContent data={data as ExperimentListData} app={app} />,
     'experiment-results': ({ data }) => <ExperimentResultsView data={data as ExperimentResultsData} />,
     'feature-flag': ({ data }) => <FeatureFlagView flag={data as FeatureFlagData} />,
     'feature-flag-list': ({ data, app }) => <FeatureFlagListContent data={data as FeatureFlagListData} app={app} />,

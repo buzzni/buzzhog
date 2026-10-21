@@ -17,6 +17,38 @@ import {
 } from "./flag-audience";
 import type { Schemas } from "./generated";
 
+/**
+ * The experiment fields the preview shapers read. The typed client has no
+ * experiment schema, because this repository's backend registers the
+ * experiments route only when EE is available.
+ */
+export interface ExperimentRecord {
+  id?: number;
+  name: string;
+  description?: string | null;
+  status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  created_at?: string | null;
+  feature_flag?: unknown;
+  feature_flag_key?: string | null;
+  exposure_criteria?: unknown;
+  holdout?: unknown;
+  conclusion?: string | null;
+  conclusion_comment?: string | null;
+  parameters?: unknown;
+  metrics?: unknown[] | null;
+  metrics_secondary?: unknown[] | null;
+  primary_metrics_ordered_uuids?: unknown[] | null;
+  secondary_metrics_ordered_uuids?: unknown[] | null;
+  saved_metrics?: Array<{
+    name?: string | null;
+    query?: unknown;
+    metadata?: unknown;
+    saved_metric?: unknown;
+  }> | null;
+}
+
 export interface EvidenceDetailField {
   label: string;
   value: string;
@@ -372,15 +404,14 @@ export function shapeFlagPreview(
 }
 
 export function shapeExperimentPreview(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
 ): EvidencePreview {
   let detail: string | undefined;
   let status: EvidencePreview["status"];
   // The API's status distinguishes paused and exposure-frozen experiments,
   // which both still have a start date and no end date, so the date range alone
-  // reads them as "Running". The generated enum is narrower than the backend's
-  // real values, so read the status as a plain string; fall back to the dates
-  // for responses without one.
+  // reads them as "Running". Fall back to the dates for responses without a
+  // status.
   const apiStatus: string | null =
     typeof experiment.status === "string" ? experiment.status : null;
   if (apiStatus === "paused" || apiStatus === "exposure_frozen") {
@@ -539,7 +570,7 @@ function metricUuid(metric: QueryRecord, fallback: string): string {
 }
 
 function orderedMetricDefinitions(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
   metricType: "primary" | "secondary",
 ): ExperimentMetricDefinition[] {
   const inlineMetrics = ((metricType === "primary"
@@ -578,15 +609,12 @@ function orderedMetricDefinitions(
     });
   }
 
-  const experimentRecord = experiment as unknown as QueryRecord;
-  const orderKey =
+  const orderField =
     metricType === "primary"
-      ? "primary_metrics_ordered_uuids"
-      : "secondary_metrics_ordered_uuids";
-  const orderedUuids = Array.isArray(experimentRecord[orderKey])
-    ? (experimentRecord[orderKey] as unknown[]).filter(
-        (uuid): uuid is string => typeof uuid === "string",
-      )
+      ? experiment.primary_metrics_ordered_uuids
+      : experiment.secondary_metrics_ordered_uuids;
+  const orderedUuids = Array.isArray(orderField)
+    ? orderField.filter((uuid): uuid is string => typeof uuid === "string")
     : [];
   if (orderedUuids.length === 0) return definitions;
   const position = new Map(orderedUuids.map((uuid, index) => [uuid, index]));
@@ -602,7 +630,7 @@ function orderedMetricDefinitions(
 }
 
 export function experimentMetricQueries(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
   metricType: "primary" | "secondary",
 ): unknown[] {
   return orderedMetricDefinitions(experiment, metricType).map(
@@ -876,7 +904,7 @@ export function shapeExperimentExposureChart(
 }
 
 export function shapeExperimentResults(
-  experiment: Schemas.Experiment,
+  experiment: ExperimentRecord,
   exposuresResponse: Schemas.ExperimentExposureQueryResponse | null,
   primaryResults: ExperimentMetricQueryResult[],
   secondaryResults: ExperimentMetricQueryResult[],

@@ -16,7 +16,6 @@ rules:
       languages: [python]
       paths:
           include:
-              - 'ee/**/*.py'
               - 'posthog/**/*.py'
               - 'products/**/*.py'
           exclude:
@@ -42,7 +41,7 @@ rules:
           This API route uses a hyphen in a path segment. API paths use underscores
           (`set_default`, not `set-default`), so that the URL, the view name and the JSON fields all
           read the same way. This covers a route that starts with `api/` and is passed to `path()`,
-          `re_path()` or `opt_slash_path()` in `posthog/urls.py` or an `ee/**/urls.py` file.
+          `re_path()` or `opt_slash_path()` in `posthog/urls.py`.
 
           Change the literal to use underscores. Route names (`name="..."`) and `<converter:param>`
           values are not checked.
@@ -56,7 +55,6 @@ rules:
       paths:
           include:
               - 'posthog/urls.py'
-              - 'ee/**/urls.py'
           exclude:
               - '**/test/**'
               - '**/tests/**'
@@ -85,7 +83,6 @@ rules:
       languages: [python]
       paths:
           include:
-              - 'ee/**/*.py'
               - 'posthog/**/*.py'
               - 'products/**/*.py'
           exclude:

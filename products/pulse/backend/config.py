@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from products.pulse.backend.models import BriefConfig
 
 # System-level constants — not per-config tunables. These bound the Temporal workflow and its
-# activities, the LLM call, and the stale-brief reaper. They live here (not scattered across
+# activities, and the stale-brief reaper. They live here (not scattered across
 # modules) so the workflow, activities, api, and reaper all read one source of truth.
 
 # Caps total wall-clock across Temporal retries/re-executions. Worst-case activity budget in
@@ -25,11 +25,6 @@ MARK_FAILED_MAX_ATTEMPTS = 3
 STALE_AFTER = dt.timedelta(minutes=25)
 # The reaper sweeps at most this many stranded rows per run; a later run drains the rest.
 REAP_BATCH_CAP = 500
-
-SYNTHESIS_MODEL = "gpt-4.1"
-LLM_TIMEOUT_SECONDS = 120
-# Worst case 2 attempts x 120s stays under the synthesize activity timeout.
-LLM_MAX_RETRIES = 1
 
 # Cap on items passed into synthesis — keeps the activity payload well under Temporal's ~2 MiB cap.
 MAX_ITEMS = 50

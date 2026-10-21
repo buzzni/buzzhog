@@ -87,9 +87,7 @@ describe('tools that require a nested query object', () => {
         // Guards the discovery itself: a refactor that stops matching any tool would
         // otherwise turn every case below into a silent no-op.
         expect(wrapperTools.length).toBeGreaterThan(15)
-        expect(wrapperTools.map(([name]) => name)).toEqual(
-            expect.arrayContaining(['query-logs', 'query-apm-spans', 'read-data-schema'])
-        )
+        expect(wrapperTools.map(([name]) => name)).toEqual(expect.arrayContaining(['query-logs', 'query-apm-spans']))
     })
 
     it.each(wrapperTools.map(([name]) => name))('%s documents an example its own schema accepts', (name) => {

@@ -522,9 +522,9 @@ export function describeExecCommand(command: string, isKnownToolName: (name: str
     // rejected command gets attributed to a valid tool. `call` strips its flags
     // then takes the first token; `schema` takes the first token. `info` is the
     // exception: it hands the entire remaining argument to `findTool` as an exact
-    // name (after an optional `--json`), so `info execute-sql extra` looks up
-    // "execute-sql extra", resolves to nothing, and records `unrecognized` — not
-    // the `execute-sql` its first token would suggest.
+    // name (after an optional `--json`), so `info query-trends extra` looks up
+    // "query-trends extra", resolves to nothing, and records `unrecognized` — not
+    // the `query-trends` its first token would suggest.
     let target: string
     if (rawVerb === 'call') {
         target = parseCommand(parseCallFlags(rest).rest).verb
@@ -546,6 +546,33 @@ function isRecordableToolName(name: string, isKnownToolName: (name: string) => b
     return isKnownToolName(name) || Object.prototype.hasOwnProperty.call(DEPRECATED_TOOL_REDIRECTS, name)
 }
 
+function queryToolLines(allTools: Tool<ZodObjectAny>[]): string {
+    return allTools
+        .filter((t) => t.name.startsWith('query-'))
+        .map((t) => `- ${t.name}: ${t.description.split('\n')[0]}`)
+        .join('\n')
+}
+
+function typedQueryRedirect(removed: string, allTools: Tool<ZodObjectAny>[]): string {
+    // Name the notebook SQL cell only when this connection has notebooks-add-cell, because a
+    // redirect to a tool that `call` cannot resolve gives the agent another unknown-tool miss.
+    const notebookSql = allTools.some((t) => t.name === 'notebooks-add-cell')
+        ? ' To run HogQL, add a SQL cell to a notebook with "notebooks-add-cell".'
+        : ''
+    return `Tool "${removed}" was removed. Pick the typed query tool that matches your intent.${notebookSql} Available query-* tools:\n${queryToolLines(allTools)}`
+}
+
+const NO_TAXONOMY_TOOL =
+    'No tool on this PostHog server lists event definitions, properties, or property values. Use the event and property names the user gave, and tell the user which names you could not confirm.'
+
+const ENTITY_LIST_TOOLS = [
+    'insights-list',
+    'dashboards-get-all',
+    'cohorts-list',
+    'feature-flag-get-all',
+    'experiment-list',
+]
+
 // Tools deleted from the MCP server. When the model attempts to call one,
 // surface a targeted redirect to the replacement instead of dumping the full
 // tool catalog. Keep the redirect text editorial — schemas don't carry
@@ -554,32 +581,27 @@ function isRecordableToolName(name: string, isKnownToolName: (name: string) => b
 // successor through `superseded_by` and is answered by `flagGatedToolMessage`
 // instead of by an entry here.
 const DEPRECATED_TOOL_REDIRECTS: Record<string, (allTools: Tool<ZodObjectAny>[]) => string> = {
-    // Removed in favor of SQL-based schema discovery via `system.information_schema.*`.
+    'query-run': (allTools) => typedQueryRedirect('query-run', allTools),
+    // These lost their backend endpoints. Without an entry, the unknown-tool reply tells the
+    // agent to search for the capability, and skills that still name these tools loop on it.
+    'execute-sql': (allTools) => typedQueryRedirect('execute-sql', allTools),
+    'query-generate-hogql-from-question': (allTools) =>
+        typedQueryRedirect('query-generate-hogql-from-question', allTools),
+    'read-data-schema': () => `Tool "read-data-schema" was removed. ${NO_TAXONOMY_TOOL}`,
+    'event-definitions-list': () => `Tool "event-definitions-list" was removed. ${NO_TAXONOMY_TOOL}`,
+    'properties-list': () => `Tool "properties-list" was removed. ${NO_TAXONOMY_TOOL}`,
+    'property-definitions': () => `Tool "property-definitions" was removed. ${NO_TAXONOMY_TOOL}`,
     'read-data-warehouse-schema': () =>
-        'Tool "read-data-warehouse-schema" was removed in favor of SQL-based schema discovery. Use "execute-sql" against `system.information_schema.*` (`tables`, `columns`, `relationships`, `data_types`) — it scales to large catalogs and supports filtering/search (e.g. `WHERE description ILIKE \'%...%\'`). Consult the `querying-posthog-data` skill (a built-in local skill, when installed) for patterns.',
+        'Tool "read-data-warehouse-schema" was removed. Run "search warehouse" to find the data warehouse tools this connection has.',
     'entity-search': (allTools) => {
-        const base =
-            'Tool "entity-search" was removed. Use "execute-sql" to search PostHog data via HogQL. Consult the `querying-posthog-data` skill (a built-in local skill, when installed) for system-table patterns (system.insights, system.dashboards, system.cohorts, ...).'
-        const hasCatalog = allTools.some((t) => t.name === 'data-catalog-metric-run')
-        return hasCatalog
-            ? `${base} For governed business metrics, search \`system.information_schema.metrics\` instead of \`system.insights\`.`
-            : base
+        const available = new Set(allTools.map((t) => t.name))
+        const listTools = ENTITY_LIST_TOOLS.filter((name) => available.has(name))
+        return listTools.length > 0
+            ? `Tool "entity-search" was removed. Use the list tool for the entity type: ${listTools.map((name) => `"${name}"`).join(', ')}.`
+            : 'Tool "entity-search" was removed. Run "search <entity type>" to find the list tool for that entity type.'
     },
-    'event-definitions-list': () =>
-        'Tool "event-definitions-list" was removed. Use "read-data-schema" with input { "query": { "kind": "events" } } to list event definitions.',
-    'properties-list': () =>
-        'Tool "properties-list" was removed. Use "read-data-schema": { "query": { "kind": "event_properties", "event_name": "..." } } for event properties, or { "kind": "entity_properties", "entity": "person" | "session" | "group/<n>" } for entity properties.',
-    'property-definitions': () =>
-        'Tool "property-definitions" was removed. Use "read-data-schema" with the appropriate kind: "event_properties", "entity_properties", or "action_properties" — see its info schema for required fields.',
-    'query-generate-hogql-from-question': () =>
-        'Tool "query-generate-hogql-from-question" was removed. Write the HogQL yourself and run it via "execute-sql". Consult the `querying-posthog-data` skill (a built-in local skill, when installed) for HogQL patterns.',
-    'query-run': (allTools) => {
-        const queryTools = allTools
-            .filter((t) => t.name.startsWith('query-'))
-            .map((t) => `- ${t.name}: ${t.description.split('\n')[0]}`)
-            .join('\n')
-        return `Tool "query-run" was removed. Pick the typed query tool that matches your intent, or use "execute-sql" for arbitrary HogQL. Available query-* tools:\n${queryTools}`
-    },
+    'docs-search': () =>
+        'Tool "docs-search" was removed. Read the PostHog docs at https://posthog.com/docs and the changelog at https://posthog.com/changelog.md instead.',
     // Folded into "inbox-reports-list", which already served the same endpoint.
     // Spell out the filter renames: the replacement declares no required
     // parameters, so an old array filter sent to it is silently dropped and the
@@ -951,7 +973,7 @@ function topLevelFieldNames(schema: ZodObjectAny): ReadonlySet<string> {
 
 /**
  * The field names the parameter at `path` declares directly, including the fields of
- * each variant when it is a union (`read-data-schema` keys its shape off a `kind`
+ * each variant when it is a union (a schema that keys its shape off a `kind`
  * discriminator). Composition keywords are walked one level at each step; nothing
  * deeper is collected, because only the caller's own keys are matched against this set.
  */

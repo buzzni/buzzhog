@@ -7,7 +7,7 @@ import logging
 import datetime as dt
 import resource
 import threading
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from functools import wraps
@@ -63,7 +63,6 @@ from posthog.clickhouse.custom_metrics import (
     CUSTOM_METRICS_VIEW,
     TRUNCATE_CUSTOM_METRICS_COUNTER_EVENTS_TABLE,
 )
-from posthog.clickhouse.materialized_columns import MaterializedColumn
 from posthog.clickhouse.plugin_log_entries import TRUNCATE_PLUGIN_LOG_ENTRIES_TABLE_SQL
 from posthog.clickhouse.preaggregation.sql import (
     DISTRIBUTED_PREAGGREGATION_RESULTS_TABLE_SQL,
@@ -1180,72 +1179,6 @@ def stripResponse(response, remove=("action", "label", "persons_urls", "filter")
     return response
 
 
-def cleanup_materialized_columns():
-    try:
-        from ee.clickhouse.materialized_columns.columns import (
-            MATERIALIZATION_VALID_TABLES,
-            _clear_materialized_columns_cache,
-            get_bloom_filter_index_name,
-            get_bloom_filter_lower_index_name,
-            get_materialized_columns,
-            get_minmax_index_name,
-            get_ngram_lower_index_name,
-        )
-        from ee.clickhouse.materialized_columns.test.test_columns import EVENTS_TABLE_DEFAULT_MATERIALIZED_COLUMNS
-    except:
-        # EE not available? Skip
-        return
-
-    # A prior test may have mutated schema with raw sync_execute, bypassing materialize()/
-    # drop_column() (which self-invalidate) — refresh before deciding what to drop below.
-    for _table in MATERIALIZATION_VALID_TABLES:
-        _clear_materialized_columns_cache(_table)
-
-    def optionally_drop(table, filter=None):
-        columns_to_drop = [
-            column for column in get_materialized_columns(table).values() if filter is None or filter(column.name)
-        ]
-
-        if not columns_to_drop:
-            return
-
-        data_table = "sharded_events" if table == "events" else table
-
-        # Drop skip indexes first - ClickHouse won't drop a column with a skip index referencing it
-        for column in columns_to_drop:
-            indexes_to_drop = []
-            if column.has_minmax_index:
-                indexes_to_drop.append(get_minmax_index_name(column.name))
-            if column.has_bloom_filter_index:
-                indexes_to_drop.append(get_bloom_filter_index_name(column.name))
-            if column.has_ngram_lower_index:
-                indexes_to_drop.append(get_ngram_lower_index_name(column.name))
-            if column.has_bloom_filter_lower_index:
-                indexes_to_drop.append(get_bloom_filter_lower_index_name(column.name))
-            for index_name in indexes_to_drop:
-                sync_execute(f"ALTER TABLE {data_table} DROP INDEX IF EXISTS {index_name} SETTINGS mutations_sync = 2")
-
-        # Now drop the columns
-        drops = ",".join([f"DROP COLUMN {column.name}" for column in columns_to_drop])
-        sync_execute(f"ALTER TABLE {table} {drops} SETTINGS mutations_sync = 2")
-        if table == "events":
-            sync_execute(f"ALTER TABLE sharded_events {drops} SETTINGS mutations_sync = 2")
-
-    default_column_names = {
-        get_materialized_columns("events")[(prop, "properties")].name
-        for prop in EVENTS_TABLE_DEFAULT_MATERIALIZED_COLUMNS
-    }
-
-    optionally_drop("events", lambda name: name not in default_column_names)
-
-    optionally_drop("person")
-    optionally_drop("groups")
-    # Raw DROP COLUMN above bypasses drop_column(), which normally self-invalidates the cache.
-    # Clear it explicitly so subsequent lookups in the same process reflect the new schema.
-    for _table in MATERIALIZATION_VALID_TABLES:
-        _clear_materialized_columns_cache(_table)
-
-
 def get_index_from_explain(
     query: str, index_name: str, *, placeholder_values: dict[str, str] | None = None
 ) -> dict | None:
@@ -1341,122 +1274,6 @@ def get_inner_person_subquery_clickhouse_sql(clickhouse_sql: str) -> str:
             if depth == 0:
                 return clickhouse_sql[match.start() + 1 : i]
     raise AssertionError(f"Unbalanced parentheses extracting the person subquery:\n{clickhouse_sql}")
-
-
-@contextmanager
-def materialized(
-    table,
-    property,
-    create_minmax_index: bool = False,
-    is_nullable: bool = False,
-    column_type: str | None = None,
-    create_bloom_filter_index: bool = False,
-    create_ngram_lower_index: bool = False,
-    create_bloom_filter_lower_index: bool = False,
-) -> Iterator[MaterializedColumn]:
-    """Materialize a property within the managed block, removing it on exit."""
-    try:
-        from ee.clickhouse.materialized_columns.columns import (
-            get_bloom_filter_index_name,
-            get_bloom_filter_lower_index_name,
-            get_minmax_index_name,
-            get_ngram_lower_index_name,
-            materialize,
-        )
-    except ModuleNotFoundError as e:
-        pytest.xfail(str(e))
-
-    column = None
-    try:
-        column = materialize(
-            table,
-            property,
-            create_minmax_index=create_minmax_index,
-            is_nullable=is_nullable,
-            column_type=column_type,
-            create_bloom_filter_index=create_bloom_filter_index,
-            create_ngram_lower_index=create_ngram_lower_index,
-            create_bloom_filter_lower_index=create_bloom_filter_lower_index,
-        )
-        yield column
-    finally:
-        if column is not None:
-            event_materialization_disabled = table == "events" and settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            if not event_materialization_disabled:
-                data_table = "sharded_events" if table == "events" else table
-                indexes_to_drop = []
-                if create_minmax_index:
-                    indexes_to_drop.append(get_minmax_index_name(column.name))
-                if create_bloom_filter_index:
-                    indexes_to_drop.append(get_bloom_filter_index_name(column.name))
-                if create_ngram_lower_index:
-                    indexes_to_drop.append(get_ngram_lower_index_name(column.name))
-                if create_bloom_filter_lower_index:
-                    indexes_to_drop.append(get_bloom_filter_lower_index_name(column.name))
-                for index_name in indexes_to_drop:
-                    sync_execute(
-                        f"ALTER TABLE {data_table} DROP INDEX IF EXISTS {index_name} SETTINGS mutations_sync = 2"
-                    )
-        cleanup_materialized_columns()
-
-
-def also_test_with_materialized_columns(
-    event_properties=None,
-    person_properties=None,
-    verify_no_jsonextract=True,
-    is_nullable: Optional[list] = None,
-):
-    """
-    Runs the test twice on clickhouse - once verifying it works normally, once with materialized columns.
-
-    Requires a unittest class with ClickhouseTestMixin mixed in
-    """
-
-    if person_properties is None:
-        person_properties = []
-    if event_properties is None:
-        event_properties = []
-    try:
-        from ee.clickhouse.materialized_columns.analyze import materialize
-    except:
-        # EE not available? Just run the main test
-        return lambda fn: fn
-
-    def decorator(fn):
-        @pytest.mark.ee
-        def fn_with_materialized(self, *args, **kwargs):
-            # Don't run these tests under non-clickhouse classes even if decorated in base classes
-            if not getattr(self, "RUN_MATERIALIZED_COLUMN_TESTS", False):
-                return
-
-            for prop in event_properties:
-                materialize("events", prop, is_nullable=is_nullable is not None and prop in is_nullable)
-            for prop in person_properties:
-                materialize("person", prop, is_nullable=is_nullable is not None and prop in is_nullable)
-                materialize(
-                    "events",
-                    prop,
-                    table_column="person_properties",
-                    is_nullable=is_nullable is not None and prop in is_nullable,
-                )
-
-            try:
-                with self.capture_select_queries() as sqls:
-                    fn(self, *args, **kwargs)
-            finally:
-                cleanup_materialized_columns()
-
-            if verify_no_jsonextract:
-                for sql in sqls:
-                    self.assertNotIn("JSONExtract", sql)
-
-        # To add the test, we inspect the frame this function was called in and add the test there
-        frame_locals: Any = _get_calling_frame_locals()
-        frame_locals[f"{fn.__name__}_materialized"] = fn_with_materialized
-
-        return fn
-
-    return decorator
 
 
 # sqlparse.format(reindent=True) is quadratic-ish on large statements (~70ms on a big HogQL
@@ -1881,7 +1698,6 @@ def _create_action(**kwargs):
 
 
 class ClickhouseTestMixin(QueryMatchingTest):
-    RUN_MATERIALIZED_COLUMN_TESTS = True
     # overrides the basetest in posthog/test/base.py
     # this way the team id will increment so we don't have to destroy all clickhouse tables on each test
     CLASS_DATA_LEVEL_SETUP = False
@@ -2068,18 +1884,6 @@ if settings.TEST:
 
 
 def reset_clickhouse_database() -> None:
-    # Dropping tables below removes their materialized columns behind the metadata cache's back,
-    # so drop the cached entries with them (mutations via materialize()/drop_column() self-invalidate).
-    try:
-        from ee.clickhouse.materialized_columns.columns import (  # noqa: PLC0415 — keeps the ee dep optional, like the other ee imports in this module
-            MATERIALIZATION_VALID_TABLES,
-            _clear_materialized_columns_cache,
-        )
-
-        for _mat_table in MATERIALIZATION_VALID_TABLES:
-            _clear_materialized_columns_cache(_mat_table)
-    except ModuleNotFoundError:
-        pass
     run_clickhouse_statement_in_parallel(
         [
             DROP_RAW_SESSION_MATERIALIZED_VIEW_SQL(),

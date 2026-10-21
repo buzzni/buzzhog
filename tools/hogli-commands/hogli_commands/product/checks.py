@@ -822,7 +822,7 @@ class IsolationChainCheck(ProductCheck):
         if facade_violations:
             detail = format_facade_imports(facade_violations)
             remedies = (
-                "move it to a wiring location (backend/hogql_queries/, backend/max_tools.py, backend/temporal/, "
+                "move it to a wiring location (backend/hogql_queries/, backend/temporal/, backend/tasks/ or "
                 "backend/tasks.py) if it implements a core-owned base; move it to facade/contracts.py "
                 "if it's a data/error type; or drop the turbo.json narrowing to watch everything"
             )
@@ -935,7 +935,7 @@ class IsolationChainCheck(ProductCheck):
             )
 
         # Watching the wiring locations: a location the product has must stay in the contract-check
-        # inputs, or a change to a query runner / Max tool / Temporal defn / Celery task the facade
+        # inputs, or a change to a query runner / Temporal defn / Celery task the facade
         # wires would skip the Django suite. Presence-based, except for the computed locations,
         # which are listed only while the crossings baseline records an outside test driving them.
         if has_narrowed and status.unwatched_garages:
@@ -1316,7 +1316,7 @@ class OrphanedTestFilesCheck(ProductCheck):
             pytest_paths = []
 
         def _covered_by(rel: str, path: str) -> bool:
-            # pytest path can be a file ("backend/test_max_tools.py") or a
+            # pytest path can be a file ("backend/test_tasks.py") or a
             # directory ("backend/" or "scripts/test"). Treat as a prefix
             # match against the trailing slash to avoid "backend/" eating
             # "backend_tools/foo.py".

@@ -36,6 +36,7 @@ from posthog.api.routing import TeamAndOrgViewSetMixin
 from posthog.api.shared import UserBasicSerializer
 from posthog.api.streaming import sse_streaming_response
 from posthog.event_usage import report_user_action
+from posthog.llm.untrusted import as_untrusted_data
 from posthog.models.team import Team
 from posthog.models.user import User
 from posthog.permissions import is_scout_sandbox_request
@@ -102,8 +103,6 @@ from products.replay_vision.backend.temporal.scanners.monitor import MonitorVerd
 from products.replay_vision.backend.temporal.types import ScannerResult, ScannerSnapshot
 from products.signals.backend.facade.api import get_reports_for_signal_source_slice
 from products.tasks.backend.facade import api as tasks_facade
-
-from ee.hogai.utils.untrusted import as_untrusted_data
 
 logger = structlog.get_logger(__name__)
 

@@ -59,9 +59,9 @@ tools:
             `config_scope` to `saml`, `oidc`, `scim`, or `xaa`. Use `domain_scope: selected` with
             `organization_domain_ids` to link specific organization domains, or `domain_scope: all` to cover all
             verified organization domains. SAML uses `saml_entity_id`, `saml_acs_url`, and `saml_x509_cert`; OIDC uses
-            `oidc_issuer_url`, `oidc_client_id`, and `oidc_client_secret`; SCIM can be enabled with `scim_enabled`; XAA
-            uses `id_jag_issuer_url` with optional JWKS and allowed-client settings. The create call requires explicit
-            user confirmation before execution.
+            `oidc_issuer_url`, `oidc_client_id`, and `oidc_client_secret`; SCIM provisioning is not available, so
+            `scim_enabled` is ignored; XAA uses `id_jag_issuer_url` with optional JWKS and allowed-client settings. The
+            create call requires explicit user confirmation before execution.
         confirmed_action:
             message: >
                 Create an identity provider configuration using the supplied protocol, settings, and domain coverage.
@@ -98,7 +98,7 @@ tools:
         title: List identity provider configurations
         description: >
             List identity provider configurations in the active organization. Configurations can use SAML, OIDC, SCIM,
-            or XAA (ID-JAG). Results include the protocol settings, SCIM URL, configuration status, and linked domain
+            or XAA (ID-JAG). Results include the protocol settings, configuration status, and linked domain
             IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.
     identity-provider-configs-partial-update:
         operation: identity_provider_configs_partial_update
@@ -107,15 +107,16 @@ tools:
             - organization:write
         annotations:
             readOnly: false
-            destructive: false
+            destructive: true
             idempotent: true
         title: Update an identity provider configuration
         description: >
             Update selected fields on an identity provider configuration by ID. Use this to change SAML, OIDC, SCIM, or
             XAA (ID-JAG) settings, link selected domains with `organization_domain_ids`, or set `domain_scope: all` to
             cover all verified organization domains. For selected domains, `organization_domain_ids` replaces the
-            current links. Omit `oidc_client_secret` to keep the saved secret. The update call requires explicit user
-            confirmation.
+            current links. Omit `oidc_client_secret` to keep the saved secret. SCIM provisioning is not available, so
+            `scim_enabled: true` is ignored and `scim_enabled: false` deletes the stored SCIM bearer token. The update
+            call requires explicit user confirmation.
         confirmed_action:
             message: >
                 Update identity provider configuration {id}. Review the requested settings and domain coverage, then
@@ -132,27 +133,8 @@ tools:
             idempotent: true
         title: Get an identity provider configuration
         description: >
-            Get an identity provider configuration by ID. Returns its protocol settings, SCIM URL, configuration status,
+            Get an identity provider configuration by ID. Returns its protocol settings, configuration status,
             and linked domain IDs. A saved OIDC client secret and an existing SCIM bearer token are never returned.
-    identity-provider-configs-scim-token-create:
-        operation: identity_provider_configs_scim_token_create
-        enabled: true
-        scopes:
-            - organization:write
-        annotations:
-            readOnly: false
-            destructive: true
-            idempotent: false
-        title: Regenerate an identity provider SCIM token
-        description: >
-            Regenerate the SCIM bearer token for an identity provider configuration. The new token is returned once;
-            existing SCIM clients stop working until configured with the new token. This call requires explicit user
-            confirmation.
-        confirmed_action:
-            message: >
-                Regenerate the SCIM bearer token for identity provider configuration {id}. Existing SCIM clients will
-                stop working until updated. Reply 'confirm' to proceed.
-            action_label: regenerate SCIM bearer token
     media-image-upload-complete:
         operation: uploaded_media_complete_upload_create
         enabled: true

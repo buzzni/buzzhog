@@ -82,8 +82,6 @@ from posthog.models.person.bulk_delete import (
     resolve_persons_for_deletion,
 )
 
-from ee.clickhouse.materialized_columns.columns import MaterializedColumnDetails
-
 OWNER_TAG = {"owner": JobOwners.TEAM_CLICKHOUSE.value}
 
 T = TypeVar("T")
@@ -324,8 +322,7 @@ def _get_affected_mat_columns(
     ``column_materializer::<table_column>::<prop>`` convention.  Pass
     ``table_column="person_properties"`` to discover columns materialised from
     ``events.person_properties``.  Comments live on the distributed ``events``
-    table while the DEFAULT expression lives on ``sharded_events`` (see
-    ``materialize()`` in ee/clickhouse/materialized_columns), so we cannot
+    table while the DEFAULT expression lives on ``sharded_events``, so we cannot
     filter by ``default_kind`` on the same row that carries the comment.
     The comment itself is a sufficient identifier — it is PostHog-specific and the
     ``elements_chain::*`` family is excluded explicitly.
@@ -349,10 +346,21 @@ def _get_affected_mat_columns(
     target_props = set(properties)
     result: list[tuple[str, bool]] = []
     for col_name, comment, is_nullable in rows:
-        details = MaterializedColumnDetails.from_column_comment(comment)
-        if details.table_column == table_column and details.property_name in target_props:
+        column_table_column, property_name = _parse_materializer_comment(comment)
+        if column_table_column == table_column and property_name in target_props:
             result.append((col_name, bool(is_nullable)))
     return result
+
+
+def _parse_materializer_comment(comment: str) -> tuple[str, str]:
+    """Split ``column_materializer::[<table_column>::]<property>`` into table column and property.
+
+    A comment without a table column belongs to the ``properties`` JSON column.
+    """
+    parts = comment.split("::")
+    if len(parts) == 2:
+        return "properties", parts[1]
+    return parts[1], "::".join(parts[2:])
 
 
 # ---------------------------------------------------------------------------

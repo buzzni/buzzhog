@@ -18,8 +18,7 @@ import type { RequestProperties } from '@/lib/request-properties'
 import { resolveScopePreset } from '@/lib/scope-preset'
 import { isPrivateScoutTrialTool } from '@/lib/tool-privacy'
 import type { SkillInvocation } from '@/tools/exec-learn'
-import { EXECUTE_SQL_TOOL_NAME } from '@/tools/posthogAiTools/executeSql'
-import { MAX_CAPTURED_DESCRIPTION_LENGTH, getToolCategory, getToolDescription } from '@/tools/toolDefinitions'
+import { getToolCategory, getToolDescription } from '@/tools/toolDefinitions'
 import { APP_DATA_META_KEY } from '@/ui-apps/types'
 
 import { buildMCPSessionAnalyticsProperties, getEffectiveMCPClientIdentity } from './mcp-context'
@@ -160,8 +159,7 @@ export async function trackToolCall(
     isError: boolean,
     state: ResolvedState,
     extraProperties?: Record<string, unknown>,
-    analyticsMeta?: ToolCallAnalyticsMeta,
-    servedDescription?: string
+    analyticsMeta?: ToolCallAnalyticsMeta
 ): Promise<void> {
     // Operator tokens are ordinary tokens, but comparison details must stay out of scout-readable analytics.
     if (isPrivateScoutTrialTool(toolName) || isPrivateScoutTrialTool(extraProperties?.$mcp_exec_target_tool)) {
@@ -187,14 +185,9 @@ export async function trackToolCall(
         }
         // The description the agent saw when it picked this tool, clipped. Powers the
         // tool-detail Descriptions table and description-vs-intent fit in MCP
-        // analytics. Callers pass servedDescription when the advertised text differs
-        // from the catalog (execute-sql's is formatted per request); otherwise the
-        // catalog text is what was served. Inner exec calls reach here with the
-        // resolved inner tool name, so the fallback lands on the inner tool's own
-        // description.
-        const toolDescription = servedDescription
-            ? servedDescription.slice(0, MAX_CAPTURED_DESCRIPTION_LENGTH)
-            : getToolDescription(toolName)
+        // analytics. Inner exec calls reach here with the resolved inner tool name, so
+        // this lands on the inner tool's own description.
+        const toolDescription = getToolDescription(toolName)
 
         // Emits `$mcp_tool_call` (+ `$mcp_is_error`). The SDK maps `toolName` →
         // `$mcp_tool_name`, `durationMs` → `$mcp_duration_ms`, `isError` →
@@ -236,60 +229,6 @@ export async function trackToolCall(
     }
 }
 
-export interface ExecuteSqlGenerationMeta {
-    durationMs: number
-    isError: boolean
-    errorMessage?: string
-}
-
-/**
- * Manually captures an `$ai_generation` per `execute-sql` call — the client's LLM
- * authored the query; this server is the observer that sees intent and output
- * together. Lands in LLM analytics, where online evaluations (LLM judge / Hog) can
- * score it for anti-patterns on live traffic. `$ai_trace_id` is the MCP session
- * uuid, so a session's queries group into one trace.
- */
-export async function trackExecuteSqlGeneration(
-    toolName: string,
-    args: unknown,
-    state: ResolvedState,
-    meta: ExecuteSqlGenerationMeta,
-    analyticsMeta?: ToolCallAnalyticsMeta
-): Promise<void> {
-    if (toolName !== EXECUTE_SQL_TOOL_NAME) {
-        return
-    }
-    const query = (args as { query?: unknown } | null | undefined)?.query
-    if (typeof query !== 'string' || query.length === 0) {
-        return
-    }
-    try {
-        const analyticsContext = await state.reqCtx.safelyGetAnalyticsContext(state.context)
-        const sessionUuid = await state.reqCtx.getEffectiveSessionUuid(state.requestContext)
-        const { properties, groups } = buildBaseProperties(state, analyticsContext)
-
-        getPostHogClient().capture({
-            distinctId: state.distinctId,
-            event: '$ai_generation',
-            groups,
-            properties: {
-                ...properties,
-                ...(sessionUuid ? { $session_id: sessionUuid } : {}),
-                $ai_trace_id: sessionUuid ?? randomUUID(),
-                $ai_span_name: EXECUTE_SQL_TOOL_NAME,
-                $ai_input: [{ role: 'user', content: analyticsMeta?.intent ?? '' }],
-                $ai_output_choices: [{ role: 'assistant', content: query }],
-                $ai_latency: meta.durationMs / 1000,
-                $ai_is_error: meta.isError,
-                ...(meta.errorMessage ? { $ai_error: meta.errorMessage } : {}),
-            },
-        })
-    } catch {
-        // never break the request for analytics
-    }
-}
-
-const METADATA_QUERY_MARKER = 'information_schema'
 const MAX_SPAN_STATE_LENGTH = 30_000
 
 export interface ToolSpanMeta {
@@ -300,21 +239,6 @@ export interface ToolSpanMeta {
     output?: unknown
 }
 
-// Comments and single-quoted string literals can carry the metadata marker
-// without the query actually reading a metadata relation, so they're stripped
-// before the check — otherwise a data query like `... WHERE 'information_schema'
-// != ''` would be mis-tagged as metadata and its result captured.
-function stripSqlCommentsAndLiterals(query: string): string {
-    return query
-        .replace(/--[^\n]*/g, ' ')
-        .replace(/\/\*[\s\S]*?\*\//g, ' ')
-        .replace(/'(?:''|[^'])*'/g, ' ')
-}
-
-function isMetadataQuery(query: string): boolean {
-    return stripSqlCommentsAndLiterals(query).toLowerCase().includes(METADATA_QUERY_MARKER)
-}
-
 // Its result is a live presigned S3 POST — a policy, signature and credential fields
 // that grant write access to one object-storage key until they expire. Key-based
 // redaction can't reach them: they're byte-identical output fields (`upload_url`,
@@ -323,7 +247,7 @@ function isMetadataQuery(query: string): boolean {
 // way. `$mcp_tool_call` still records that the call happened.
 const PRESIGNED_UPLOAD_TOOL_NAME = 'media-image-upload-start'
 
-function shouldCaptureToolSpan(toolName: string, input: unknown): boolean {
+function shouldCaptureToolSpan(toolName: string): boolean {
     if (isPrivateScoutTrialTool(toolName)) {
         return false
     }
@@ -339,16 +263,7 @@ function shouldCaptureToolSpan(toolName: string, input: unknown): boolean {
     if (toolName === PRESIGNED_UPLOAD_TOOL_NAME) {
         return false
     }
-    // execute-sql can't be captured wholesale: its payload is the query result,
-    // which is the bulk of MCP response volume. Metadata queries are the
-    // exception, because their results are small and describe what the agent
-    // learned about the workspace before writing its next query, which is the
-    // context an evaluation needs to judge that query.
-    if (toolName !== EXECUTE_SQL_TOOL_NAME) {
-        return true
-    }
-    const query = (input as { query?: unknown } | null | undefined)?.query
-    return typeof query === 'string' && isMetadataQuery(query)
+    return true
 }
 
 const REDACTED_VALUE = '[redacted]'
@@ -432,17 +347,15 @@ function omitAppData(output: unknown): unknown {
 }
 
 /**
- * Captures an `$ai_span` for a tool call, joining the same MCP-session trace as
- * the execute-sql `$ai_generation` events. Trace-target online evaluations then
- * see a call's args AND result, neither of which `$mcp_tool_call` carries.
+ * Captures an `$ai_span` for a tool call, grouped by MCP session trace. Trace-target
+ * online evaluations then see a call's args AND result, neither of which
+ * `$mcp_tool_call` carries.
  *
- * Every tool is captured by default. `execute-sql` is the one exception: its
- * payload is the query result and it serves the bulk of MCP volume, so only its
- * metadata queries are captured (see {@link shouldCaptureToolSpan}).
+ * Every tool is captured by default; {@link shouldCaptureToolSpan} lists the exceptions.
  */
 export async function trackToolSpan(toolName: string, state: ResolvedState, meta: ToolSpanMeta): Promise<void> {
     try {
-        if (!shouldCaptureToolSpan(toolName, meta.input)) {
+        if (!shouldCaptureToolSpan(toolName)) {
             return
         }
         const analyticsContext = await state.reqCtx.safelyGetAnalyticsContext(state.context)

@@ -75,7 +75,6 @@ _LAZY = {
     "schedule_managed_warehouse_tables_reconcile": "tasks.tasks",
     "schedule_managed_warehouse_direct_source_ensure": "tasks.tasks",
     "schedule_soft_delete_managed_warehouse_sources": "tasks.tasks",
-    "HogQLQueryFixerTool": "max_tools",
     "hide_direct_mysql_table": "direct_mysql",
     "upsert_direct_mysql_table": "direct_mysql",
     "DIRECT_MOTHERDUCK_URL_PATTERN": "direct_motherduck",

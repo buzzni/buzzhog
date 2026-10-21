@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("posthog", "1095_create_group_clickhouse_team"),
         ("event_definitions", "0002_schemapropertygroupproperty_is_optional_in_types"),
-        ("ee", "0041_migrate_dashboards_models"),
+        ("access_control", "0000_rbac_models"),
     ]
 
     operations = [
@@ -68,7 +68,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="property_access_controls",
                         related_query_name="property_access_controls",
-                        to="ee.role",
+                        to="access_control.role",
                     ),
                 ),
                 (

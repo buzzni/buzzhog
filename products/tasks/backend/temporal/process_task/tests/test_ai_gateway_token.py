@@ -1174,26 +1174,17 @@ class TestSlackAppMint:
         assert _task_has_stamped_slack_run(other, "slack", unstamped) is False
 
     @pytest.mark.django_db
-    def test_quota_check_reads_the_team_token_and_bucket(self):
-        from ee.billing.quota_limiting import QuotaResource
-
+    def test_active_org_has_no_credit_refusal(self):
         organization = Organization.objects.create(name="Quota Org")
         team = Team.objects.create(organization=organization, name="Quota Team")
-        with patch("ee.billing.quota_limiting.is_team_over_credit_budget", return_value=True) as quota:
-            assert _team_credit_refusal(team.id, "ai_credits") == "ai_credits_exhausted"
-            assert _team_credit_refusal(team.id + 10_000, "ai_credits") is None
-        quota.assert_called_once_with(team.api_token, QuotaResource.AI_CREDITS)
-        with patch("ee.billing.quota_limiting.is_team_over_credit_budget", return_value=False) as quota:
-            assert _team_credit_refusal(team.id, "posthog_code_credits") is None
-        quota.assert_called_once_with(team.api_token, QuotaResource.POSTHOG_CODE_CREDITS)
+        assert _team_credit_refusal(team.id, "ai_credits") is None
+        assert _team_credit_refusal(team.id + 10_000, "ai_credits") is None
 
     @pytest.mark.django_db
-    def test_deactivated_org_refuses_before_the_bucket_is_read(self):
+    def test_deactivated_org_refuses(self):
         organization = Organization.objects.create(name="Gone Org", is_active=False)
         team = Team.objects.create(organization=organization, name="Gone Team")
-        with patch("ee.billing.quota_limiting.is_team_over_credit_budget") as quota:
-            assert _team_credit_refusal(team.id, "ai_credits") == "org_deactivated"
-        quota.assert_not_called()
+        assert _team_credit_refusal(team.id, "ai_credits") == "org_deactivated"
 
     def test_mint_carries_the_first_party_pin(self, mint_settings):
         with patch("products.tasks.backend.temporal.process_task.ai_gateway_token.requests.post") as post:
@@ -1229,18 +1220,12 @@ class TestMintRefusalScope:
         assert AI_CREDITS_BILLED_PRODUCTS == {"posthog_ai", "slack_app", "workflows"}
         assert AI_CREDITS_BILLED_PRODUCTS <= MINTABLE_PRODUCTS
 
-    def test_product_credit_buckets_are_quota_resources(self):
-        from ee.billing.quota_limiting import QuotaResource
-
+    def test_product_credit_buckets(self):
         assert PRODUCT_CREDIT_BUCKET == {
             "posthog_ai": "ai_credits",
             "posthog_code": "posthog_code_credits",
             "slack_app": "ai_credits",
             "workflows": "ai_credits",
-        }
-        assert set(PRODUCT_CREDIT_BUCKET.values()) == {
-            QuotaResource.AI_CREDITS.value,
-            QuotaResource.POSTHOG_CODE_CREDITS.value,
         }
 
     def test_posthog_code_refuses_on_its_own_bucket(self):

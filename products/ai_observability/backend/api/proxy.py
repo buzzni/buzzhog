@@ -26,7 +26,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from posthog.api.monitoring import monitor
-from posthog.api.streaming import sse_streaming_response
+from posthog.api.streaming import sse_streaming_response, sync_stream_to_async
 from posthog.auth import SessionAuthentication
 from posthog.event_usage import groups, report_user_action
 from posthog.rate_limit import (
@@ -70,8 +70,6 @@ from products.ai_observability.backend.models.provider_keys import (
     LLMProviderKey,
     llm_completion_provider_choices,
 )
-
-from ee.hogai.utils.asgi import SyncIterableToAsync
 
 logger = structlog.get_logger(__name__)
 
@@ -278,7 +276,7 @@ class LLMProxyViewSet(viewsets.ViewSet):
 
     def _create_streaming_response(self, stream: Generator[bytes]) -> HttpResponseBase:
         """Creates a properly configured SSE streaming response"""
-        astream = SyncIterableToAsync(stream) if SERVER_GATEWAY_INTERFACE == "ASGI" else stream
+        astream = sync_stream_to_async(stream) if SERVER_GATEWAY_INTERFACE == "ASGI" else stream
         return sse_streaming_response(astream, endpoint="ai_observability_proxy")
 
     def _handle_completion_request(self, request: Request) -> HttpResponseBase | Response:

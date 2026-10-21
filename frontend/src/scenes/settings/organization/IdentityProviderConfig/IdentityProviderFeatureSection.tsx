@@ -10,7 +10,6 @@ import { urls } from 'scenes/urls'
 
 import { ConfigScopeEnumApi } from '~/generated/core/api.schemas'
 
-import { ScimLogsModal } from '../VerifiedDomains/ScimLogsModal'
 import { verifiedDomainsLogic } from '../VerifiedDomains/verifiedDomainsLogic'
 import { identityProviderConfigsLogic } from './identityProviderConfigsLogic'
 import {
@@ -30,9 +29,9 @@ export function IdentityProviderFeatureSection({ configScope }: { configScope: C
     const { identityProviderConfigs, identityProviderConfigsLoading, identityProviderConfigsLoadFailed } =
         useValues(identityProviderConfigsLogic)
     const { loadIdentityProviderConfigs } = useActions(identityProviderConfigsLogic)
-    const { scimLogsLoading, verifiedDomains } = useValues(verifiedDomainsLogic)
-    const { setScimConfigLogsModalId } = useActions(verifiedDomainsLogic)
+    const { verifiedDomains } = useValues(verifiedDomainsLogic)
     const feature = IDENTITY_PROVIDER_FEATURES[configScope]
+    const isScim = configScope === ConfigScopeEnumApi.Scim
     const configs = identityProviderConfigs
         ? getIdentityProviderConfigsForScope(identityProviderConfigs, configScope)
         : []
@@ -100,24 +99,13 @@ export function IdentityProviderFeatureSection({ configScope }: { configScope: C
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {configScope === ConfigScopeEnumApi.Scim && (
-                                        <LemonButton
-                                            type="secondary"
-                                            onClick={() => config && setScimConfigLogsModalId(config.id)}
-                                            loading={scimLogsLoading}
-                                            disabledReason={
-                                                restrictionReason ||
-                                                (!config ? 'Configure SCIM to view request logs' : undefined)
-                                            }
-                                            data-attr={`view-scim-logs-${config?.id ?? 'none'}`}
-                                        >
-                                            View SCIM logs
-                                        </LemonButton>
-                                    )}
                                     <LemonButton
                                         type="secondary"
                                         to={urls.identityProviderConfig(configScope, config?.id ?? 'new')}
-                                        disabledReason={restrictionReason}
+                                        disabledReason={
+                                            restrictionReason ||
+                                            (isScim && !config ? 'SCIM provisioning is not available' : undefined)
+                                        }
                                         data-attr={`configure-${configScope}-identity-provider`}
                                     >
                                         Configure
@@ -127,7 +115,7 @@ export function IdentityProviderFeatureSection({ configScope }: { configScope: C
                         )
                     })}
                 </div>
-                {configs.length > 0 && (
+                {configs.length > 0 && !isScim && (
                     <div className="mt-3 flex">
                         <LemonButton
                             type="tertiary"
@@ -139,7 +127,6 @@ export function IdentityProviderFeatureSection({ configScope }: { configScope: C
                         </LemonButton>
                     </div>
                 )}
-                {configScope === ConfigScopeEnumApi.Scim && <ScimLogsModal emptyStateScope="configuration" />}
             </>
         )
     }

@@ -22,15 +22,6 @@ class _EvalSeedContext:
 
 
 class TestErrorTrackingEvalSeeders(ClickhouseTestMixin, APIBaseTest):
-    @classmethod
-    def setUpClass(cls) -> None:
-        from ee.clickhouse.materialized_columns.columns import get_materialized_columns, materialize
-
-        for property_name in ("$exception_types", "$exception_values"):
-            if (property_name, "properties") not in get_materialized_columns("events"):
-                materialize("events", property_name)
-        super().setUpClass()
-
     @time_machine.travel("2026-05-22T12:00:00Z", tick=False)
     def test_error_tracking_seeded_events_survive_person_filters(self) -> None:
         test_users_cohort = get_or_create_internal_test_users_cohort(

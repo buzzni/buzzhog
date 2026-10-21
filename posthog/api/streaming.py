@@ -3,8 +3,9 @@ import random
 import asyncio
 import threading
 from collections import deque
-from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Generator, Iterable, Iterator
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator, Callable, Generator, Iterable, Iterator
 from http import HTTPStatus
+from typing import cast
 
 from django.conf import settings
 from django.db import connections
@@ -373,3 +374,45 @@ def sse_streaming_response(
         # not strand the reservation until GC gets to it.
         reservation.release()
         raise
+
+
+def async_stream_to_sync[T](make_stream: Callable[[], AsyncIterator[T]]) -> Generator[T]:
+    """Serve an async stream from a sync (WSGI) view, one item per event-loop run.
+
+    Take a factory, not the stream itself: the stream must be created inside the
+    loop that drives it.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        stream = make_stream()
+        try:
+            while True:
+                try:
+                    yield loop.run_until_complete(anext(stream))
+                except StopAsyncIteration:
+                    return
+        finally:
+            # The client can disconnect mid-stream; let the stream run its own cleanup.
+            aclose = getattr(stream, "aclose", None)
+            if aclose is not None:
+                loop.run_until_complete(aclose())
+    finally:
+        loop.close()
+
+
+async def sync_stream_to_async[T](stream: Iterable[T]) -> AsyncGenerator[T]:
+    """Serve a blocking sync stream from an async (ASGI) view without blocking the event loop."""
+    iterator = iter(stream)
+    done: list[T] = []
+    try:
+        while True:
+            item = await asyncio.to_thread(next, iterator, done)
+            if item is done:
+                return
+            yield cast(T, item)
+    finally:
+        # On a client disconnect the worker thread can still be inside next(); closing a running
+        # generator raises, so it is left to finish on that thread.
+        close = getattr(iterator, "close", None)
+        if close is not None and not getattr(iterator, "gi_running", False):
+            close()

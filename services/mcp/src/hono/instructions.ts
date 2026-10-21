@@ -4,16 +4,17 @@ import type { Tool as McpTool } from '@modelcontextprotocol/sdk/types.js'
 import { hasScope } from '@/lib/api'
 import { isPostHogCodeConsumer } from '@/lib/client-detection'
 import type { QueryToolInfo } from '@/lib/instructions'
-import { type InstructionsContext, InstructionsFormatter } from '@/lib/instructions-formatter'
+import {
+    BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL,
+    BUSINESS_KNOWLEDGE_SEARCH_TOOL,
+    BUSINESS_KNOWLEDGE_WINDOW_TOOL,
+    type InstructionsContext,
+    InstructionsFormatter,
+} from '@/lib/instructions-formatter'
 import { isChatGptAppConnection } from '@/lib/oauth-constants'
-import { formatPrompt } from '@/lib/utils'
 import { RENDER_UI_RESOURCE_URI } from '@/resources/ui-apps.generated'
 import { ProjectSkillCatalog } from '@/skills/project-skill-catalog'
 import type { SkillCatalog } from '@/skills/skill-catalog'
-import EXECUTE_SQL_PROMPT from '@/templates/execute-sql-prompt.md'
-import CATALOG_TRUST_DISCOVERY from '@/templates/sections/catalog-trust-discovery.md'
-import METRIC_DISCOVERY from '@/templates/sections/metric-discovery.md'
-import SCHEMA_DISCOVERY from '@/templates/sections/schema-discovery.md'
 import { EXEC_TOOL_ANNOTATIONS } from '@/tools/exec'
 import { ExecLearnCatalog } from '@/tools/exec-learn'
 import {
@@ -35,9 +36,6 @@ import { toMcpInputSchema } from './tool-catalog'
  *  (the `revamped-py-notebooks` flag) is live for this client. */
 const NOTEBOOK_ADD_CELL_TOOL = 'notebooks-add-cell'
 const NOTEBOOK_RUN_TOOL = 'notebooks-run'
-const DOCS_SEARCH_TOOL = 'docs-search'
-const BUSINESS_KNOWLEDGE_SEARCH_TOOL = 'business-knowledge-documents-search'
-const BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL = 'business-knowledge-repositories-search'
 
 // Human comment, not AI slop. Version 2.0.0 of the PostHog app for ChatGPT and Codex started
 // requesting `llm_skill:read`, but existing connections never got re-prompted for it, so their
@@ -93,7 +91,6 @@ export class InstructionsBuilder {
             renderUiEnabled: state.renderUiEnabled,
             notebookCellsEnabled: state.allTools.some((tool) => tool.name === NOTEBOOK_ADD_CELL_TOOL),
             notebookRunEnabled: state.allTools.some((tool) => tool.name === NOTEBOOK_RUN_TOOL),
-            docsSearchEnabled: state.allTools.some((tool) => tool.name === DOCS_SEARCH_TOOL),
         }
     }
 
@@ -180,18 +177,20 @@ export class InstructionsBuilder {
 
     buildExecToolDescription(state?: ResolvedState): string {
         const skillsEnabled = state ? this.getExecLearnCapabilities(state).skillsEnabled : false
-        const docsSearchEnabled = state?.allTools.some(({ name }) => name === DOCS_SEARCH_TOOL)
         const businessKnowledgeSearchEnabled = state?.allTools.some(
             ({ name }) => name === BUSINESS_KNOWLEDGE_SEARCH_TOOL
         )
         const businessKnowledgeRepoSearchEnabled = state?.allTools.some(
             ({ name }) => name === BUSINESS_KNOWLEDGE_REPO_SEARCH_TOOL
         )
+        const businessKnowledgeWindowEnabled = state?.allTools.some(
+            ({ name }) => name === BUSINESS_KNOWLEDGE_WINDOW_TOOL
+        )
         return this.formatter.buildExecToolDescription({
             skillsEnabled,
-            docsSearchEnabled,
             businessKnowledgeSearchEnabled,
             businessKnowledgeRepoSearchEnabled,
+            businessKnowledgeWindowEnabled,
         })
     }
 
@@ -201,16 +200,6 @@ export class InstructionsBuilder {
 
     getGuidelines(): string {
         return this.guidelines
-    }
-
-    formatExecuteSqlDescription(): string {
-        // Metric discovery leads the splice so catalog-first routing still precedes
-        // raw schema discovery, without displacing the tool's own intro line.
-        const schemaDiscovery = `${METRIC_DISCOVERY.trim()}\n\n${SCHEMA_DISCOVERY.trim()}\n\n${CATALOG_TRUST_DISCOVERY.trim()}`
-        return formatPrompt(EXECUTE_SQL_PROMPT, {
-            guidelines: this.guidelines.trim(),
-            schema_discovery: schemaDiscovery,
-        })
     }
 
     private getExecLearnCapabilities(state: ResolvedState): { guidesEnabled: boolean; skillsEnabled: boolean } {

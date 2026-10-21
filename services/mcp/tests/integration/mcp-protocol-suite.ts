@@ -1244,46 +1244,6 @@ export function defineToolBehaviorTests(
                 await safeClose(pinnedClient)
             }
         })
-
-        // execute-sql is the heaviest upstream call surface in the MCP server:
-        // it crosses the API client, the PostHog `/api/environments/<id>/mcp_tools/execute_sql/`
-        // endpoint, and ClickHouse via HogQL. If this works end-to-end, the
-        // whole query path is wired up.
-        //
-        // `SELECT 1 AS one` doesn't depend on any ingested data, so it works
-        // against a freshly-booted local stack with no seed data.
-        //
-        // The tool is gated by the `query:read` scope — if the
-        // test API key doesn't carry it, execute-sql won't be in the
-        // catalog and we skip rather than fail (a different test would
-        // catch the scope-filter regression).
-        it('execute-sql runs a trivial HogQL query against the upstream', async ({ skip }) => {
-            if (!harness.projectId) {
-                skip('Set TEST_PROJECT_ID to run the execute-sql roundtrip test.')
-                return
-            }
-            const { tools } = await client.listTools()
-            if (!tools.some((t) => t.name === 'execute-sql')) {
-                skip('execute-sql not in catalog for this token — needs the query:read scope.')
-                return
-            }
-            await client.callTool({
-                name: 'switch-project',
-                arguments: { projectId: Number(harness.projectId) },
-            })
-            const result = await client.callTool({
-                name: 'execute-sql',
-                arguments: { query: 'SELECT 1 AS one' },
-            })
-            if (result.isError) {
-                throw new Error(`execute-sql errored: ${decodeText(result.content)}`)
-            }
-            // The exact serialization is at the upstream's discretion (CSV,
-            // markdown, etc.) so we don't pin to a specific format. We just
-            // check the query output landed in the response body.
-            const text = decodeText(result.content)
-            expect(text.length).toBeGreaterThan(0)
-        })
     })
 }
 
@@ -1614,7 +1574,6 @@ export function defineExecModeTests(
             const result = await client.callTool({ name: 'exec', arguments: { command: 'tools' } })
             expect(result.isError).toBeFalsy()
             const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
-            expect(text).toContain('execute-sql')
             expect(text).toContain('organization-get')
         })
 

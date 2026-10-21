@@ -10,7 +10,7 @@ import { buildQueryToolsBlock, buildToolDomainsCompact } from '@/lib/instruction
 import { InstructionsFormatter } from '@/lib/instructions-formatter'
 import { formatResponse } from '@/lib/response'
 import { SessionManager } from '@/lib/SessionManager'
-import { OrganizationSetActiveSchema, ReadDataSchemaSchema } from '@/schema/tool-inputs'
+import { OrganizationSetActiveSchema } from '@/schema/tool-inputs'
 import { getToolsFromContext } from '@/tools'
 import { normalizeParamAliases } from '@/tools/cast-helpers'
 import {
@@ -1248,7 +1248,6 @@ describe('exec tool', () => {
         })
 
         it.each([
-            ['read-data-schema folding its own aliases', ReadDataSchemaSchema, '{"event":"$pageview"}'],
             ['a union schema that normalizes with a transform', OrganizationSetActiveSchema, '{"id":"abc"}'],
             [
                 'a root transform that renames a key',
@@ -1540,35 +1539,6 @@ describe('exec tool', () => {
             expect(parsed.properties.filter.hint).toContain('before populating this field')
             // Scalar fields do not earn a hint
             expect(parsed.properties.name.hint).toBeUndefined()
-        })
-
-        // The 2026-08 rejections on over-long experiment descriptions came from
-        // exec-mode agents that had no way to see the 3,000-character cap: the
-        // generated schema carries `max(3000)`, but the summary the bare `schema`
-        // view always returns dropped every scalar constraint.
-        it.each(['experiment-create', 'experiment-update'])(
-            'keeps the description cap in the bare schema view and in info for %s',
-            async (name) => {
-                const base = GENERATED_TOOL_MAP[name]!()
-                const exec = createExec([makeMockTool({ name, schema: base.schema })])
-
-                const bare = JSON.parse((await exec.handler(mockContext, { command: `schema ${name}` })) as string)
-                expect(bare.properties.description).toMatchObject({ type: 'string', maxLength: 3000 })
-
-                // `info` summarizes only because these schemas overflow TOKEN_CHAR_LIMIT;
-                // the raw schema would carry `$schema` and nest the cap inside `anyOf`.
-                const info = JSON.parse((await exec.handler(mockContext, { command: `info --json ${name}` })) as string)
-                expect(info.inputSchema.$schema).toBeUndefined()
-                expect(info.inputSchema.properties.description).toMatchObject({ maxLength: 3000 })
-            }
-        )
-
-        // The cap is also stated in prose on all three description-taking tools, so an
-        // agent that reads only the tool description learns it without opening the
-        // schema. Pinned on `experiment-create-from-prompt`, the one whose schema the
-        // constraint assertions above do not cover.
-        it('states the description cap in prose for experiment-create-from-prompt', () => {
-            expect(getToolDefinition('experiment-create-from-prompt').description).toContain('3,000 characters')
         })
 
         it('does not attach a drill-down directive when no field carries a hint', async () => {
@@ -1941,10 +1911,10 @@ describe('exec tool', () => {
 
         // A generic unknown-command reply reads as "the tool does not exist".
         it('routes a tool name typed as a command to the call form', async () => {
-            const exec = createExec([makeMockTool({ name: 'docs-search' })])
+            const exec = createExec([makeMockTool({ name: 'insights-list' })])
 
-            await expect(exec.handler(mockContext, { command: 'docs-search {"query":"funnels"}' })).rejects.toThrow(
-                /"docs-search" is a tool, not a command[\s\S]*call docs-search/
+            await expect(exec.handler(mockContext, { command: 'insights-list {"query":"funnels"}' })).rejects.toThrow(
+                /"insights-list" is a tool, not a command[\s\S]*call insights-list/
             )
         })
 
@@ -1960,15 +1930,16 @@ describe('exec tool', () => {
 
     describe('deprecated tool redirects', () => {
         it.each([
-            ['read-data-warehouse-schema', 'execute-sql'],
-            ['entity-search', 'execute-sql'],
-            ['event-definitions-list', 'read-data-schema'],
-            ['properties-list', 'read-data-schema'],
-            ['property-definitions', 'read-data-schema'],
-            ['query-generate-hogql-from-question', 'execute-sql'],
-            ['query-run', 'execute-sql'],
             ['self-driving-inbox-get', 'inbox-reports-list'],
             ['experiment-get-all', 'experiment-list'],
+            ['execute-sql', 'typed query tool'],
+            ['read-data-schema', 'No tool on this PostHog server lists event definitions'],
+            ['docs-search', 'posthog.com/docs'],
+            ['event-definitions-list', 'No tool on this PostHog server lists event definitions'],
+            ['properties-list', 'No tool on this PostHog server lists event definitions'],
+            ['property-definitions', 'No tool on this PostHog server lists event definitions'],
+            ['read-data-warehouse-schema', 'search warehouse'],
+            ['entity-search', 'entity type'],
         ])('throws redirect when calling deprecated %s', async (deprecated, replacement) => {
             const exec = createExec()
             await expect(exec.handler(mockContext, { command: `call ${deprecated} {}` })).rejects.toThrow(
@@ -1987,24 +1958,6 @@ describe('exec tool', () => {
             const queryTrends = makeMockTool({ name: 'query-trends', description: 'Run a trends query' })
             const exec = createExec([queryTrends])
             await expect(exec.handler(mockContext, { command: 'call query-run {}' })).rejects.toThrow(/query-trends/)
-        })
-
-        // The entity-search redirect must only steer at `system.information_schema.metrics`
-        // when the governed-metrics tool is actually registered — otherwise flag-off orgs
-        // get pointed at a catalog table they can't query.
-        it('adds governed-metrics steering to the entity-search redirect only when data-catalog-metric-run is registered', async () => {
-            const withCatalog = createExec([makeMockTool({ name: 'data-catalog-metric-run' })])
-            await expect(withCatalog.handler(mockContext, { command: 'call entity-search {}' })).rejects.toThrow(
-                /system\.information_schema\.metrics/
-            )
-
-            const withoutCatalog = createExec([makeMockTool()])
-            await expect(withoutCatalog.handler(mockContext, { command: 'call entity-search {}' })).rejects.toThrow(
-                /was removed/
-            )
-            await expect(withoutCatalog.handler(mockContext, { command: 'call entity-search {}' })).rejects.not.toThrow(
-                /system\.information_schema\.metrics/
-            )
         })
     })
 
@@ -2099,7 +2052,7 @@ describe('exec tool', () => {
     })
 
     describe('describeExecCommand', () => {
-        const isKnownToolName = (name: string): boolean => ['execute-sql', 'query-trends', 'my-tool'].includes(name)
+        const isKnownToolName = (name: string): boolean => ['insights-list', 'query-trends', 'my-tool'].includes(name)
 
         // The verb/target pair is what separates schema discovery from tool search
         // from a mistyped verb in analytics. Flag handling differs per verb, so a
@@ -2109,21 +2062,21 @@ describe('exec tool', () => {
             ['help search', 'help', undefined],
             ['tools', 'tools', undefined],
             ['search query-', 'search', undefined],
-            ['info execute-sql', 'info', 'execute-sql'],
-            ['info --json execute-sql', 'info', 'execute-sql'],
+            ['info insights-list', 'info', 'insights-list'],
+            ['info --json insights-list', 'info', 'insights-list'],
             ['schema query-trends series', 'schema', 'query-trends'],
             // `info` matches the whole remainder as an exact tool name, so a
             // trailing token makes the lookup fail — telemetry must mirror the
             // dispatcher's rejection, not credit the valid first token.
-            ['info execute-sql extra', 'info', 'unrecognized'],
+            ['info insights-list extra', 'info', 'unrecognized'],
             ['call my-tool {"a":1}', 'call', 'my-tool'],
             ['call --json --confirm my-tool {}', 'call', 'my-tool'],
-            ['  info   execute-sql  ', 'info', 'execute-sql'],
+            ['  info   insights-list  ', 'info', 'insights-list'],
             // A removed tool is still one of our own names, so the redirect it
             // triggers stays diagnosable.
             ['call query-run {}', 'call', 'query-run'],
             // Recording the tool separates a dropped `call` prefix from a genuine typo.
-            ['execute-sql {"query":"select 1"}', 'unrecognized', 'execute-sql'],
+            ['insights-list {"query":"select 1"}', 'unrecognized', 'insights-list'],
             ['frobnicate now', 'unrecognized', undefined],
             // Verb present, target absent: nothing to record for the tool, but the
             // verb still is.
@@ -2208,9 +2161,9 @@ describe('exec tool', () => {
                 context,
                 formatter.buildExecToolDescription({
                     skillsEnabled: true,
-                    docsSearchEnabled: true,
                     businessKnowledgeSearchEnabled: true,
                     businessKnowledgeRepoSearchEnabled: true,
+                    businessKnowledgeWindowEnabled: true,
                 }),
                 commandReference,
                 undefined

@@ -6,17 +6,7 @@ from threading import Barrier, Event
 from uuid import UUID
 
 import time_machine
-from posthog.test.base import (
-    APIBaseTest,
-    BaseTest,
-    ClickhouseTestMixin,
-    NonAtomicBaseTest,
-    _create_person,
-    get_index_from_explain,
-    get_inner_person_subquery_clickhouse_sql,
-    materialized,
-    snapshot_clickhouse_queries,
-)
+from posthog.test.base import APIBaseTest, BaseTest, ClickhouseTestMixin, NonAtomicBaseTest, _create_person
 from unittest.mock import patch
 
 from django.db import close_old_connections, connection, transaction
@@ -26,11 +16,6 @@ from django.utils import timezone
 
 from parameterized import parameterized
 from rest_framework import status
-
-from posthog.schema import HogQLQueryModifiers, MaterializationMode
-
-from posthog.hogql import ast
-from posthog.hogql.query import execute_hogql_query
 
 from posthog.models import ActivityLog, Comment, Organization, Tag, Team, User
 from posthog.models.personal_api_key import PersonalAPIKey
@@ -57,15 +42,13 @@ from products.conversations.backend.models import (
     TicketView,
 )
 from products.conversations.backend.models.constants import Channel, ChannelDetail, Priority, Status
-from products.conversations.backend.person_lookup import PERSON_EMAIL_LOOKUP_QUERY, _get_persons_by_email
+from products.conversations.backend.person_lookup import _get_persons_by_email
 from products.conversations.backend.reply_dedupe import (
     REPLY_IN_PROGRESS_ERROR_TYPE,
     ComposeFingerprint,
     ReplyFingerprint,
     reserve,
 )
-
-from ee.clickhouse.materialized_columns.columns import get_bloom_filter_lower_index_name
 
 
 class TestComposeTicketSerializer(SimpleTestCase):
@@ -2078,35 +2061,6 @@ class TestTicketEmailFallbackPersonLookup(ClickhouseTestMixin, APIBaseTest):
 
         assert person is not None
         assert str(person.uuid) == str(identified.uuid)
-
-    @snapshot_clickhouse_queries
-    def test_email_fallback_uses_bloom_filter_lower_skip_index(self, mock_on_commit):
-        _create_person(
-            team=self.team,
-            distinct_ids=["idx-test-id"],
-            properties={"email": "indexed@example.com"},
-            immediate=True,
-        )
-
-        with materialized("person", "email", create_bloom_filter_lower_index=True) as mat_col:
-            index_name = get_bloom_filter_lower_index_name(mat_col.name)
-            modifiers = HogQLQueryModifiers(materializationMode=MaterializationMode.AUTO)
-
-            assert "indexed@example.com" in _get_persons_by_email(
-                self.team, ["indexed@example.com"], modifiers=modifiers
-            )
-
-            # EXPLAIN the person-filter subquery of the exact query that ran, not a hand-written approximation
-            result = execute_hogql_query(
-                PERSON_EMAIL_LOOKUP_QUERY,
-                placeholders={"emails": ast.Constant(value=["indexed@example.com"])},
-                team=self.team,
-                modifiers=modifiers,
-            )
-            assert result.clickhouse
-            subquery = get_inner_person_subquery_clickhouse_sql(result.clickhouse)
-            index_info = get_index_from_explain(subquery, index_name)
-            assert index_info is not None, f"Expected skip index {index_name} to be used:\n{subquery}"
 
 
 @patch.object(transaction, "on_commit", side_effect=immediate_on_commit)

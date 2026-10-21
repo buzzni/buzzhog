@@ -35,7 +35,6 @@ rules:
           - pattern-not: self.pending_email = $VALUE
       paths:
           include:
-              - /ee/**/*.py
               - /posthog/**/*.py
               - /products/**/*.py
           exclude:

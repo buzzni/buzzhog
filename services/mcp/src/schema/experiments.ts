@@ -99,7 +99,6 @@ export type SavedMetricAttachment = z.infer<typeof SavedMetricAttachmentSchema>
 
 /**
  * Hand-written Experiment schema used by the results tool's API client methods.
- * The codegen tools use Schemas.Experiment from the generated OpenAPI types instead.
  */
 export const ExperimentSchema = z.object({
     id: z.number(),

@@ -7675,18 +7675,16 @@ class TestSurveySummarizeDispatchesToHeadline(APIBaseTest):
             questions=[{"id": "q1", "type": "open", "question": "Why?"}],
         )
 
-    @patch("products.surveys.backend.api.survey.generate_survey_headline")
-    def test_summarize_with_no_question_delegates_to_headline(self, mock_headline):
-        mock_headline.return_value = {"headline": "Users love it", "responses_sampled": 12, "has_more": False}
-        self.team.organization.is_ai_data_processing_approved = True
-        self.team.organization.save()
+    def test_summarize_with_no_question_delegates_to_headline(self):
+        self.survey.headline_summary = "Users love it"
+        self.survey.headline_response_count = 12
+        self.survey.save()
 
         response = self.client.post(f"/api/projects/{self.team.id}/surveys/{self.survey.id}/summarize_responses/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         self.assertEqual(data["headline"], "Users love it")
         self.assertEqual(data["responses_sampled"], 12)
-        mock_headline.assert_called_once()
 
 
 class TestSurveySummarizeByQuestionId(APIBaseTest):

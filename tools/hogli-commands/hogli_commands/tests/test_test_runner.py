@@ -40,7 +40,11 @@ class TestDetectTestType:
         [
             ("posthog/api/test/test_user.py", "python", ["pytest", "-s", "posthog/api/test/test_user.py"]),
             ("posthog/models/test/test_team.py", "python", ["pytest", "-s", "posthog/models/test/test_team.py"]),
-            ("ee/clickhouse/test/test_client.py", "python", ["pytest", "-s", "ee/clickhouse/test/test_client.py"]),
+            (
+                "common/hogvm/python/test/test_crypto.py",
+                "python",
+                ["pytest", "-s", "common/hogvm/python/test/test_crypto.py"],
+            ),
             (
                 "products/alerts/backend/test/test_api.py",
                 "python",
@@ -253,7 +257,7 @@ class TestDetectTestType:
     @parameterized.expand(
         [
             ("posthog/api/test", "python", ["pytest", "-s", "posthog/api/test"]),
-            ("ee/hogai", "python", ["pytest", "-s", "ee/hogai"]),
+            ("posthog/hogql", "python", ["pytest", "-s", "posthog/hogql"]),
             (
                 "tools/hogli-commands/hogli_commands/tests",
                 "python",
@@ -382,7 +386,7 @@ class TestIsTestFile:
             ("products/posthog_ai/evals/sql/eval_sql.py", False),
             ("products/posthog_ai/eval_harness/test/test_discovery.py", True),
             ("posthog/eval_something.py", False),
-            ("ee/hogai/router.py", False),
+            ("posthog/hogql/parser.py", False),
             ("posthog/models/team.py", False),
             ("frontend/src/scenes/dashboard/Dashboard.test.tsx", True),
             ("frontend/src/scenes/dashboard/Dashboard.tsx", False),

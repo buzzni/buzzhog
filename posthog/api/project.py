@@ -71,7 +71,6 @@ from posthog.api.team.viewsets import EventIngestionRestrictionSerializer, team_
 from posthog.api.utils import validate_authorized_url_wildcards
 from posthog.auth import SessionAuthentication
 from posthog.caching.organization_serializer_cache import _bump_org_serializer_cache_version
-from posthog.cloud_utils import get_cached_instance_license, is_cloud
 from posthog.constants import AvailableFeature
 from posthog.decorators import disallow_if_impersonated
 from posthog.event_usage import report_user_action
@@ -1676,8 +1675,6 @@ class ProjectViewSet(
         return self.get_object().passthrough_team
 
     def perform_destroy(self, project: Project):
-        from ee.billing.billing_manager import BillingManager
-
         # Check if bulk deletion operations are disabled via environment variable
         # Projects contain teams, so we need to block project deletion too
         if settings.DISABLE_BULK_DELETES:
@@ -1687,27 +1684,6 @@ class ProjectViewSet(
 
         if project.is_deletion_pending():
             raise exceptions.ValidationError("This project is already being deleted.")
-
-        # Block deletion of the last project in an org with an active subscription (cloud only).
-        # Fail open if the billing service is unreachable — a 500 here would create a worse stuck state.
-        is_last_project = project.organization.projects.count() == 1
-        license = get_cached_instance_license()
-        try:
-            has_active_subscription = (
-                settings.EE_AVAILABLE
-                and is_cloud()
-                and license
-                and BillingManager(license).get_billing(project.organization).get("has_active_subscription")
-            )
-        except Exception:
-            logger.exception("Failed to check billing status before project deletion; allowing deletion to proceed")
-            has_active_subscription = False
-
-        if is_last_project and has_active_subscription:
-            raise exceptions.ValidationError(
-                "Cannot delete the last project in an organization with an active subscription. "
-                "Please cancel your subscription first in the billing page."
-            )
 
         project_id = project.pk
         organization_id = project.organization_id

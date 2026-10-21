@@ -12,8 +12,6 @@ import { z } from 'zod'
  */
 
 export const TASK_CATEGORIES = [
-    'sql',
-    'data-schema',
     'product-analytics',
     'insights',
     'error-tracking',
@@ -22,7 +20,6 @@ export const TASK_CATEGORIES = [
     'llm-analytics',
     'logs',
     'dashboards',
-    'docs',
     'project',
     'mcp-analytics',
     'metrics',

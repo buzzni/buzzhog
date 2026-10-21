@@ -1,7 +1,7 @@
 """Tests for MaterializedColumnSlot REST API endpoints."""
 
 from posthog.test.base import APIBaseTest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from parameterized import parameterized
 from rest_framework import status
@@ -198,38 +198,7 @@ class TestMaterializedColumnSlotAPI(APIBaseTest):
         assert "custom_prop" in prop_names
         assert "utm_source" not in prop_names
 
-    @patch("posthog.api.materialized_column_slot.get_materialized_columns")
-    @patch("posthog.api.materialized_column_slot.EE_AVAILABLE", True)
-    def test_auto_materialized_returns_only_properties_columns(self, mock_get_mat_cols):
-        """Test that auto_materialized excludes person_properties columns."""
-        mock_column = MagicMock()
-        mock_column.name = "mat_$current_url"
-        mock_column.details.property_name = "$current_url"
-        mock_column.details.table_column = "properties"
-        mock_column.details.is_disabled = False
-        mock_column.is_nullable = True
-
-        mock_person_column = MagicMock()
-        mock_person_column.name = "mat_pp_$initial_utm_source"
-        mock_person_column.details.property_name = "$initial_utm_source"
-        mock_person_column.details.table_column = "person_properties"
-        mock_person_column.details.is_disabled = False
-        mock_person_column.is_nullable = True
-
-        mock_get_mat_cols.return_value = {
-            "mat_$current_url": mock_column,
-            "mat_pp_$initial_utm_source": mock_person_column,
-        }
-
-        response = self.client.get(f"/api/environments/{self.team.id}/materialized_column_slots/auto_materialized/")
-
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 1
-        assert response.json()[0]["property_name"] == "$current_url"
-
-    @patch("posthog.api.materialized_column_slot.EE_AVAILABLE", False)
-    def test_auto_materialized_returns_empty_without_ee(self):
-        """Test that auto_materialized returns [] when EE not available."""
+    def test_auto_materialized_returns_empty(self):
         response = self.client.get(f"/api/environments/{self.team.id}/materialized_column_slots/auto_materialized/")
 
         assert response.status_code == status.HTTP_200_OK

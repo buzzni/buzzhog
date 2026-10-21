@@ -30,7 +30,6 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 
 from posthog.admin.inlines.organization_member_inline import OrganizationMemberForUserInline
 from posthog.admin.inlines.personal_api_key_inline import PersonalAPIKeyInline
-from posthog.admin.inlines.scim_provisioned_user_inline import SCIMProvisionedUserInline
 from posthog.admin.inlines.totp_device_inline import TOTPDeviceInline
 from posthog.admin.inlines.user_social_auth_inline import UserSocialAuthInline
 from posthog.api.authentication import password_reset_token_generator
@@ -134,7 +133,6 @@ class UserAdmin(DjangoUserAdmin):
         PersonalAPIKeyInline,
         TOTPDeviceInline,
         UserSocialAuthInline,
-        SCIMProvisionedUserInline,
     ]
     fieldsets = (
         (

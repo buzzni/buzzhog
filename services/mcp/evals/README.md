@@ -19,7 +19,7 @@ A benchmark of agent tasks for the PostHog MCP server, a script that runs each t
   category: feature-flags # one of TASK_CATEGORIES in schema.ts
   intent: 'List all our active feature flags.' # the request, phrased like a real user's
   expected_tools: [feature-flag-get-all] # tools a competent agent should call
-  acceptable_tools: [execute-sql] # other tools that are also a reasonable path
+  acceptable_tools: [feature-flag-get-definition] # other tools that are also a reasonable path
   success_criteria: "Returns the project's active flags by key." # what a correct answer does
   probe: # optional: one read-only call the probe runner makes
     tool: feature-flag-get-all
@@ -59,7 +59,6 @@ LIVE_POSTHOG_URL=http://localhost:8000 LIVE_MCP_TOKEN=phx_... \
 ```
 
 - It creates or updates every flag in `fixtures.feature_flags`, and soft-deletes every key in `fixtures.absent_feature_flags`. Running it again resets those flags.
-- `flag-create-routes-to-experiment` is the exception. The agent picks the key of the flag its experiment manages, so the seeder cannot reset it. Delete that experiment and flag by hand when you need a clean project.
 - It writes through the REST API, not the MCP server, so the tools under test do not build their own starting state.
 - Without `--project` it seeds the token's current project. Seed the project the MCP session acts on.
 - The token needs `feature_flag:write`, plus `user:read` when `--project` is omitted.

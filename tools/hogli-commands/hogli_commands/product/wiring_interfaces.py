@@ -24,7 +24,6 @@ from .ast_helpers import ast_parse_safe, module_level_import_nodes
 # depth of repository classes. A decorator counts only on the class itself.
 APPROVED_WIRING_BASES: frozenset[str] = frozenset(
     {
-        "ee.hogai.tool.MaxTool",
         "posthog.hogql_queries.query_runner.QueryRunner",
         "temporalio.worker.Interceptor",
     }
@@ -39,7 +38,7 @@ APPROVED_WIRING_DECORATORS: frozenset[str] = frozenset(
 
 # Top-level packages whose modules sit in this repository. A name from any other package is a
 # library, so it resolves without a file and never approves.
-_REPOSITORY_PACKAGES: frozenset[str] = frozenset({"common", "ee", "posthog", "products"})
+_REPOSITORY_PACKAGES: frozenset[str] = frozenset({"common", "posthog", "products"})
 
 
 class WiringVerdict(StrEnum):

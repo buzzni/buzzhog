@@ -1,6 +1,5 @@
 import json
 import uuid
-import functools
 import dataclasses
 from typing import Any, Optional, Self, Union, cast
 
@@ -64,18 +63,8 @@ class PropertyDefinitionsTimedOut(DefinitionListTimedOut):
     default_detail = "Loading properties took too long. Try a narrower search, or try again in a moment."
 
 
-@functools.cache
-def property_definition_model(is_enterprise: bool) -> type[PropertyDefinition]:
-    """The model the list query runs through, which the enterprise extension replaces."""
-    if is_enterprise:
-        from ee.models.property_definition import EnterprisePropertyDefinition
-
-        return EnterprisePropertyDefinition
-    return PropertyDefinition
-
-
 def read_db_alias() -> str:
-    return definition_read_db_alias(property_definition_model(EE_AVAILABLE))
+    return definition_read_db_alias(PropertyDefinition)
 
 
 class SeenTogetherQuerySerializer(serializers.Serializer):
@@ -530,6 +519,11 @@ ALWAYS_EXCLUDED_EVENT_PROPERTIES = set(
 
 
 class PropertyDefinitionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
+    is_seen_on_filtered_events = serializers.BooleanField(
+        allow_null=True,
+        read_only=True,
+        help_text="Whether the property was seen on the events named in `event_names`. Null when `event_names` is not sent.",
+    )
     warehouse_origin = serializers.JSONField(
         read_only=True,
         help_text=(
@@ -643,24 +637,6 @@ class PropertyDefinitionViewSet(
             )
 
             order_by_verified = False
-            if EE_AVAILABLE:
-                enterprise_model = property_definition_model(EE_AVAILABLE)
-
-                # Prevent fetching deprecated `tags` field. Tags are separately fetched in TaggedItemSerializerMixin
-                property_definition_fields = ", ".join(
-                    [
-                        f'{f.cached_col.alias}."{f.column}"'
-                        for f in enterprise_model._meta.get_fields()
-                        if isinstance(f, Field)
-                        and f.column is not None
-                        and f.column not in ["deprecated_tags", "tags"]
-                        and hasattr(f, "cached_col")
-                    ]
-                )
-
-                queryset = enterprise_model.objects
-
-                order_by_verified = True
 
             span.set_attribute("ee_available", EE_AVAILABLE)
 
@@ -748,14 +724,6 @@ class PropertyDefinitionViewSet(
             # nosemgrep: python.django.security.audit.custom-expression-as-sql.custom-expression-as-sql (all user input goes through query_context.params)
             return queryset.raw(query_context.as_sql(order_by_verified), params=query_context.params)
 
-    def get_serializer_class(self) -> type[serializers.ModelSerializer]:
-        serializer_class: type[serializers.ModelSerializer] = self.serializer_class
-        if EE_AVAILABLE:
-            from ee.api.ee_property_definition import EnterprisePropertyDefinitionSerializer
-
-            serializer_class = EnterprisePropertyDefinitionSerializer
-        return serializer_class
-
     def _get_restricted_property_names(self, prop_type: str) -> set[str]:
         """Returns the set of property names that are restricted for the current user and property type."""
         from products.access_control.backend.property_access_control import get_restricted_property_names
@@ -786,23 +754,6 @@ class PropertyDefinitionViewSet(
             id=id,
             effective_project_id=self.project_id,
         )
-        if EE_AVAILABLE:
-            from ee.models.property_definition import EnterprisePropertyDefinition
-
-            enterprise_property = (
-                EnterprisePropertyDefinition.objects.alias(effective_project_id=effective_project_id_expr())
-                .filter(id=id, effective_project_id=self.project_id)
-                .first()
-            )
-            if enterprise_property:
-                return enterprise_property
-            # Lazy-create enterprise row if it doesn't exist
-            new_enterprise_property = EnterprisePropertyDefinition(
-                propertydefinition_ptr_id=non_enterprise_property.id, description=""
-            )
-            new_enterprise_property.__dict__.update(non_enterprise_property.__dict__)
-            new_enterprise_property.save()
-            return new_enterprise_property
         return non_enterprise_property
 
     @extend_schema(parameters=[PropertyDefinitionQuerySerializer])

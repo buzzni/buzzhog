@@ -13,11 +13,8 @@ from posthog.test.base import (
     _create_event,
     _create_person,
     clean_varying_query_parts,
-    cleanup_materialized_columns,
     flush_persons_and_events,
     get_index_from_explain,
-    get_inner_person_subquery_clickhouse_sql,
-    materialized,
     snapshot_clickhouse_queries,
 )
 from unittest import mock
@@ -62,6 +59,8 @@ from posthog.hogql.test.utils import json_dynamic_read_sql, json_dynamic_read_sq
 
 from posthog.clickhouse.client.execute import sync_execute
 from posthog.clickhouse.events_json import TEMPORARY_PROPERTIES_JSON_TYPE
+from posthog.clickhouse.kafka_engine import json_extract_trim_quotes
+from posthog.dataclasses import frozen
 from posthog.models import PropertyDefinition
 from posthog.models.event.sql import EVENTS_JSON_DATA_TABLE, EVENTS_PROPERTIES_JSON_TYPE
 from posthog.models.exchange_rate.sql import EXCHANGE_RATE_DICTIONARY_NAME
@@ -73,14 +72,6 @@ from products.cohorts.backend.models.cohort import Cohort
 from products.event_definitions.backend.models.property_definition import PropertyType
 from products.warehouse_sources.backend.facade.models import DataWarehouseCredential, DataWarehouseTable
 
-from ee.clickhouse.materialized_columns.columns import (
-    get_bloom_filter_index_name,
-    get_bloom_filter_lower_index_name,
-    get_minmax_index_name,
-    get_ngram_lower_index_name,
-    materialize,
-)
-
 
 def _find_query_plan_node(node: dict, condition: Callable[[dict], bool]) -> dict | None:
     """Return the first query-plan node that meets the condition, searched depth-first."""
@@ -91,6 +82,17 @@ def _find_query_plan_node(node: dict, condition: Callable[[dict], bool]) -> dict
         if result is not None:
             return result
     return None
+
+
+@frozen
+class FakeMaterializedColumn:
+    name: str
+    is_nullable: bool
+    type: str = "String"
+    has_minmax_index: bool = False
+    has_bloom_filter_index: bool = False
+    has_ngram_lower_index: bool = False
+    has_bloom_filter_lower_index: bool = False
 
 
 class TestPrinter(BaseTest):
@@ -1023,103 +1025,6 @@ class TestPrinter(BaseTest):
         if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
             self.assertNotIn("JSONExtractRaw", printed)
 
-    def test_hogql_properties_materialized_json_access(self):
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize
-        except ModuleNotFoundError:
-            # EE not available? Assume we're good
-            self.assertEqual(1 + 2, 3)
-            return
-
-        context = HogQLContext(team_id=self.team.pk)
-        materialize("events", "withmat")
-        expected_withmat_sql = (
-            self._json_dynamic_subcolumn_path_expr("events.properties", ["withmat", "json", "yet"])
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            else "replaceRegexpAll(nullIf(nullIf(JSONExtractRaw(nullIf(nullIf(events.mat_withmat, ''), 'null'), %(hogql_val_0)s, %(hogql_val_1)s), ''), 'null'), '^\"|\"$', '')"
-        )
-        self.assertEqual(
-            self._expr("properties.withmat.json.yet", context),
-            expected_withmat_sql,
-        )
-        self.assertEqual(
-            context.values,
-            {} if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA else {"hogql_val_0": "json", "hogql_val_1": "yet"},
-        )
-
-        context = HogQLContext(team_id=self.team.pk)
-        materialize("events", "withmat_nullable", is_nullable=True)
-        expected_nullable_withmat_sql = (
-            self._json_dynamic_subcolumn_path_expr("events.properties", ["withmat_nullable", "json", "yet"])
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            else "replaceRegexpAll(nullIf(nullIf(JSONExtractRaw(events.mat_withmat_nullable, %(hogql_val_0)s, %(hogql_val_1)s), ''), 'null'), '^\"|\"$', '')"
-        )
-        self.assertEqual(
-            self._expr("properties.withmat_nullable.json.yet", context),
-            expected_nullable_withmat_sql,
-        )
-        self.assertEqual(
-            context.values,
-            {} if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA else {"hogql_val_0": "json", "hogql_val_1": "yet"},
-        )
-
-    def test_materialized_fields_and_properties(self):
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize
-        except ModuleNotFoundError:
-            # EE not available? Assume we're good
-            self.assertEqual(1 + 2, 3)
-            return
-        materialize("events", "$browser")
-        self.assertEqual(
-            self._expr("properties['$browser']"),
-            (
-                self._json_dynamic_property_expr("$browser")
-                if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-                else "nullIf(nullIf(events.`mat_$browser`, ''), 'null')"
-            ),
-        )
-
-        materialize("events", "withoutdollar")
-        self.assertEqual(
-            self._expr("properties['withoutdollar']"),
-            (
-                self._json_dynamic_property_expr("withoutdollar")
-                if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-                else "nullIf(nullIf(events.mat_withoutdollar, ''), 'null')"
-            ),
-        )
-
-        materialize("events", "$browser and string")
-        self.assertEqual(
-            self._expr("properties['$browser and string']"),
-            (
-                self._json_dynamic_property_expr("$browser and string")
-                if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-                else "nullIf(nullIf(events.`mat_$browser_and_string`, ''), 'null')"
-            ),
-        )
-
-        materialize("events", "$browser%%%#@!@")
-        self.assertEqual(
-            self._expr("properties['$browser%%%#@!@']"),
-            (
-                self._json_dynamic_property_expr("$browser%%%#@!@")
-                if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-                else "nullIf(nullIf(events.`mat_$browser_______`, ''), 'null')"
-            ),
-        )
-
-        materialize("events", "nullable_property", is_nullable=True)
-        self.assertEqual(
-            self._expr("properties['nullable_property']"),
-            (
-                self._json_dynamic_property_expr("nullable_property")
-                if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-                else "events.mat_nullable_property"
-            ),
-        )
-
     def test_property_groups(self):
         context = HogQLContext(
             team_id=self.team.pk,
@@ -1141,18 +1046,6 @@ class TestPrinter(BaseTest):
             self.assertEqual(context.values, {})
         else:
             self.assertEqual(context.values["hogql_val_0"], "foo")
-
-        with materialized("events", "foo"):
-            # Legacy materialized columns take precedence over the property group's map column. JSON subcolumns take
-            # precedence over both old physical layouts under the new schema.
-            self.assertEqual(
-                self._expr("properties['foo']", context),
-                (
-                    self._json_dynamic_property_expr("foo")
-                    if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-                    else "nullIf(nullIf(events.mat_foo, ''), 'null')"
-                ),
-            )
 
     def test_property_groups_person_properties(self):
         context = HogQLContext(
@@ -1379,14 +1272,6 @@ class TestPrinter(BaseTest):
 
         # TODO: Chained operations/path traversal could be optimized further, but is left alone for now.
         self._test_property_group_comparison("JSONHas(properties, 'foo', 'bar')", None)
-
-        with materialized("events", "key"):
-            self._test_property_group_comparison(
-                "JSONHas(properties, 'key') as j",
-                "has(events.properties_group_custom, %(hogql_val_0)s) AS j",
-                {"hogql_val_0": "key"},
-                expected_skip_indexes_used={"properties_group_custom_keys_bf"},
-            )
 
     @override_settings(CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA=True)
     def test_new_events_schema_json_has_uses_direct_json_subcolumns(self) -> None:
@@ -1872,13 +1757,6 @@ class TestPrinter(BaseTest):
         printed = self._print_shadowed_alias_query()
         inner = printed.split("SELECT", 2)[2]
         assert "properties_group_custom" not in inner, f"inner alias rebound to the outer property:\n{printed}"
-        assert "equals(a," in inner, f"expected the inner comparison to stay on the inner alias:\n{printed}"
-
-    def test_materialized_property_alias_shadowed_in_subquery_is_not_rebound(self):
-        with materialized("events", "file_type"):
-            printed = self._print_shadowed_alias_query()
-        inner = printed.split("SELECT", 2)[2]
-        assert "file_type" not in inner, f"inner alias rebound to the outer materialized property:\n{printed}"
         assert "equals(a," in inner, f"expected the inner comparison to stay on the inner alias:\n{printed}"
 
     def test_methods(self):
@@ -3400,13 +3278,13 @@ class TestPrinter(BaseTest):
     def test_nullish_concat(self):
         self.assertEqual(
             self._expr("concat(null, 'a', 3, toString(4), toString(NULL))"),
-            f"concat('', %(hogql_val_0)s, toString(3), toString(4), '')",
+            "concat('', %(hogql_val_0)s, toString(3), toString(4), '')",
         )
 
     def test_concat_pipes(self):
         self.assertEqual(
             self._expr("'a' || 'b' || 3 || timestamp"),
-            f"concat(%(hogql_val_0)s, %(hogql_val_1)s, toString(3), ifNull(toString(toTimeZone(events.timestamp, %(hogql_val_2)s)), ''))",
+            "concat(%(hogql_val_0)s, %(hogql_val_1)s, toString(3), ifNull(toString(toTimeZone(events.timestamp, %(hogql_val_2)s)), ''))",
         )
 
     def test_to_start_of_week_gets_mode(self):
@@ -3417,37 +3295,37 @@ class TestPrinter(BaseTest):
 
         self.assertEqual(
             self._expr("toStartOfWeek(timestamp)", default_week_context),  # Sunday is the default
-            f"toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 0)",
+            "toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 0)",
         )
         self.assertEqual(
             self._expr("toStartOfWeek(timestamp)"),  # Sunday is the default
-            f"toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 0)",
+            "toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 0)",
         )
         self.assertEqual(
             self._expr("toStartOfWeek(timestamp)", sunday_week_context),
-            f"toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 0)",
+            "toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 0)",
         )
         self.assertEqual(
             self._expr("toStartOfWeek(timestamp)", monday_week_context),
-            f"toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 3)",
+            "toStartOfWeek(toTimeZone(events.timestamp, %(hogql_val_0)s), 3)",
         )
 
     def test_functions_expecting_datetime_arg(self):
         self.assertEqual(
             self._expr("tumble(toDateTime('2023-06-12'), toIntervalDay('1')) as t"),
-            f"tumble(assumeNotNull(toDateTime(toDateTime(%(hogql_val_0)s, %(hogql_val_1)s))), toIntervalDay(%(hogql_val_2)s)) AS t",
+            "tumble(assumeNotNull(toDateTime(toDateTime(%(hogql_val_0)s, %(hogql_val_1)s))), toIntervalDay(%(hogql_val_2)s)) AS t",
         )
         self.assertEqual(
             self._expr("tumble(now(), toIntervalDay('1')) as t"),
-            f"tumble(toDateTime(now64(6, %(hogql_val_0)s), 'UTC'), toIntervalDay(%(hogql_val_1)s)) AS t",
+            "tumble(toDateTime(now64(6, %(hogql_val_0)s), 'UTC'), toIntervalDay(%(hogql_val_1)s)) AS t",
         )
         self.assertEqual(
             self._expr("tumble(parseDateTime('2021-01-04+23:00:00', '%Y-%m-%d+%H:%i:%s'), toIntervalDay('1')) as t"),
-            f"tumble(assumeNotNull(toDateTime(parseDateTimeOrNull(%(hogql_val_0)s, %(hogql_val_1)s, %(hogql_val_2)s))), toIntervalDay(%(hogql_val_3)s)) AS t",
+            "tumble(assumeNotNull(toDateTime(parseDateTimeOrNull(%(hogql_val_0)s, %(hogql_val_1)s, %(hogql_val_2)s))), toIntervalDay(%(hogql_val_3)s)) AS t",
         )
         self.assertEqual(
             self._expr("tumble(parseDateTimeBestEffort('23/10/2020 12:12:57'), toIntervalDay('1')) as t"),
-            f"tumble(assumeNotNull(toDateTime(parseDateTime64BestEffort(%(hogql_val_0)s, 6, %(hogql_val_1)s))), toIntervalDay(%(hogql_val_2)s)) AS t",
+            "tumble(assumeNotNull(toDateTime(parseDateTime64BestEffort(%(hogql_val_0)s, 6, %(hogql_val_1)s))), toIntervalDay(%(hogql_val_2)s)) AS t",
         )
         self.assertEqual(
             self._select("SELECT tumble(timestamp, toIntervalDay('1')) as t FROM events"),
@@ -3615,63 +3493,11 @@ class TestPrinter(BaseTest):
         self.assertNotIn("ifNull(", sql_with)
         self.assertTrue(sql_with.startswith("notEquals("))
 
-    def test_field_nullable_boolean(self):
-        PropertyDefinition.objects.create(
-            team=self.team, name="is_boolean", property_type="Boolean", type=PropertyDefinition.Type.EVENT
-        )
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize
-        except ModuleNotFoundError:
-            # EE not available? Assume we're good
-            self.assertEqual(1 + 2, 3)
-            return
-        materialize("events", "is_boolean")
-        context = HogQLContext(team_id=self.team.pk, enable_select_queries=True)
-        generated_sql_statements1 = self._select(
-            "SELECT "
-            "properties.is_boolean = true,"
-            "properties.is_boolean = false, "
-            "properties.is_boolean is null "
-            "FROM events",
-            context=context,
-        )
-        property_expr = (
-            "events.properties.is_boolean"
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            else "nullIf(nullIf(events.mat_is_boolean, ''), 'null')"
-        )
-        assert generated_sql_statements1 == self._with_active_events_table(
-            f"SELECT "
-            f"ifNull(equals(accurateCastOrNull(transform(toString({property_expr}), %(hogql_val_0)s, %(hogql_val_1)s, NULL), %(hogql_val_2)s), 1), 0), "
-            f"ifNull(equals(accurateCastOrNull(transform(toString({property_expr}), %(hogql_val_3)s, %(hogql_val_4)s, NULL), %(hogql_val_5)s), 0), 0), "
-            f"isNull(accurateCastOrNull(transform(toString({property_expr}), %(hogql_val_6)s, %(hogql_val_7)s, NULL), %(hogql_val_8)s)) "
-            f"FROM events WHERE equals(events.team_id, {self.team.pk}) LIMIT {MAX_SELECT_RETURNED_ROWS}"
-        )
-        assert context.values == {
-            "hogql_val_0": ["true", "false"],
-            "hogql_val_1": [1, 0],
-            "hogql_val_2": "Bool",
-            "hogql_val_3": ["true", "false"],
-            "hogql_val_4": [1, 0],
-            "hogql_val_5": "Bool",
-            "hogql_val_6": ["true", "false"],
-            "hogql_val_7": [1, 0],
-            "hogql_val_8": "Bool",
-        }
-
     @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
     def test_ai_trace_id_optimizations(self, mock_matcols_by_table):
-        """Test that $ai_trace_id uses the active storage path without wrappers that block skip indexes."""
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
+        # A wrapper such as ifNull or nullIf around the read stops ClickHouse from using a skip index on it.
         # The column is in the registry either way; JSON-backed event properties must ignore it.
-        mat_col = MaterializedColumn(
-            name="mat_$ai_trace_id",
-            details=MaterializedColumnDetails(
-                table_column="properties", property_name="$ai_trace_id", is_disabled=False
-            ),
-            is_nullable=True,
-        )
+        mat_col = FakeMaterializedColumn(name="mat_$ai_trace_id", is_nullable=True, type="Nullable(String)")
         mock_matcols_by_table.return_value = {"events": {("$ai_trace_id", "properties"): mat_col}}
 
         if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
@@ -3747,17 +3573,8 @@ class TestPrinter(BaseTest):
 
     @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
     def test_ai_session_id_optimizations(self, mock_matcols_by_table):
-        """Test that $ai_session_id uses the active storage path without wrappers that block skip indexes."""
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
         # The column is in the registry either way; JSON-backed event properties must ignore it.
-        mat_col = MaterializedColumn(
-            name="mat_$ai_session_id",
-            details=MaterializedColumnDetails(
-                table_column="properties", property_name="$ai_session_id", is_disabled=False
-            ),
-            is_nullable=True,
-        )
+        mat_col = FakeMaterializedColumn(name="mat_$ai_session_id", is_nullable=True, type="Nullable(String)")
         mock_matcols_by_table.return_value = {"events": {("$ai_session_id", "properties"): mat_col}}
 
         if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
@@ -3804,14 +3621,8 @@ class TestPrinter(BaseTest):
         # A property read through a column-renamed table (`FROM events AS e (...)`, a ColumnAliasedTableType) must still
         # resolve to the active storage path. Property resolution has to unwrap that table type to reach the real table; if
         # it doesn't, the read silently falls back to a slow JSONExtract over the raw blob.
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
         # The column is in the registry either way; JSON-backed event properties must ignore it.
-        mat_col = MaterializedColumn(
-            name="mat_foo",
-            details=MaterializedColumnDetails(table_column="properties", property_name="foo", is_disabled=False),
-            is_nullable=False,
-        )
+        mat_col = FakeMaterializedColumn(name="mat_foo", is_nullable=False, type="String")
         mock_matcols_by_table.return_value = {"events": {("foo", "properties"): mat_col}}
         context = HogQLContext(team_id=self.team.pk, enable_select_queries=True)
         sql = self._select("SELECT e.properties.foo FROM events AS e (a, b)", context)
@@ -3828,16 +3639,8 @@ class TestPrinter(BaseTest):
         # Legacy materialized columns store the first key as a raw JSON string, so deeper reads must extract the tail
         # keys with the same SQL shape as ingest and backfill. JSON subcolumns can address the full string-key path
         # directly.
-        from posthog.clickhouse.kafka_engine import json_extract_trim_quotes
-
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
         # The column is in the registry either way; JSON-backed event properties must ignore it.
-        mat_col = MaterializedColumn(
-            name="mat_foo",
-            details=MaterializedColumnDetails(table_column="properties", property_name="foo", is_disabled=False),
-            is_nullable=False,
-        )
+        mat_col = FakeMaterializedColumn(name="mat_foo", is_nullable=False, type="String")
         mock_matcols_by_table.return_value = {"events": {("foo", "properties"): mat_col}}
 
         if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
@@ -4285,65 +4088,6 @@ class TestPrinter(BaseTest):
                 f"LIMIT {MAX_SELECT_RETURNED_ROWS} SETTINGS readonly=2, max_execution_time=10, allow_experimental_object_type=1, max_ast_elements=4000000, max_expanded_ast_elements=4000000, max_bytes_before_external_group_by=0, transform_null_in=1, optimize_min_equality_disjunction_chain_length=4294967295, optimize_rewrite_aggregate_function_with_if=0, optimize_min_inequality_conjunction_chain_length=4294967295, allow_experimental_join_condition=1, use_hive_partitioning=0{self._native_read_settings_suffix()}"
             ),
         )
-
-    def test_print_hidden_aliases_properties(self):
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize
-        except ModuleNotFoundError:
-            # EE not available? Assume we're good
-            self.assertEqual(1 + 2, 3)
-            return
-        materialize("events", "$browser")
-
-        printed = self._print(
-            "select * from (SELECT properties.$browser FROM events)",
-            settings=HogQLGlobalSettings(max_execution_time=10),
-        )
-        browser_expr = (
-            self._json_dynamic_property_expr("$browser")
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            else "nullIf(nullIf(events.`mat_$browser`, ''), 'null')"
-        )
-        self.assertEqual(
-            printed,
-            self._with_active_events_table(
-                f"SELECT `$browser` AS `$browser` FROM (SELECT {browser_expr} AS `$browser` "
-                f"FROM events WHERE equals(events.team_id, {self.team.pk})) LIMIT {MAX_SELECT_RETURNED_ROWS} "
-                f"SETTINGS readonly=2, max_execution_time=10, allow_experimental_object_type=1, max_ast_elements=4000000, max_expanded_ast_elements=4000000, max_bytes_before_external_group_by=0, transform_null_in=1, optimize_min_equality_disjunction_chain_length=4294967295, optimize_rewrite_aggregate_function_with_if=0, optimize_min_inequality_conjunction_chain_length=4294967295, allow_experimental_join_condition=1, use_hive_partitioning=0{self._native_read_settings_suffix()}"
-            ),
-        )
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            self.assertNotIn("mat_$browser", printed)
-
-    def test_print_hidden_aliases_double_property(self):
-        try:
-            from ee.clickhouse.materialized_columns.analyze import materialize
-        except ModuleNotFoundError:
-            # EE not available? Assume we're good
-            self.assertEqual(1 + 2, 3)
-            return
-        materialize("events", "$browser")
-
-        printed = self._print(
-            "select * from (SELECT properties.$browser, properties.$browser FROM events)",
-            settings=HogQLGlobalSettings(max_execution_time=10),
-        )
-        browser_expr = (
-            self._json_dynamic_property_expr("$browser")
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            else "nullIf(nullIf(events.`mat_$browser`, ''), 'null')"
-        )
-        self.assertEqual(
-            printed,
-            self._with_active_events_table(
-                f"SELECT `$browser` AS `$browser` FROM (SELECT {browser_expr} AS `$browser`, "
-                f"{browser_expr} AS `$browser` "
-                f"FROM events WHERE equals(events.team_id, {self.team.pk})) LIMIT {MAX_SELECT_RETURNED_ROWS} "
-                f"SETTINGS readonly=2, max_execution_time=10, allow_experimental_object_type=1, max_ast_elements=4000000, max_expanded_ast_elements=4000000, max_bytes_before_external_group_by=0, transform_null_in=1, optimize_min_equality_disjunction_chain_length=4294967295, optimize_rewrite_aggregate_function_with_if=0, optimize_min_inequality_conjunction_chain_length=4294967295, allow_experimental_join_condition=1, use_hive_partitioning=0{self._native_read_settings_suffix()}"
-            ),
-        )
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            self.assertNotIn("mat_$browser", printed)
 
     def test_lookup_domain_type(self):
         printed = self._print(
@@ -5824,439 +5568,18 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
         if expected_context_values is not None:
             self.assertLessEqual(expected_context_values.items(), context.values.items())
 
-    def test_materialized_column_optimized_equality_comparison_non_nullable(self) -> None:
-        # Non-nullable columns don't need any wrapping
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop = 'some_value'",
-                f"equals(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "some_value"},
-            )
-            self._test_materialized_column_comparison(
-                "'some_value' = properties.test_prop",
-                f"equals(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "some_value"},
-            )
-            self._test_materialized_column_comparison(
-                "properties.test_prop != 'some_value'",
-                f"notEquals(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "some_value"},
-            )
-            self._test_materialized_column_comparison(
-                "'some_value' != properties.test_prop",
-                f"notEquals(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "some_value"},
-            )
-
-    def test_materialized_column_optimized_equality_comparison_nullable(self) -> None:
-        # Nullable columns need wrapping to handle NULL properly
-        with materialized("events", "test_prop", is_nullable=True) as mat_col:
-            # equals: use AND IS NOT NULL to preserve skip index usage
-            self._test_materialized_column_comparison(
-                "properties.test_prop = 'some_value'",
-                f"and(equals(events.{mat_col.name}, %(hogql_val_0)s), isNotNull(events.{mat_col.name}))",
-                {"hogql_val_0": "some_value"},
-            )
-            self._test_materialized_column_comparison(
-                "'some_value' = properties.test_prop",
-                f"and(equals(events.{mat_col.name}, %(hogql_val_0)s), isNotNull(events.{mat_col.name}))",
-                {"hogql_val_0": "some_value"},
-            )
-            # notEquals: use ifNull since skip index is less important here
-            self._test_materialized_column_comparison(
-                "properties.test_prop != 'some_value'",
-                f"ifNull(notEquals(events.{mat_col.name}, %(hogql_val_0)s), 1)",
-                {"hogql_val_0": "some_value"},
-            )
-            self._test_materialized_column_comparison(
-                "'some_value' != properties.test_prop",
-                f"ifNull(notEquals(events.{mat_col.name}, %(hogql_val_0)s), 1)",
-                {"hogql_val_0": "some_value"},
-            )
-
-    def test_materialized_column_equality_not_optimized_for_empty_string(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop = ''",
-                f"ifNull(equals(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s), 0)",
-            )
-
-    def test_materialized_column_equality_not_optimized_for_null_string(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop = 'null'",
-                f"ifNull(equals(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s), 0)",
-            )
-
-    def test_materialized_column_equality_not_optimized_for_non_string_constant(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop = 123",
-                f"ifNull(equals(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), 123), 0)",
-            )
-
-    def test_materialized_column_equality_not_optimized_for_null_comparison(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop = null",
-                f"isNull(nullIf(nullIf(events.{mat_col.name}, ''), 'null'))",
-            )
-
     @parameterized.expand(
         [
-            # (input_op, expected_ch_fn)
-            ("<", "less"),
-            ("<=", "lessOrEquals"),
-            (">", "greater"),
-            (">=", "greaterOrEquals"),
+            ("joined", PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED),
+            ("on_events", PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS),
         ]
     )
-    def test_materialized_column_optimized_range_comparison_non_nullable(self, op: str, ch_fn: str) -> None:
-        # Non-nullable: drop the ``nullIf(nullIf(..., ''), 'null')`` wrapper (opaque to minmax) and inline the sentinel exclusion as ``notEquals`` clauses so the bare comparison can use the index.
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                f"properties.test_prop {op} 'some_value'",
-                f"and({ch_fn}(events.{mat_col.name}, %(hogql_val_0)s), "
-                f"notEquals(events.{mat_col.name}, ''), "
-                f"notEquals(events.{mat_col.name}, 'null'))",
-                {"hogql_val_0": "some_value"},
-            )
-
-    @parameterized.expand(
-        [
-            ("<", "less"),
-            ("<=", "lessOrEquals"),
-            (">", "greater"),
-            (">=", "greaterOrEquals"),
-        ]
-    )
-    def test_materialized_column_optimized_range_comparison_nullable(self, op: str, ch_fn: str) -> None:
-        # Nullable: replace ``ifNull(less(col, x), 0)`` (opaque to minmax) with ``(less(col, x) AND col IS NOT NULL)`` — same WHERE semantics (``NULL AND FALSE = FALSE``), minmax-friendly.
-        with materialized("events", "test_prop", is_nullable=True) as mat_col:
-            self._test_materialized_column_comparison(
-                f"properties.test_prop {op} 'some_value'",
-                f"and({ch_fn}(events.{mat_col.name}, %(hogql_val_0)s), isNotNull(events.{mat_col.name}))",
-                {"hogql_val_0": "some_value"},
-            )
-
-    def test_materialized_column_range_comparison_not_optimized_for_null_constant(self) -> None:
-        # ``col < null`` is NULL for every row → false in WHERE; the printer constant-folds to ``'0'``. The rewrite bails on the null constant so the fold path is reached — a naive ``(less(col, NULL) AND col IS NOT NULL)`` would hide it.
-        with materialized("events", "test_prop", is_nullable=True):
-            self._test_materialized_column_comparison(
-                "properties.test_prop < null",
-                "0",
-            )
-
-    def test_materialized_column_range_comparison_only_when_property_on_left(self) -> None:
-        # property_to_expr always puts the column on the left; the reverse form falls back to the default ``ifNull`` wrap rather than guessing a flipped op.
-        with materialized("events", "test_prop", is_nullable=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "'some_value' < properties.test_prop",
-                f"ifNull(less(%(hogql_val_0)s, events.{mat_col.name}), 0)",
-                {"hogql_val_0": "some_value"},
-            )
-
-    def test_materialized_column_range_comparison_not_optimized_for_numeric_property_type(self) -> None:
-        PropertyDefinition.objects.create(
-            team=self.team,
-            project_id=self.team.project_id,
-            name="numeric_test_prop",
-            property_type=PropertyType.Numeric,
-            type=PropertyDefinition.Type.EVENT,
-        )
-
-        with materialized("events", "numeric_test_prop", is_nullable=True, create_minmax_index=True) as mat_col:
-            printed = self._expr("properties.numeric_test_prop < 5")
-
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            # A numeric comparison casts the bare JSON path instead of going through the string read.
-            assert "accurateCastOrNull(events.properties.numeric_test_prop, 'Float64')" in printed
-            assert mat_col.name not in printed
-        else:
-            assert f"less(accurateCastOrNull(events.{mat_col.name}," in printed
-            assert f"less(events.{mat_col.name}," not in printed
-
-    def test_materialized_column_range_comparison_not_optimized_for_datetime_property_type(self) -> None:
-        PropertyDefinition.objects.create(
-            team=self.team,
-            project_id=self.team.project_id,
-            name="datetime_test_prop",
-            property_type=PropertyType.Datetime,
-            type=PropertyDefinition.Type.EVENT,
-        )
-
-        with materialized("events", "datetime_test_prop", is_nullable=True, create_minmax_index=True) as mat_col:
-            printed = self._expr("properties.datetime_test_prop < toDateTime('2024-01-15')")
-
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            assert self._json_dynamic_property_expr("datetime_test_prop") in printed
-            assert mat_col.name not in printed
-        else:
-            assert f"less(parseDateTime64BestEffortOrNull(events.{mat_col.name}," in printed
-            assert f"less(events.{mat_col.name}," not in printed
-
-    @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
-    def test_materialized_column_range_comparison_uses_typed_numeric_source(self, mock_matcols_by_table) -> None:
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
-        PropertyDefinition.objects.create(
-            team=self.team,
-            project_id=self.team.project_id,
-            name="numeric_test_prop",
-            property_type=PropertyType.Numeric,
-            type=PropertyDefinition.Type.EVENT,
-        )
-        mock_mat_col = MaterializedColumn(
-            name="mat_numeric_test_prop",
-            details=MaterializedColumnDetails(
-                table_column="properties", property_name="numeric_test_prop", is_disabled=False
-            ),
-            is_nullable=True,
-            column_type="Nullable(Float64)",
-            has_minmax_index=True,
-        )
-        mock_matcols_by_table.return_value = {"events": {("numeric_test_prop", "properties"): mock_mat_col}}
-
-        printed = self._expr("properties.numeric_test_prop < 5")
-
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            # A numeric comparison casts the bare JSON path instead of going through the string read.
-            assert "accurateCastOrNull(events.properties.numeric_test_prop, 'Float64')" in printed
-            assert "mat_numeric_test_prop" not in printed
-            assert "accurateCastOrNull" in printed
-        else:
-            assert "less(events." in printed
-            assert "mat_numeric_test_prop" in printed
-            assert "accurateCastOrNull" not in printed
-
-    @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
-    def test_materialized_column_range_comparison_uses_typed_datetime_source(self, mock_matcols_by_table) -> None:
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
-        PropertyDefinition.objects.create(
-            team=self.team,
-            project_id=self.team.project_id,
-            name="datetime_test_prop",
-            property_type=PropertyType.Datetime,
-            type=PropertyDefinition.Type.EVENT,
-        )
-        mock_mat_col = MaterializedColumn(
-            name="mat_datetime_test_prop",
-            details=MaterializedColumnDetails(
-                table_column="properties", property_name="datetime_test_prop", is_disabled=False
-            ),
-            is_nullable=True,
-            column_type="Nullable(DateTime64(6, 'UTC'))",
-            has_minmax_index=True,
-        )
-        mock_matcols_by_table.return_value = {"events": {("datetime_test_prop", "properties"): mock_mat_col}}
-
-        printed = self._expr("properties.datetime_test_prop < '2024-01-15'")
-
-        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            assert self._json_dynamic_property_expr("datetime_test_prop") in printed
-            assert "mat_datetime_test_prop" not in printed
-            assert "parseDateTime64BestEffortOrNull" in printed
-        else:
-            assert "less(events." in printed
-            assert "mat_datetime_test_prop" in printed
-            assert "toDateTime64(" in printed
-            assert "parseDateTime64BestEffortOrNull" not in printed
-
-    @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
-    def test_materialized_column_range_comparison_skips_non_nullable_numeric_source(
-        self, mock_matcols_by_table
-    ) -> None:
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
-        PropertyDefinition.objects.create(
-            team=self.team,
-            project_id=self.team.project_id,
-            name="numeric_test_prop",
-            property_type=PropertyType.Numeric,
-            type=PropertyDefinition.Type.EVENT,
-        )
-        mock_mat_col = MaterializedColumn(
-            name="mat_numeric_test_prop",
-            details=MaterializedColumnDetails(
-                table_column="properties", property_name="numeric_test_prop", is_disabled=False
-            ),
-            is_nullable=False,
-            column_type="Float64",
-            has_minmax_index=True,
-        )
-        mock_matcols_by_table.return_value = {"events": {("numeric_test_prop", "properties"): mock_mat_col}}
-
-        printed = self._expr("properties.numeric_test_prop < 5")
-
-        # A non-nullable Float64 column stores 0 for missing JSON, so the bare minmax rewrite would
-        # match rows where the property is absent. The optimization must be skipped (no bare column).
-        assert "less(events.mat_numeric_test_prop, " not in printed
-
-    @parameterized.expand(
-        [
-            # Nullable: only actual JSON null / missing keys are SQL NULL — ``''`` and ``'null'`` are real values that compare lexically (``'' < 'mango'`` matches ``d_empty``, ``'null' >= 'mango'`` matches ``d_null_str`` since ``'n' > 'm'``).
-            ("nullable", True, [("d_empty",), ("d_low",)], [("d_high",), ("d_mid",), ("d_null_str",)]),
-            # Non-nullable: ``''`` and ``'null'`` are also NULL sentinels; the rewrite's inline ``notEquals`` clauses exclude them from both LT and GTE results.
-            ("not nullable", False, [("d_low",)], [("d_high",), ("d_mid",)]),
-        ]
-    )
-    def test_materialized_column_range_optimization_returns_correct_results(
-        self,
-        _: str,
-        is_nullable: bool,
-        expected_lt_mango: list[tuple[str]],
-        expected_gte_mango: list[tuple[str]],
-    ) -> None:
-        # End-to-end: rewrite preserves the printer's prior semantics for both nullability flavors AND ClickHouse picks up the minmax index. Companion to ``test_materialized_column_optimization_returns_correct_results`` below.
-        # Unique event name so the queries below see only this test's events. Postgres teams roll back
-        # between tests but ClickHouse events don't, so a reused team_id can carry foreign events from
-        # another test class into an un-scoped `FROM events` query.
-        event_name = "mat_col_opt_range_test"
-        with materialized("events", "test_prop", create_minmax_index=True, is_nullable=is_nullable) as mat_col:
-            _create_event(team=self.team, distinct_id="d_low", event=event_name, properties={"test_prop": "apple"})
-            _create_event(team=self.team, distinct_id="d_mid", event=event_name, properties={"test_prop": "mango"})
-            _create_event(team=self.team, distinct_id="d_high", event=event_name, properties={"test_prop": "zebra"})
-            _create_event(team=self.team, distinct_id="d_empty", event=event_name, properties={"test_prop": ""})
-            _create_event(team=self.team, distinct_id="d_null_str", event=event_name, properties={"test_prop": "null"})
-            _create_event(team=self.team, distinct_id="d_missing", event=event_name, properties={})
-            _create_event(team=self.team, distinct_id="d_null", event=event_name, properties={"test_prop": None})
-
-            index_name = get_minmax_index_name(mat_col.name)
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                expected_lt_mango = [("d_low",)]
-                expected_gte_mango = [("d_high",), ("d_mid",), ("d_null_str",)]
-
-            lt_result = execute_hogql_query(
-                team=self.team,
-                query=f"SELECT distinct_id FROM events WHERE event = '{event_name}' AND properties.test_prop < 'mango' ORDER BY distinct_id",
-            )
-            self.assertEqual(lt_result.results, expected_lt_mango)
-            assert lt_result.clickhouse is not None
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert index_name not in lt_result.clickhouse
-                assert self._json_dynamic_property_expr("test_prop") in lt_result.clickhouse
-            else:
-                assert get_index_from_explain(lt_result.clickhouse, index_name), (
-                    f"Expected skip index {index_name} to be used for `<`"
-                )
-
-            gte_result = execute_hogql_query(
-                team=self.team,
-                query=f"SELECT distinct_id FROM events WHERE event = '{event_name}' AND properties.test_prop >= 'mango' ORDER BY distinct_id",
-            )
-            self.assertEqual(gte_result.results, expected_gte_mango)
-            assert gte_result.clickhouse is not None
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert index_name not in gte_result.clickhouse
-                assert self._json_dynamic_property_expr("test_prop") in gte_result.clickhouse
-            else:
-                assert get_index_from_explain(gte_result.clickhouse, index_name), (
-                    f"Expected skip index {index_name} to be used for `>=`"
-                )
-
-    @parameterized.expand(
-        [
-            ("nullable", True),
-            ("not nullable", False),
-        ]
-    )
-    def test_materialized_column_optimization_returns_correct_results(self, _, is_nullable) -> None:
-        event_name = "mat_col_opt_eq_test"
-        with materialized("events", "test_prop", create_minmax_index=True, is_nullable=is_nullable) as mat_col:
-            _create_event(
-                team=self.team,
-                distinct_id="d1",
-                event=event_name,
-                properties={"test_prop": "target_value"},
-            )
-            _create_event(
-                team=self.team,
-                distinct_id="d2",
-                event=event_name,
-                properties={"test_prop": "other_value"},
-            )
-            _create_event(
-                team=self.team,
-                distinct_id="d3",
-                event=event_name,
-                properties={"test_prop": ""},
-            )
-            _create_event(
-                team=self.team,
-                distinct_id="d4",
-                event=event_name,
-                properties={"test_prop": "null"},
-            )
-            _create_event(
-                team=self.team,
-                distinct_id="d5",
-                event=event_name,
-                properties={},
-            )
-            _create_event(
-                team=self.team,
-                distinct_id="d6",
-                event=event_name,
-                properties={"test_prop": None},
-            )
-
-            eq_result = execute_hogql_query(
-                team=self.team,
-                query=f"SELECT distinct_id FROM events WHERE event = '{event_name}' AND properties.test_prop = 'target_value' ORDER BY distinct_id",
-            )
-            self.assertEqual(eq_result.results, [("d1",)])
-            assert eq_result.clickhouse is not None
-            index_name = get_minmax_index_name(mat_col.name)
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert index_name not in eq_result.clickhouse
-                assert "CAST(events.properties.test_prop, 'Nullable(String)')" in eq_result.clickhouse
-            else:
-                assert get_index_from_explain(eq_result.clickhouse, index_name), (
-                    f"Expected skip index {index_name} to be used"
-                )
-
-            neq_result = execute_hogql_query(
-                team=self.team,
-                query=f"SELECT distinct_id FROM events WHERE event = '{event_name}' AND properties.test_prop != 'target_value' ORDER BY distinct_id",
-            )
-            self.assertEqual(neq_result.results, [("d2",), ("d3",), ("d4",), ("d5",), ("d6",)])
-
-    @parameterized.expand(
-        [
-            ("materialized_joined", True, PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED),
-            ("materialized_on_events", True, PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS),
-            ("not_materialized_joined", False, PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_JOINED),
-            ("not_materialized_on_events", False, PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS),
-        ]
-    )
-    def test_person_property_is_not_set_behavior(
-        self, _name: str, is_materialized: bool, poe_mode: PersonsOnEventsMode
-    ):
-        """
-        Test that is_not_set behaves consistently across materialized/non-materialized columns
-        and different PersonsOnEventsMode settings.
-
-        Expected behavior:
-        - with_email: is_not_set=0 - property has a value
-        - test_with_empty_string: is_not_set=1 for native String paths and materialized columns, otherwise 0
-        - with_null: is_not_set=1 - null is treated as "not set"
-        - without: is_not_set=1 - property doesn't exist
-
-        the clickhouse SQL should NOT include JSON operations
-        """
-        self.addCleanup(cleanup_materialized_columns)
-
-        if is_materialized:
-            materialize("events", "email", table_column="person_properties")
-            materialize("person", "email")
-
-        # Generate unique IDs to avoid collision with previous test runs
-        distinct_id_with_email = f"test_with_email"
-        distinct_id_with_empty = f"test_with_empty_string"
-        distinct_id_with_null = f"test_with_null"
-        distinct_id_without = f"test_without"
-        event_name = f"is_not_set_test"
+    def test_person_property_is_not_set_behavior(self, _name: str, poe_mode: PersonsOnEventsMode) -> None:
+        distinct_id_with_email = "test_with_email"
+        distinct_id_with_empty = "test_with_empty_string"
+        distinct_id_with_null = "test_with_null"
+        distinct_id_without = "test_without"
+        event_name = "is_not_set_test"
 
         # Create four persons with different email property states:
         # 1. email set to a real value
@@ -6288,21 +5611,18 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             immediate=True,
         )
 
-        # Create events for each person
         _create_event(team=self.team, event=event_name, distinct_id=distinct_id_with_email)
         _create_event(team=self.team, event=event_name, distinct_id=distinct_id_with_empty)
         _create_event(team=self.team, event=event_name, distinct_id=distinct_id_with_null)
         _create_event(team=self.team, event=event_name, distinct_id=distinct_id_without)
         flush_persons_and_events()
 
-        # Build the is_not_set expression using property_to_expr
         is_not_set_expr = property_to_expr(
             {"type": "person", "key": "email", "operator": "is_not_set"},
             team=self.team,
             scope="event",
         )
 
-        # Build the full query AST
         query_ast = ast.SelectQuery(
             select=[
                 ast.Alias(alias="distinct_id", expr=ast.Field(chain=["distinct_id"])),
@@ -6339,8 +5659,8 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
         )
         assert result.clickhouse
 
-        # Native String paths and materialized string columns use empty strings for missing values.
-        materialized_column_nullifies_empty_string = is_materialized or (
+        # Native String paths use empty strings for missing values.
+        empty_string_reads_as_null = (
             settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
             and poe_mode == PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS
         )
@@ -6348,439 +5668,27 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             (distinct_id_with_email, "test@example.com", 0, 0),
             (
                 distinct_id_with_empty,
-                None if materialized_column_nullifies_empty_string else "",
-                1 if materialized_column_nullifies_empty_string else 0,
-                1 if materialized_column_nullifies_empty_string else 0,
+                None if empty_string_reads_as_null else "",
+                1 if empty_string_reads_as_null else 0,
+                1 if empty_string_reads_as_null else 0,
             ),
             (distinct_id_with_null, None, 1, 1),
             (distinct_id_without, None, 1, 1),
         }
         self.assertEqual(set(result.results), expected_results)
 
-        # The query should never touch the json properties object if we are using the materialized column, these asserts protect against regression of the performance the bug fixed in
+        # These asserts protect against regression of the performance the bug fixed in
         # https://posthog.slack.com/archives/C09B0SSQEDA/p1767698123669229?thread_ts=1767672165.250289&cid=C09B0SSQEDA
         sql_lower = result.clickhouse.lower()
-        if (
-            settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            and poe_mode == PersonsOnEventsMode.PERSON_ID_OVERRIDE_PROPERTIES_ON_EVENTS
-        ):
+        if empty_string_reads_as_null:
             assert "jsonextractraw" not in sql_lower
             assert "tojsonstring(events.person_properties)" not in sql_lower
         elif not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
             # JSONHas is used in calculating is_not_set_result_historical, but nowhere else
             assert sql_lower.count("jsonhas") == 1
-        if is_materialized and not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-            # the materialized version should not use any JSON operation, or any other Has operation (e.g. the Array/Set function `has`)
-            assert sql_lower.count("json") == 1
-            assert sql_lower.count("has") == 1
-            assert sql_lower.count("contains") == 0
 
-    def test_materialized_column_ilike_uses_raw_column_for_non_nullable(self) -> None:
-        # For non-nullable columns, ILIKE uses raw column directly
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop ilike '%@posthog.com%'",
-                f"ilike(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "%@posthog.com%"},
-            )
-            # should also work if wrapped with toString()
-            self._test_materialized_column_comparison(
-                "ilike(toString(properties.test_prop), '%@gmail.com%')",
-                f"ilike(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "%@gmail.com%"},
-            )
-
-    def test_materialized_column_ilike_with_tostring_uses_ngram_index_for_non_nullable(self) -> None:
-        # toString() wrapper should use ngram index optimization when available
-        with materialized("events", "test_prop", is_nullable=False, create_ngram_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "ilike(properties.test_prop, '%@gmail.com%')",
-                f"like(lower(events.{mat_col.name}), lower(%(hogql_val_0)s))",
-                {"hogql_val_0": "%@gmail.com%"},
-            )
-
-            # should also work if wrapped with toString()
-            self._test_materialized_column_comparison(
-                "ilike(toString(properties.test_prop), '%@gmail.com%')",
-                f"like(lower(events.{mat_col.name}), lower(%(hogql_val_0)s))",
-                {"hogql_val_0": "%@gmail.com%"},
-            )
-
-            self._test_materialized_column_comparison(
-                "ilike(JSONExtractString(properties, 'test_prop'), '%@gmail.com%')",
-                f"like(lower(events.{mat_col.name}), lower(%(hogql_val_0)s))",
-                {"hogql_val_0": "%@gmail.com%"},
-            )
-
-    def test_materialized_column_ilike_with_tostring_not_optimized_for_numeric_property(self) -> None:
-        # Numeric properties should not use the ILIKE optimization - fall back to default handling
-        PropertyDefinition.objects.create(
-            team=self.team,
-            project=self.team.project,
-            name="test_numeric_prop",
-            property_type="Numeric",
-            type=PropertyDefinition.Type.EVENT,
-        )
-        with materialized("events", "test_numeric_prop", is_nullable=False) as mat_col:
-            # Direct property access: optimization skipped, PropertySwapper wraps in accurateCastOrNull
-            self._test_materialized_column_comparison(
-                "ilike(properties.test_numeric_prop, '%123%')",
-                f"ifNull(ilike(accurateCastOrNull(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s), %(hogql_val_1)s), 0)",
-                {"hogql_val_1": "%123%"},
-            )
-
-            # With toString() wrapper: same behavior, optimization not applied
-            self._test_materialized_column_comparison(
-                "ilike(toString(properties.test_numeric_prop), '%123%')",
-                f"ifNull(ilike(toString(accurateCastOrNull(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s)), %(hogql_val_1)s), 0)",
-                {"hogql_val_1": "%123%"},
-            )
-
-    def test_materialized_column_not_ilike_uses_raw_column_for_non_nullable(self) -> None:
-        # For non-nullable columns, NOT ILIKE uses raw column directly
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop not ilike '%@posthog.com%'",
-                f"notILike(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "%@posthog.com%"},
-            )
-
-    def test_materialized_column_ilike_bails_out_for_sentinel_pattern_on_non_nullable(self) -> None:
-        # For non-nullable columns, patterns that could match sentinel values bail out
-        # of the optimization and let the normal code path handle it with proper nullif wrapping
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop ilike '%null%'",
-                f"ifNull(ilike(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s), 0)",
-                {"hogql_val_0": "%null%"},
-            )
-            self._test_materialized_column_comparison(
-                "properties.test_prop ilike '%NULL%'",
-                f"ifNull(ilike(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s), 0)",
-                {"hogql_val_0": "%NULL%"},
-            )
-
-    def test_materialized_column_like_uses_raw_column_for_non_nullable(self) -> None:
-        # For non-nullable columns, LIKE uses raw column directly
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop like '%@posthog.com%'",
-                f"like(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "%@posthog.com%"},
-            )
-
-    def test_materialized_column_not_like_uses_raw_column_for_non_nullable(self) -> None:
-        # For non-nullable columns, NOT LIKE uses raw column directly
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop not like '%@posthog.com%'",
-                f"notLike(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "%@posthog.com%"},
-            )
-
-    def test_materialized_column_like_case_sensitivity(self) -> None:
-        # LIKE is case-sensitive, so %NULL% doesn't match lowercase "null" sentinel
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop like '%NULL%'",
-                f"like(events.{mat_col.name}, %(hogql_val_0)s)",
-                {"hogql_val_0": "%NULL%"},
-            )
-
-    def test_materialized_column_like_bails_out_for_sentinel_pattern_on_non_nullable(self) -> None:
-        # For non-nullable columns, %null% bails out of optimization
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop like '%null%'",
-                f"ifNull(like(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), %(hogql_val_0)s), 0)",
-                {"hogql_val_0": "%null%"},
-            )
-
-    def test_materialized_column_in_uses_raw_column_for_non_nullable(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop in ('value1', 'value2')",
-                f"has([%(hogql_val_0)s, %(hogql_val_1)s], events.{mat_col.name})",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_not_in_uses_raw_column_for_non_nullable(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop not in ('value1', 'value2')",
-                f"notIn(events.{mat_col.name}, tuple(%(hogql_val_0)s, %(hogql_val_1)s))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_in_bails_out_for_sentinel_value_on_non_nullable(self) -> None:
-        # When sentinel values are present, we bail out and let default handling apply nullIf wrapping
-        # Note: default IN handling does not add ifNull wrapper (unlike Eq/Like)
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop in ('null', 'value2')",
-                f"in(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), tuple(%(hogql_val_0)s, %(hogql_val_1)s))",
-                {"hogql_val_0": "null", "hogql_val_1": "value2"},
-            )
-            self._test_materialized_column_comparison(
-                "properties.test_prop in ('', 'value2')",
-                f"in(nullIf(nullIf(events.{mat_col.name}, ''), 'null'), tuple(%(hogql_val_0)s, %(hogql_val_1)s))",
-                {"hogql_val_0": "", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_in_nullable(self) -> None:
-        with materialized("events", "test_prop", is_nullable=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop in ('value1', 'value2')",
-                f"and(has([%(hogql_val_0)s, %(hogql_val_1)s], events.{mat_col.name}), isNotNull(events.{mat_col.name}))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_not_in_nullable(self) -> None:
-        with materialized("events", "test_prop", is_nullable=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "properties.test_prop not in ('value1', 'value2')",
-                f"ifNull(notIn(events.{mat_col.name}, tuple(%(hogql_val_0)s, %(hogql_val_1)s)), 1)",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_in_uses_bloom_filter_lower_index_non_nullable(self) -> None:
-        # lower(property) IN (...) is rewritten to has([...], lower(column)) so it can hit a bloom_filter_lower index
-        with materialized("events", "test_prop", is_nullable=False, create_bloom_filter_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "lower(properties.test_prop) in ('value1', 'value2')",
-                f"has([%(hogql_val_0)s, %(hogql_val_1)s], lower(events.{mat_col.name}))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_not_in_uses_bloom_filter_lower_index_non_nullable(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False, create_bloom_filter_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "lower(properties.test_prop) not in ('value1', 'value2')",
-                f"notIn(lower(events.{mat_col.name}), tuple(%(hogql_val_0)s, %(hogql_val_1)s))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_in_uses_bloom_filter_lower_index_nullable(self) -> None:
-        # The index is built on lower(coalesce(column, '')) so the printed expression must match it exactly
-        with materialized("events", "test_prop", is_nullable=True, create_bloom_filter_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "lower(properties.test_prop) in ('value1', 'value2')",
-                f"has([%(hogql_val_0)s, %(hogql_val_1)s], lower(coalesce(events.{mat_col.name}, '')))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_not_in_nullable(self) -> None:
-        with materialized("events", "test_prop", is_nullable=True, create_bloom_filter_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "lower(properties.test_prop) not in ('value1', 'value2')",
-                f"notIn(lower(coalesce(events.{mat_col.name}, '')), tuple(%(hogql_val_0)s, %(hogql_val_1)s))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_in_matches_case_insensitive_lower_call(self) -> None:
-        # HogQL `lower` is case-insensitive, so `LOWER(...)` must still hit the optimization
-        with materialized("events", "test_prop", is_nullable=False, create_bloom_filter_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "LOWER(properties.test_prop) in ('value1', 'value2')",
-                f"has([%(hogql_val_0)s, %(hogql_val_1)s], lower(events.{mat_col.name}))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_in_uses_ngram_lower_index(self) -> None:
-        # An ngram_lower index also serves IN lookups, so the rewrite fires for it too
-        with materialized("events", "test_prop", is_nullable=False, create_ngram_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "lower(properties.test_prop) in ('value1', 'value2')",
-                f"has([%(hogql_val_0)s, %(hogql_val_1)s], lower(events.{mat_col.name}))",
-                {"hogql_val_0": "value1", "hogql_val_1": "value2"},
-            )
-
-    def test_materialized_column_lower_in_not_optimized_without_a_lower_index(self) -> None:
-        # Without a bloom_filter_lower or ngram_lower index there's nothing to hit - leave the generic path
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            printed = self._expr("lower(properties.test_prop) in ('value1', 'value2')")
-            assert "has(" not in printed, printed
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert mat_col.name not in printed
-                assert self._json_dynamic_property_expr("test_prop") in printed
-            else:
-                assert mat_col.name in printed
-
-    def test_materialized_column_lower_in_bails_out_for_sentinel_value(self) -> None:
-        # '' and 'null' are NULL sentinels for non-nullable columns - bail so the generic path stays correct
-        with materialized("events", "test_prop", is_nullable=False, create_bloom_filter_lower_index=True):
-            assert "has(" not in self._expr("lower(properties.test_prop) in ('null', 'value2')")
-            assert "has(" not in self._expr("lower(properties.test_prop) in ('', 'value2')")
-
-    def test_materialized_column_lower_in_sentinels_for_nullable(self) -> None:
-        # Nullable columns only alias NULL to '' (via coalesce); 'null' is a real value, so it still optimizes
-        with materialized("events", "test_prop", is_nullable=True, create_bloom_filter_lower_index=True) as mat_col:
-            self._test_materialized_column_comparison(
-                "lower(properties.test_prop) in ('null', 'value2')",
-                f"has([%(hogql_val_0)s, %(hogql_val_1)s], lower(coalesce(events.{mat_col.name}, '')))",
-                {"hogql_val_0": "null", "hogql_val_1": "value2"},
-            )
-            assert "has(" not in self._expr("lower(properties.test_prop) in ('', 'value2')")
-
-    def test_force_data_skipping_indices_works_with_simple_equality(self) -> None:
-        event_name = "mat_col_opt_force_index_test"
-        with materialized("events", "test_prop", is_nullable=False, create_bloom_filter_index=True) as mat_col:
-            _create_event(team=self.team, distinct_id="test", event=event_name, properties={"test_prop": "foo"})
-
-            index_name = get_bloom_filter_index_name(mat_col.name)
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                with pytest.raises(Exception) as exc_info:
-                    execute_hogql_query(
-                        team=self.team,
-                        query="SELECT distinct_id FROM events WHERE properties.test_prop = 'foo'",
-                        modifiers=HogQLQueryModifiers(
-                            materializationMode=MaterializationMode.AUTO,
-                            forceClickhouseDataSkippingIndexes=[index_name],
-                        ),
-                    )
-                assert "index" in str(exc_info.value).lower()
-                return
-
-            result = execute_hogql_query(
-                team=self.team,
-                query=f"SELECT distinct_id FROM events WHERE event = '{event_name}' AND properties.test_prop = 'foo'",
-                modifiers=HogQLQueryModifiers(
-                    materializationMode=MaterializationMode.AUTO,
-                    forceClickhouseDataSkippingIndexes=[index_name],
-                ),
-            )
-
-            assert result.results == [("test",)]
-            assert result.clickhouse
-            assert f"force_data_skipping_indices='{index_name}'" in result.clickhouse
-
-    def test_force_data_skipping_indices_fails_when_index_cannot_be_used(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False, create_bloom_filter_index=True) as mat_col:
-            _create_event(team=self.team, distinct_id="test", event="test", properties={"test_prop": "foo"})
-
-            index_name = get_bloom_filter_index_name(mat_col.name)
-            with pytest.raises(Exception) as exc_info:
-                execute_hogql_query(
-                    team=self.team,
-                    query="SELECT distinct_id FROM events WHERE concat(properties.test_prop, '') = 'foo'",
-                    modifiers=HogQLQueryModifiers(
-                        materializationMode=MaterializationMode.AUTO,
-                        forceClickhouseDataSkippingIndexes=[index_name],
-                    ),
-                )
-
-            assert "index" in str(exc_info.value).lower()
-
-    def test_lower_in_optimization_on_persons(self) -> None:
-        # The persons table hides the property filter in a subquery; the helper extracts it (see its docstring)
-        with materialized("person", "email", is_nullable=True, create_bloom_filter_lower_index=True) as mat_col:
-            _create_person(
-                distinct_ids=["p_foo"], team=self.team, properties={"email": "Foo@Example.com"}, immediate=True
-            )
-            _create_person(
-                distinct_ids=["p_bar"], team=self.team, properties={"email": "bar@example.com"}, immediate=True
-            )
-            _create_person(
-                distinct_ids=["p_other"], team=self.team, properties={"email": "other@example.com"}, immediate=True
-            )
-
-            result = execute_hogql_query(
-                team=self.team,
-                query="SELECT id, properties.email FROM persons "
-                "WHERE lower(properties.email) IN {emails} ORDER BY properties.email",
-                placeholders={"emails": ast.Constant(value=["foo@example.com", "bar@example.com"])},
-                modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.AUTO),
-            )
-            # Correctness: case-insensitive match through the deduplication subquery
-            assert {email for (_id, email) in result.results} == {"Foo@Example.com", "bar@example.com"}
-            assert result.clickhouse
-
-            # Index usage: EXPLAIN the person-filter subquery from the SQL that actually ran.
-            subquery = get_inner_person_subquery_clickhouse_sql(result.clickhouse)
-            index_name = get_bloom_filter_lower_index_name(mat_col.name)
-            index_info = get_index_from_explain(subquery, index_name)
-            assert index_info is not None, (
-                f"Expected skip index {index_name} to be used in the persons filter subquery:\n{subquery}"
-            )
-
-    def test_lower_in_uses_bloom_filter_lower_index_on_events(self) -> None:
-        # Events are a single direct scan, so EXPLAIN of the executed query exposes the skip index directly
-        event_name = "mat_col_lower_bloom_events_test"
-        with materialized("events", "email", is_nullable=True, create_bloom_filter_lower_index=True) as mat_col:
-            _create_event(team=self.team, distinct_id="u1", event=event_name, properties={"email": "Foo@Example.com"})
-
-            result = execute_hogql_query(
-                team=self.team,
-                query="SELECT count() FROM events WHERE event = {event} AND lower(properties.email) IN {emails}",
-                placeholders={
-                    "event": ast.Constant(value=event_name),
-                    "emails": ast.Constant(value=["foo@example.com", "bar@example.com"]),
-                },
-                modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.AUTO),
-            )
-            assert result.results == [(1,)]
-            assert result.clickhouse
-
-            index_name = get_bloom_filter_lower_index_name(mat_col.name)
-            index_info = get_index_from_explain(result.clickhouse, index_name)
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert index_info is None
-                assert "events.properties.email" in result.clickhouse
-                assert mat_col.name not in result.clickhouse
-            else:
-                assert index_info is not None, (
-                    f"Expected skip index {index_name} to be used in EXPLAIN output for:\n{result.clickhouse}"
-                )
-
-    def test_lower_in_uses_ngram_lower_index_on_events(self) -> None:
-        # The rewrite must also let an ngram_lower index serve the IN lookup end to end.
-        event_name = "mat_col_lower_ngram_events_test"
-        with materialized("events", "email", is_nullable=True, create_ngram_lower_index=True) as mat_col:
-            _create_event(team=self.team, distinct_id="u1", event=event_name, properties={"email": "Foo@Example.com"})
-
-            result = execute_hogql_query(
-                team=self.team,
-                query="SELECT count() FROM events WHERE event = {event} AND lower(properties.email) IN {emails}",
-                placeholders={
-                    "event": ast.Constant(value=event_name),
-                    "emails": ast.Constant(value=["foo@example.com", "bar@example.com"]),
-                },
-                modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.AUTO),
-            )
-            assert result.results == [(1,)]
-            assert result.clickhouse
-
-            index_name = get_ngram_lower_index_name(mat_col.name)
-            index_info = get_index_from_explain(result.clickhouse, index_name)
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert index_info is None
-                assert "events.properties.email" in result.clickhouse
-                assert mat_col.name not in result.clickhouse
-            else:
-                assert index_info is not None, (
-                    f"Expected skip index {index_name} to be used in EXPLAIN output for:\n{result.clickhouse}"
-                )
-
-    @parameterized.expand(
-        [
-            ("no_mat_col", None, False),
-            ("nullable_mat_col", True, False),
-            ("non_nullable_mat_col", False, False),
-            ("nullable_mat_col_with_ngram_lower", True, True),
-            ("non_nullable_mat_col_with_ngram_lower", False, True),
-        ]
-    )
-    def test_ilike_and_not_ilike_optimization_gives_correct_results(
-        self, _, is_nullable, create_ngram_lower_index
-    ) -> None:
+    def test_ilike_and_not_ilike_give_correct_results(self) -> None:
         event_name = "mat_col_opt_ilike_test"
-        if is_nullable is not None:
-            mat_col = materialize(
-                "events", "test_prop", is_nullable=is_nullable, create_ngram_lower_index=create_ngram_lower_index
-            )
-            self.addCleanup(cleanup_materialized_columns)
-        else:
-            mat_col = None
 
         # do multiple test cases per test run, as setup and teardown are a bit slow
         cases: set[str] = {
@@ -6796,41 +5704,23 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             "None",  # Store None (i.e. actual NULL value) as a string, because we can't have a NULL distinct_id and it makes things easier
         }
 
-        # Map of patterns to (ilike_expected, ilike_expected_if_non_nullable) - can use ilike_expected_if_non_nullable=None to fall back to ilike_expected.
-        # Note that non-nullable mat columns treat the '' and 'null' values as NULL, this is a bug/"feature" in non-nullable mat columns, not in our optimization.
-        # In this case we bail out of our optimization and fall back to default NULL handling/wrapping.
-        # It'd be a good thing to fix this! And remove these special-cases from the tests! but my top priority was making sure that I didn't change any behavior.
-        patterns_and_expected = {
-            "%@posthog.com": ({"hello@posthog.com", "Hello@PostHog.com", "null@posthog.com"}, None),
-            "hello@posthog.com": ({"hello@posthog.com", "Hello@PostHog.com"}, None),
-            "%null%": (
-                {"null", "NULL", "'null'", "null@posthog.com", "contains null in the middle"},
-                {"NULL", "'null'", "null@posthog.com", "contains null in the middle"},
-            ),
-            "%": (
-                {
-                    "",
-                    "hello@posthog.com",
-                    "Hello@PostHog.com",
-                    "other_value",
-                    "null",
-                    "NULL",
-                    "'null'",
-                    "contains null in the middle",
-                    "null@posthog.com",
-                },
-                {
-                    "hello@posthog.com",
-                    "Hello@PostHog.com",
-                    "other_value",
-                    "NULL",
-                    "'null'",
-                    "contains null in the middle",
-                    "null@posthog.com",
-                },
-            ),
-            "": ({""}, set()),
-            "None": ({"None"}, {"None", "", "null"}),
+        patterns_and_expected: dict[str, set[str]] = {
+            "%@posthog.com": {"hello@posthog.com", "Hello@PostHog.com", "null@posthog.com"},
+            "hello@posthog.com": {"hello@posthog.com", "Hello@PostHog.com"},
+            "%null%": {"null", "NULL", "'null'", "null@posthog.com", "contains null in the middle"},
+            "%": {
+                "",
+                "hello@posthog.com",
+                "Hello@PostHog.com",
+                "other_value",
+                "null",
+                "NULL",
+                "'null'",
+                "contains null in the middle",
+                "null@posthog.com",
+            },
+            "": {""},
+            "None": {"None"},
         }
 
         for case in cases:
@@ -6842,13 +5732,7 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             )
         flush_persons_and_events()
 
-        for pattern, (ilike_expected, ilike_expected_if_non_nullable) in patterns_and_expected.items():
-            if (
-                ilike_expected_if_non_nullable is not None
-                and (is_nullable is False)
-                and not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            ):
-                ilike_expected = ilike_expected_if_non_nullable
+        for pattern, ilike_expected in patterns_and_expected.items():
             if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
                 ilike_expected = (ilike_expected | {""}) if pattern == "None" else ilike_expected - {""}
             pattern_expr = ast.Constant(value=pattern if pattern != "None" else None)
@@ -6860,19 +5744,6 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             ilike_matches = {d for (d,) in ilike_result.results}
             assert ilike_matches == ilike_expected, "ilike " + str(pattern)
 
-            if mat_col and not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert ilike_result.clickhouse
-                # we can only ever use the index if it exists, pattern was not NULL, and we didn't need to bail out of the optimisation
-                should_use_index = (
-                    create_ngram_lower_index
-                    and pattern != "None"
-                    and (is_nullable or (ilike_expected_if_non_nullable is None))
-                )
-                did_use_index = bool(
-                    get_index_from_explain(ilike_result.clickhouse, get_ngram_lower_index_name(mat_col.name))
-                )
-                assert should_use_index == did_use_index
-
             not_ilike_expected = cases.difference(ilike_expected)
             not_ilike_result = execute_hogql_query(
                 team=self.team,
@@ -6881,28 +5752,9 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             )
             not_ilike_matches = {d for (d,) in not_ilike_result.results}
             assert not_ilike_matches == not_ilike_expected, "not_ilike " + str(pattern)
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA and mat_col:
-                assert not_ilike_result.clickhouse
-                assert mat_col.name not in not_ilike_result.clickhouse
 
-    @parameterized.expand(
-        [
-            ("no_mat_col", None, False),
-            ("nullable_mat_col", True, False),
-            ("non_nullable_mat_col", False, False),
-            ("nullable_mat_col_with_bloom_filter", True, True),
-            ("non_nullable_mat_col_with_bloom_filter", False, True),
-        ]
-    )
-    def test_in_and_not_in_optimization_gives_correct_results(self, _, is_nullable, create_bloom_filter_index) -> None:
+    def test_in_and_not_in_give_correct_results(self) -> None:
         event_name = "mat_col_opt_in_test"
-        if is_nullable is not None:
-            mat_col = materialize(
-                "events", "test_prop", is_nullable=is_nullable, create_bloom_filter_index=create_bloom_filter_index
-            )
-            self.addCleanup(cleanup_materialized_columns)
-        else:
-            mat_col = None
 
         cases: set[str] = {
             "hello@posthog.com",
@@ -6917,17 +5769,15 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             "None",
         }
 
-        # Map of IN values to (in_expected, in_expected_if_non_nullable). If in_expected_if_non_nullable is None, use in_expected.
-        # Non-nullable mat columns treat '' and 'null' values as NULL.
-        in_values_and_expected: dict[tuple[str, ...], tuple[set[str], set[str] | None]] = {
-            ("hello@posthog.com",): ({"hello@posthog.com"}, None),
-            ("hello@posthog.com", "other_value"): ({"hello@posthog.com", "other_value"}, None),
-            ("null",): ({"null"}, set()),
-            ("NULL",): ({"NULL"}, None),
-            ("null", "NULL"): ({"null", "NULL"}, {"NULL"}),
-            ("",): ({""}, set()),
-            ("hello@posthog.com", "null"): ({"hello@posthog.com", "null"}, {"hello@posthog.com"}),
-            ("hello@posthog.com", ""): ({"hello@posthog.com", ""}, {"hello@posthog.com"}),
+        in_values_and_expected: dict[tuple[str, ...], set[str]] = {
+            ("hello@posthog.com",): {"hello@posthog.com"},
+            ("hello@posthog.com", "other_value"): {"hello@posthog.com", "other_value"},
+            ("null",): {"null"},
+            ("NULL",): {"NULL"},
+            ("null", "NULL"): {"null", "NULL"},
+            ("",): {""},
+            ("hello@posthog.com", "null"): {"hello@posthog.com", "null"},
+            ("hello@posthog.com", ""): {"hello@posthog.com", ""},
         }
 
         for case in cases:
@@ -6937,15 +5787,9 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
                 event=event_name,
                 properties={"test_prop": case if case != "None" else None},
             )
+        flush_persons_and_events()
 
-        for in_values, (in_expected, in_expected_if_non_nullable) in in_values_and_expected.items():
-            if (
-                in_expected_if_non_nullable is not None
-                and (is_nullable is False)
-                and not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA
-            ):
-                in_expected = in_expected_if_non_nullable
-
+        for in_values, in_expected in in_values_and_expected.items():
             if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
                 in_expected = in_expected - {""}
             in_values_exprs: list[ast.Expr] = [ast.Constant(value=v) for v in in_values]
@@ -6959,16 +5803,6 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             in_matches = {d for (d,) in in_result.results}
             assert in_matches == in_expected, f"IN {in_values}"
 
-            if mat_col and not settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert in_result.clickhouse
-                # We can use the bloom filter index if it exists and we didn't need to bail out of the optimisation
-                contains_sentinel = any(v in ("", "null") for v in in_values)
-                should_use_index = create_bloom_filter_index and (is_nullable or not contains_sentinel)
-                index_name = get_bloom_filter_index_name(mat_col.name)
-                index_info = get_index_from_explain(in_result.clickhouse, index_name)
-                did_use_index = bool(index_info)
-                assert should_use_index == did_use_index, f"IN {in_values}: expected index use={should_use_index}"
-
             not_in_expected = cases.difference(in_expected)
             not_in_result = execute_hogql_query(
                 team=self.team,
@@ -6977,53 +5811,6 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
             )
             not_in_matches = {d for (d,) in not_in_result.results}
             assert not_in_matches == not_in_expected, f"NOT IN {in_values}"
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA and mat_col:
-                assert not_in_result.clickhouse
-                assert mat_col.name not in not_in_result.clickhouse
-
-    @parameterized.expand([("nullable", True), ("non_nullable", False)])
-    def test_lower_in_optimization_handles_null_and_sentinel_rows(self, _, is_nullable) -> None:
-        # The rewrite must stay correct for NULL/missing, empty-string, and literal-"null" property rows
-        event_name = "mat_col_opt_lower_in_test"
-        with materialized(
-            "events", "test_prop", is_nullable=is_nullable, create_bloom_filter_lower_index=True
-        ) as mat_col:
-            events: list[tuple[str, dict]] = [
-                ("mixed_case", {"test_prop": "Hello@PostHog.com"}),
-                ("lower_case", {"test_prop": "hello@posthog.com"}),
-                ("other", {"test_prop": "OTHER"}),
-                ("literal_null_str", {"test_prop": "null"}),
-                ("empty_str", {"test_prop": ""}),
-                ("missing_key", {}),
-                ("json_null", {"test_prop": None}),
-            ]
-            for distinct_id, properties in events:
-                _create_event(team=self.team, distinct_id=distinct_id, event=event_name, properties=properties)
-            all_ids = {distinct_id for distinct_id, _ in events}
-
-            def run(op: str) -> tuple[set[str], str]:
-                result = execute_hogql_query(
-                    team=self.team,
-                    query=(
-                        f"SELECT distinct_id FROM events "
-                        f"WHERE event = '{event_name}' AND lower(properties.test_prop) {op} ('hello@posthog.com') ORDER BY distinct_id"
-                    ),
-                    modifiers=HogQLQueryModifiers(materializationMode=MaterializationMode.AUTO),
-                )
-                assert result.clickhouse
-                return {d for (d,) in result.results}, result.clickhouse
-
-            # Case-insensitive IN: matches the mixed-case and already-lowercase rows, nothing else.
-            in_matches, in_sql = run("IN")
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert mat_col.name not in in_sql
-            else:
-                assert "has(" in in_sql, f"expected the bloom_filter_lower rewrite to fire: {in_sql}"
-            assert in_matches == {"mixed_case", "lower_case"}
-
-            # NOT IN returns the exact complement, including the NULL / missing / empty-string rows.
-            not_in_matches, _ = run("NOT IN")
-            assert not_in_matches == all_ids - {"mixed_case", "lower_case"}
 
     def test_recursive_cte_raises(self):
         query = """
@@ -7037,30 +5824,97 @@ class TestMaterializedColumnOptimization(ClickhouseTestMixin, APIBaseTest):
         with self.assertRaises(ImpossibleASTError):
             execute_hogql_query(team=self.team, query=query)
 
-    def test_jsonextractstring_rewrite_emits_mat_column(self) -> None:
-        with materialized("events", "test_prop", is_nullable=False) as mat_col:
-            printed = self._expr("JSONExtractString(properties, 'test_prop')")
-            if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
-                assert printed == (
-                    f"JSONExtractString(ifNull({self._json_dynamic_property_expr('test_prop', as_json=True)}, ''))"
-                )
-                assert mat_col.name not in printed
-            else:
-                assert printed == f"nullIf(nullIf(events.{mat_col.name}, ''), 'null')"
+    @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
+    def test_materialized_column_range_comparison_uses_typed_numeric_source(self, mock_matcols_by_table) -> None:
+        PropertyDefinition.objects.create(
+            team=self.team,
+            project_id=self.team.project_id,
+            name="numeric_test_prop",
+            property_type=PropertyType.Numeric,
+            type=PropertyDefinition.Type.EVENT,
+        )
+        mock_mat_col = FakeMaterializedColumn(
+            name="mat_numeric_test_prop",
+            is_nullable=True,
+            type="Nullable(Float64)",
+            has_minmax_index=True,
+        )
+        mock_matcols_by_table.return_value = {"events": {("numeric_test_prop", "properties"): mock_mat_col}}
+
+        printed = self._expr("properties.numeric_test_prop < 5")
+
+        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
+            # A numeric comparison casts the bare JSON path instead of going through the string read.
+            assert "accurateCastOrNull(events.properties.numeric_test_prop, 'Float64')" in printed
+            assert "mat_numeric_test_prop" not in printed
+            assert "accurateCastOrNull" in printed
+        else:
+            assert "less(events." in printed
+            assert "mat_numeric_test_prop" in printed
+            assert "accurateCastOrNull" not in printed
+
+    @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
+    def test_materialized_column_range_comparison_uses_typed_datetime_source(self, mock_matcols_by_table) -> None:
+        PropertyDefinition.objects.create(
+            team=self.team,
+            project_id=self.team.project_id,
+            name="datetime_test_prop",
+            property_type=PropertyType.Datetime,
+            type=PropertyDefinition.Type.EVENT,
+        )
+        mock_mat_col = FakeMaterializedColumn(
+            name="mat_datetime_test_prop",
+            is_nullable=True,
+            type="Nullable(DateTime64(6, 'UTC'))",
+            has_minmax_index=True,
+        )
+        mock_matcols_by_table.return_value = {"events": {("datetime_test_prop", "properties"): mock_mat_col}}
+
+        printed = self._expr("properties.datetime_test_prop < '2024-01-15'")
+
+        if settings.CLICKHOUSE_HOGQL_USE_NEW_EVENTS_SCHEMA:
+            assert self._json_dynamic_property_expr("datetime_test_prop") in printed
+            assert "mat_datetime_test_prop" not in printed
+            assert "parseDateTime64BestEffortOrNull" in printed
+        else:
+            assert "less(events." in printed
+            assert "mat_datetime_test_prop" in printed
+            assert "toDateTime64(" in printed
+            assert "parseDateTime64BestEffortOrNull" not in printed
+
+    @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
+    def test_materialized_column_range_comparison_skips_non_nullable_numeric_source(
+        self, mock_matcols_by_table
+    ) -> None:
+        PropertyDefinition.objects.create(
+            team=self.team,
+            project_id=self.team.project_id,
+            name="numeric_test_prop",
+            property_type=PropertyType.Numeric,
+            type=PropertyDefinition.Type.EVENT,
+        )
+        mock_mat_col = FakeMaterializedColumn(
+            name="mat_numeric_test_prop",
+            is_nullable=False,
+            type="Float64",
+            has_minmax_index=True,
+        )
+        mock_matcols_by_table.return_value = {"events": {("numeric_test_prop", "properties"): mock_mat_col}}
+
+        printed = self._expr("properties.numeric_test_prop < 5")
+
+        # A non-nullable Float64 column stores 0 for missing JSON, so the bare minmax rewrite would
+        # match rows where the property is absent. The optimization must be skipped (no bare column).
+        assert "less(events.mat_numeric_test_prop, " not in printed
 
     @patch("posthog.clickhouse.materialized_columns.get_enabled_materialized_columns_by_table")
     def test_jsonextractstring_not_rewritten_for_non_string_mat_column(self, mock_matcols_by_table) -> None:
-        from ee.clickhouse.materialized_columns.columns import MaterializedColumn, MaterializedColumnDetails
-
         # JSONExtractString has string semantics, so a numeric-typed materialized column must not be
         # substituted for it — that would emit a bare Float64 column where a string is expected.
-        mat_col = MaterializedColumn(
+        mat_col = FakeMaterializedColumn(
             name="mat_numeric_prop",
-            details=MaterializedColumnDetails(
-                table_column="properties", property_name="numeric_prop", is_disabled=False
-            ),
             is_nullable=True,
-            column_type="Nullable(Float64)",
+            type="Nullable(Float64)",
             has_minmax_index=True,
         )
         mock_matcols_by_table.return_value = {"events": {("numeric_prop", "properties"): mat_col}}

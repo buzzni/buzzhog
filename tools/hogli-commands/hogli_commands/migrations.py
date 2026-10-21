@@ -480,7 +480,7 @@ def _get_migrations_in_db() -> dict[str, set[str]]:
 def _compute_migration_diff() -> MigrationDiff:
     """Compute the diff between database and code migration states.
 
-    Only tracks apps that we manage (posthog, ee, rbac, products/*).
+    Only tracks apps that we manage (posthog, rbac, ee when present, products/*).
     Third-party apps (django, axes, social_django, etc.) are ignored.
     """
     diff = MigrationDiff()

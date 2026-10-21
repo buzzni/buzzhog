@@ -8,7 +8,6 @@
                 "backend/routes.py",
                 "backend/webhook_consumers.py",
                 "backend/tasks/**",
-                "backend/max_tools.py",
                 "backend/models/**",
                 "backend/migrations/**"
             ],

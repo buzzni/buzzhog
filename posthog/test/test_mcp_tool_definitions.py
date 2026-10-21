@@ -79,5 +79,5 @@ class TestMcpToolDefinitions(SimpleTestCase):
 
         assert set(handwritten) | set(generated) == set(definitions)
         # A hand-written tool, absent if the loader reads only the generated file.
-        assert definitions["read-data-schema"].required_scopes
+        assert definitions["event-definition-update"].required_scopes
         assert all(definition.title and definition.summary for definition in definitions.values())

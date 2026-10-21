@@ -84,10 +84,6 @@ def get_signed_pdf_download_url(document_id: UUID, organization_id: UUID) -> str
     return logic.get_signed_pdf_presigned_url(document)
 
 
-def has_qualifying_baa_addon(organization: Organization) -> bool:
-    return logic.has_qualifying_baa_addon(organization)
-
-
 def has_signed_baa(organization_id: UUID) -> bool:
     """
     True once the organization has a countersigned BAA on file. This is the

@@ -193,7 +193,6 @@ export class InterviewRecruitment {
                 : params.name
         return (
             typeof name === 'string' &&
-            name !== 'docs-search' &&
             !isPrivateScoutTrialTool(name) &&
             !/^skills?-/.test(name) &&
             state.allTools.some((tool) => tool.name === name)

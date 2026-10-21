@@ -14,14 +14,7 @@ class TestAITemporalModuleIntegrity:
     def test_workflows_remain_unchanged(self):
         """Ensure all expected workflows are present in the module."""
         expected_workflows = [
-            "SyncVectorsWorkflow",
-            "AssistantConversationRunnerWorkflow",
-            "ChatAgentWorkflow",
-            "ConversationMirrorWorkflow",
-            "ResearchAgentWorkflow",
-            "SummarizeLLMTracesWorkflow",
             "AnomalyInvestigationWorkflow",
-            "CheckpointCompactionWorkflow",
         ]
         actual_workflow_names = [workflow.__name__ for workflow in ai.AI_WORKFLOWS]
         assert len(actual_workflow_names) == len(expected_workflows), (
@@ -40,17 +33,7 @@ class TestAITemporalModuleIntegrity:
     def test_activities_remain_unchanged(self):
         """Ensure all expected activities are present in the module."""
         expected_activities = [
-            "get_approximate_actions_count",
-            "batch_summarize_actions",
-            "batch_embed_and_sync_actions",
-            "process_conversation_activity",
-            "process_chat_agent_activity",
-            "mirror_conversation_to_task_activity",
-            "process_research_agent_activity",
-            "summarize_llm_traces_activity",
             "investigate_anomaly_activity",
-            "select_checkpoint_compaction_batch",
-            "compact_checkpoint_conversations",
         ]
         actual_activity_names = [activity.__name__ for activity in ai.AI_ACTIVITIES]
         assert len(actual_activity_names) == len(expected_activities), (
@@ -64,26 +47,6 @@ class TestAITemporalModuleIntegrity:
         for actual in actual_activity_names:
             assert actual in expected_activities, (
                 f"Unexpected activity '{actual}' found in ai.AI_ACTIVITIES. If this was intentional, update the test."
-            )
-
-    def test_all_exports_remain_unchanged(self):
-        """Ensure __all__ exports remain unchanged."""
-        expected_exports = [
-            "SyncVectorsInputs",
-            "SummarizeLLMTracesInputs",
-        ]
-        actual_exports = ai.__all__
-        assert len(actual_exports) == len(expected_exports), (
-            f"Export count mismatch. Expected {len(expected_exports)}, got {len(actual_exports)}. "
-            "If you're adding/removing exports, update this test accordingly."
-        )
-        for expected in expected_exports:
-            assert expected in actual_exports, (
-                f"Export '{expected}' is missing from __all__. If this was intentional, update the test."
-            )
-        for actual in actual_exports:
-            assert actual in expected_exports, (
-                f"Unexpected export '{actual}' found in __all__. If this was intentional, update the test."
             )
 
 

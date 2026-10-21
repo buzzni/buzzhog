@@ -4,8 +4,6 @@ from unittest.mock import patch
 from parameterized import parameterized
 from rest_framework.exceptions import PermissionDenied, Throttled
 
-from posthog.exceptions import QuotaLimitExceeded
-
 from products.tasks.backend.logic.services.warm import SandboxWarmer, WarmSourceChanged
 from products.tasks.backend.models import Task, TaskRun
 
@@ -38,7 +36,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
         task = self._task()
         with (
             patch(f"{WARM}.execute_task_processing_workflow") as m_workflow,
-            patch(f"{WARM}.is_team_limited", return_value=False),
             self.captureOnCommitCallbacks(execute=True),
         ):
             result = SandboxWarmer(task, user=self.user).warm(extra_state={"systemPrompt": "SYS"})
@@ -66,7 +63,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
 
         with (
             patch(f"{WARM}.execute_task_processing_workflow") as m_workflow,
-            patch(f"{WARM}.is_team_limited", return_value=False),
             self.captureOnCommitCallbacks(execute=True),
         ):
             result = SandboxWarmer(task, user=self.user).warm()
@@ -84,7 +80,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
 
         with (
             patch(f"{WARM}.execute_task_processing_workflow") as m_workflow,
-            patch(f"{WARM}.is_team_limited", return_value=False),
             self.captureOnCommitCallbacks(execute=True),
         ):
             result = SandboxWarmer(task, user=self.user).warm()
@@ -105,7 +100,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
 
         with (
             patch(f"{WARM}.execute_task_processing_workflow"),
-            patch(f"{WARM}.is_team_limited", return_value=False),
             self.captureOnCommitCallbacks(execute=True),
         ):
             first = SandboxWarmer(task, user=self.user).warm(
@@ -135,7 +129,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
         task = self._task()
         with (
             patch(f"{WARM}.execute_task_processing_workflow") as m_workflow,
-            patch(f"{WARM}.is_team_limited", return_value=False),
             patch("products.tasks.backend.models.settings.TEST", False),
         ):
             result = SandboxWarmer(task, user=self.user).warm()
@@ -143,18 +136,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
 
         assert result.just_created is True
         assert task.runs.count() == 1
-
-    def test_over_quota_raises_and_creates_no_run(self):
-        task = self._task()
-        with (
-            patch(f"{WARM}.execute_task_processing_workflow") as m_workflow,
-            patch(f"{WARM}.is_team_limited", return_value=True),
-        ):
-            with self.assertRaises(QuotaLimitExceeded):
-                SandboxWarmer(task, user=self.user).warm()
-
-        assert task.runs.count() == 0
-        m_workflow.assert_not_called()
 
     def test_deactivated_organization_creates_no_run(self):
         self.organization.is_active = False
@@ -180,7 +161,6 @@ class TestSandboxWarmerWarm(APIBaseTest):
         task = self._task()
         with (
             patch(f"{WARM}.execute_task_processing_workflow") as m_workflow,
-            patch(f"{WARM}.is_team_limited", return_value=False),
         ):
             with self.assertRaises(Throttled):
                 SandboxWarmer(task, user=self.user).warm()

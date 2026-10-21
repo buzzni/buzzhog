@@ -440,15 +440,6 @@ class DashboardImporter:
             raise DashboardImportNotAllowed(
                 "Turn on AI data processing in the organization settings to import dashboards."
             )
-        # Deferred because ee is optional, and a self-hosted build without it has no AI credits to check.
-        try:
-            from ee.billing.quota_limiting import QuotaLimitingCaches, QuotaResource, is_team_limited  # noqa: PLC0415
-        except ImportError:
-            return
-        if is_team_limited(self._team.api_token, QuotaResource.AI_CREDITS, QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY):
-            raise DashboardImportNotAllowed(
-                "Your organization used all of its AI credits. Check your billing settings, then try again."
-            )
 
     @staticmethod
     def _parse_grafana(grafana_json: str | None) -> DashboardSpec:

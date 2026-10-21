@@ -18,8 +18,6 @@ from products.product_analytics.backend.presentation.insight import (
     MCPInsightSerializer,
 )
 
-from ee.api.test.base import LicensedTestMixin
-
 
 class TestMCPInsightSerializer(SimpleTestCase):
     @parameterized.expand([("bare", False), ("wrapped", True)])
@@ -143,7 +141,7 @@ class TestMCPInsightSerializer(SimpleTestCase):
         assert query.chartSettings.boxPlot.medianColumn == "median"
 
 
-class TestInsight(ClickhouseTestMixin, LicensedTestMixin, APIBaseTest, QueryMatchingTest):
+class TestInsight(ClickhouseTestMixin, APIBaseTest, QueryMatchingTest):
     maxDiff = None
 
     def setUp(self) -> None:

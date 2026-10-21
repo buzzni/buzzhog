@@ -42,7 +42,6 @@ from posthog.tasks.tasks import (
     clear_expired_sessions,
     clickhouse_clear_removed_data,
     clickhouse_errors_count,
-    clickhouse_materialize_columns,
     clickhouse_mutation_count,
     clickhouse_part_count,
     clickhouse_row_count,
@@ -123,7 +122,6 @@ from products.signals.backend.tasks import (
     refresh_signal_repository_activity,
     refresh_signal_scout_background_bands,
     sweep_implementation_dispatches,
-    sync_pending_signals_refund_credits,
 )
 from products.skills.backend.tasks import sync_community_skills
 from products.stamphog.backend.facade.tasks import DAILY_DIGEST_CRONTAB, send_daily_digests
@@ -437,13 +435,6 @@ def setup_periodic_tasks(sender: Celery, **kwargs: Any) -> None:
         sweep_implementation_dispatches.s(),
         name="recover pending signals implementation starts",
         expires_seconds=5 * 60,
-    )
-
-    # Re-enqueue signals PR refunds whose billing credit sync hasn't landed - hourly at minute 25
-    sender.add_periodic_task(
-        crontab(hour="*", minute="25"),
-        sync_pending_signals_refund_credits.s(),
-        name="sync pending signals refund credits",
     )
 
     # Recompute the activity bands the background scout lane samples from - daily at 5:50 AM
@@ -949,53 +940,34 @@ def setup_periodic_tasks(sender: Celery, **kwargs: Any) -> None:
         name="clean up old logs alert events",
     )
 
-    if settings.EE_AVAILABLE:
-        materialize_columns_crontab = get_crontab(settings.MATERIALIZE_COLUMNS_SCHEDULE_CRON)
+    sender.add_periodic_task(
+        crontab(minute="10", hour="*/12"),
+        find_flags_with_enriched_analytics.s(),
+        name="find feature flags with enriched analytics",
+    )
 
-        if materialize_columns_crontab:
-            sender.add_periodic_task(
-                materialize_columns_crontab,
-                clickhouse_materialize_columns.s(),
-                name="clickhouse materialize columns",
-            )
+    sender.add_periodic_task(
+        crontab(hour="0", minute="7"),
+        delete_expired_exported_assets.s(),
+        name="delete expired exported assets",
+    )
 
-        sender.add_periodic_task(
-            crontab(minute="10", hour="*/12"),
-            find_flags_with_enriched_analytics.s(),
-            name="find feature flags with enriched analytics",
-        )
+    # Hourly rather than daily: until this runs, a dead video export still reads as in progress
+    # to whoever is waiting on it.
+    sender.add_periodic_task(
+        crontab(minute="33"),
+        fail_stuck_video_exports.s(),
+        name="fail stuck video exports",
+    )
 
-        sender.add_periodic_task(
-            crontab(hour="0", minute="7"),
-            delete_expired_exported_assets.s(),
-            name="delete expired exported assets",
-        )
-
-        # Hourly rather than daily: until this runs, a dead video export still reads as in progress
-        # to whoever is waiting on it.
-        sender.add_periodic_task(
-            crontab(minute="33"),
-            fail_stuck_video_exports.s(),
-            name="fail stuck video exports",
-        )
-
-        # Daily cleanup of expired onboarding delegation invites. `pre_delete` re-enables
-        # the delegator's onboarding, so a missed sweep strands delegators on the "waiting
-        # for teammate" screen forever.
-        sender.add_periodic_task(
-            crontab(hour="1", minute="9"),
-            delete_expired_delegation_invites.s(),
-            name="delete expired delegation invites",
-        )
-
-        from ee.tasks.scim_request_log_cleanup import cleanup_old_scim_request_logs
-
-        add_periodic_task_with_expiry(
-            sender,
-            crontab(minute="43"),
-            cleanup_old_scim_request_logs.s(),
-            name="clean up old SCIM request logs",
-        )
+    # Daily cleanup of expired onboarding delegation invites. `pre_delete` re-enables
+    # the delegator's onboarding, so a missed sweep strands delegators on the "waiting
+    # for teammate" screen forever.
+    sender.add_periodic_task(
+        crontab(hour="1", minute="9"),
+        delete_expired_delegation_invites.s(),
+        name="delete expired delegation invites",
+    )
 
     # Check integrations to refresh every minute
     add_periodic_task_with_expiry(

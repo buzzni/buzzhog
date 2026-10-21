@@ -34,15 +34,17 @@ def reverse_accessor_edges() -> list[str]:
 
     def boundary(model: type[Model]) -> str:
         # Ownership comes from the defining module, not _meta.app_label: product models that keep a
-        # legacy label ("ee" on access_control's Role) would otherwise read as core and bypass the
-        # ratchet, and relations between two such models would read as cross-product.
+        # legacy label ("posthog" on access_control's RoleExternalReference) would otherwise read as
+        # core and bypass the ratchet, and relations between two such models would read as
+        # cross-product.
         module = model.__module__
         return module.split(".")[1] if module.startswith("products.") else "core"
 
     def label(model: type[Model]) -> str:
         # Rows carry the module-derived product name, not _meta.app_label, so a product's rows
-        # survive the per-product filter even when the model keeps a legacy label (ee.Role).
-        # Core models keep their app label (posthog/ee) — "core" would erase real information.
+        # survive the per-product filter even when the model keeps a legacy label
+        # (posthog.RoleExternalReference). Core models keep their app label (posthog), because
+        # "core" would erase real information.
         owner = boundary(model)
         return owner if owner != "core" else model._meta.app_label
 

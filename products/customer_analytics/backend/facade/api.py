@@ -2,8 +2,8 @@
 Facade API for customer_analytics.
 
 This is the data surface other apps import. Registry/wiring couplings live in
-sibling submodules (``queries``, ``max_tools``, ``team_extension``, ``constants``)
-to keep this module free of heavy imports (HogQL, ``ee.hogai.tool``) so config-only
+sibling submodules (``queries``, ``team_extension``, ``constants``)
+to keep this module free of heavy imports (HogQL) so config-only
 consumers don't drag them onto the ``django.setup()`` path.
 
 Responsibilities:

@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.utils import timezone
 
 from parameterized import parameterized
 
@@ -24,11 +25,22 @@ from posthog.test.persons import create_group_type_mapping
 from products.alerts.backend.models.alert import AlertConfiguration
 from products.dashboards.backend.models.dashboard import Dashboard
 from products.dashboards.backend.models.dashboard_tile import DashboardTile
+from products.exports.backend.models.subscription import Subscription
 from products.feature_flags.backend.models.feature_flag import FeatureFlag
 from products.feature_flags.backend.test.usage_dashboard_fixtures import create_usage_dashboard
 from products.product_analytics.backend.facade.models import Insight
 
-from ee.tasks.test.subscriptions.subscriptions_test_factory import create_subscription
+
+def create_subscription(*, team: Team, enabled: bool, **target: Any) -> Subscription:
+    return Subscription.objects.create(
+        team=team,
+        target_type="email",
+        target_value="recipient@example.com",
+        frequency="daily",
+        start_date=timezone.now(),
+        enabled=enabled,
+        **target,
+    )
 
 
 class TestDeleteFeatureFlagUsageInsights(BaseTest):

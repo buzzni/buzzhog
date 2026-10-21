@@ -793,17 +793,12 @@ class TestArgMaxNonNullableSimplification(ClickhouseTestMixin, APIBaseTest):
 
     @parameterized.expand(
         [
-            # (label, property, materialize_first, expected source-read marker in the SQL)
-            ("json", "jsonprop", False, "JSONExtractRaw(person.properties"),
-            ("materialized", "matprop", True, "pmat_matprop"),
+            # (label, property, expected source-read marker in the SQL)
+            ("json", "jsonprop", "JSONExtractRaw(person.properties"),
         ]
     )
     @snapshot_clickhouse_queries
-    def test_nullable_property_keeps_wrap_and_latest_null_wins(self, label, prop, materialize_first, read_marker):
-        if materialize_first:
-            from ee.clickhouse.materialized_columns.analyze import materialize  # noqa: PLC0415
-
-            materialize("person", prop, is_nullable=True)
+    def test_nullable_property_keeps_wrap_and_latest_null_wins(self, label, prop, read_marker):
         person = self._person_unsetting_prop_in_latest_version(f"null-{label}", prop)
         response = execute_hogql_query(
             parse_select(f"SELECT properties.{prop}, properties.untouched FROM persons WHERE id = {{pid}}"),
@@ -814,7 +809,7 @@ class TestArgMaxNonNullableSimplification(ClickhouseTestMixin, APIBaseTest):
         # The latest version unset the property, so NULL must win; a dropped wrap would make argMax skip the NULL and return the stale earlier value.
         assert response.results[0][0] is None
         assert response.results[0][1] == "keep"
-        # The nullable read (JSON extract or materialized column) stays wrapped.
+        # The nullable read stays wrapped.
         assert response.clickhouse is not None
         assert read_marker in response.clickhouse
         assert "tupleElement(argMax(tuple(" in response.clickhouse

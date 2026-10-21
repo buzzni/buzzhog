@@ -19,5 +19,6 @@ class FeatureFlagRoleAccess(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        app_label = "ee"
+        app_label = "access_control"
+        db_table = "ee_featureflagroleaccess"
         constraints = [models.UniqueConstraint(fields=["role", "feature_flag"], name="unique_feature_flag_and_role")]

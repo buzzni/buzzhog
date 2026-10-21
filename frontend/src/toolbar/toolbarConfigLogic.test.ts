@@ -2,7 +2,12 @@ import { expectLogic } from 'kea-test-utils'
 
 import { resumeKeaLoadersErrors, silenceKeaLoadersErrors } from '~/initKea'
 import { initKeaTests } from '~/test/init'
-import { canonicalizeApiHost, canonicalizeUiHost, toolbarConfigLogic } from '~/toolbar/toolbarConfigLogic'
+import {
+    canonicalizeApiHost,
+    canonicalizeUiHost,
+    identifiesToolbarUser,
+    toolbarConfigLogic,
+} from '~/toolbar/toolbarConfigLogic'
 import { toolbarFetch, toolbarUploadMedia } from '~/toolbar/toolbarFetch'
 import { cleanToolbarAuthHash, OAUTH_LOCALSTORAGE_KEY, PKCE_STORAGE_KEY, readToolbarAuthHash } from '~/toolbar/utils'
 
@@ -1636,5 +1641,9 @@ describe('toolbar toolbarConfigLogic', () => {
             expect(body.detail).toBe('invalid_url')
             expect(body.results).toEqual([])
         })
+    })
+
+    it('does not identify the toolbar user when no telemetry collector is configured', () => {
+        expect(identifiesToolbarUser({ instrument: true, distinctId: 'distinct_123' })).toBe(false)
     })
 })

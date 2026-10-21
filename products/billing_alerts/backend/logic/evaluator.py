@@ -3,17 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from time import perf_counter
 from typing import Any
 
 from django.utils import timezone
 
-from posthog.cloud_utils import get_cached_instance_license
 from posthog.models import Organization
 
 from products.billing_alerts.backend.models import BillingAlertConfiguration
-
-from ee.billing.billing_manager import BillingManager
 
 # Billing period totals the evaluator reads for each supported metric. Both are
 # after-discount amounts so alerts fire on what the customer actually owes.
@@ -85,13 +81,11 @@ def fetch_billing_data(
     alert: BillingAlertConfiguration,
     organization: Organization,
     *,
-    manager: BillingManager | None = None,
     now: datetime | None = None,
 ) -> tuple[dict[str, Any], int]:
-    manager = manager or BillingManager(get_cached_instance_license())
-    start = perf_counter()
-    response = manager.get_billing_status_for_alerts(organization)
-    return response, int((perf_counter() - start) * 1000)
+    # A self-hosted install has no billing service to ask, so the response carries no customer
+    # and evaluation records that as an error on the alert.
+    return {}, 0
 
 
 def _customer(billing_response: dict[str, Any]) -> dict[str, Any]:
@@ -104,7 +98,6 @@ def _customer(billing_response: dict[str, Any]) -> dict[str, Any]:
 def evaluate_billing_alert(
     alert: BillingAlertConfiguration,
     *,
-    manager: BillingManager | None = None,
     now: datetime | None = None,
     billing_response: dict[str, Any] | None = None,
     query_duration_ms: int | None = None,
@@ -115,7 +108,7 @@ def evaluate_billing_alert(
 
     if billing_response is None:
         organization = Organization.objects.get(id=alert.organization_id)
-        billing_response, query_duration_ms = fetch_billing_data(alert, organization, manager=manager, now=now)
+        billing_response, query_duration_ms = fetch_billing_data(alert, organization, now=now)
 
     customer = _customer(billing_response)
     billing_period = customer.get("billing_period") or {}

@@ -397,13 +397,8 @@ If you'd like to have ALL feature flags that exist in PostHog at your disposal r
 
 This command automatically turns any feature flag ending in `_EXPERIMENT` as a multivariate flag with `control` and `test` variants.
 
-Backend side flags are automatically configured in DEBUG mode using the
-dev API key created by `manage.py setup_local_api_key`.
-If you need to override the key, set the `POSTHOG_PERSONAL_API_KEY` env var.
-
-That dev key's full value is also shown in [Settings > Personal API keys](http://localhost:8010/settings/user-api-keys), so you can copy it without rerunning the command.
-This needs `DEBUG=1` and `ALLOW_DEV_API_KEY_REVEAL=1`, both of which are already set in `.env.development`.
-No other personal API key is ever shown in full: the dev key is the only one whose value is a repo constant rather than a hash.
+Backend side flags use the personal API key in the `POSTHOG_PERSONAL_API_KEY` env var.
+Without it, locally evaluated flags are off.
 
 ## Extra: Debugging with VS Code
 

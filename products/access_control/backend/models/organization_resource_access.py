@@ -32,7 +32,8 @@ class OrganizationResourceAccess(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        app_label = "ee"
+        app_label = "access_control"
+        db_table = "ee_organizationresourceaccess"
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "resource"],

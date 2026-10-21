@@ -3,8 +3,7 @@
 // Pins turbo-discover's DJANGO_SEGMENTS table to the Django pytest invocations
 // in ci-backend.yml. The table sizes the shards each segment gets, so a segment
 // listing paths the workflow no longer runs (or missing ones it does) budgets
-// wall time for a run that never happens. Both workflow copies are read: the
-// Depot mirror runs the same matrix and drifts on its own.
+// wall time for a run that never happens. Only the Depot copy exists in this fork.
 //
 // Reads the workflow rather than a fixture on purpose — the workflow is the one
 // side that can drift, and there is nothing else to compare the table against.
@@ -19,7 +18,7 @@ const path = require('node:path')
 const { DJANGO_SEGMENTS, getIsolatedProducts, loadJsonTargets } = require('./turbo-discover')
 
 const REPO_ROOT = path.join(__dirname, '..', '..')
-const WORKFLOWS = ['.github/workflows/ci-backend.yml', '.depot/workflows/ci-backend.yml']
+const WORKFLOWS = ['.depot/workflows/ci-backend.yml']
 
 // pytest takes `./posthog/queries/` and `posthog` for the same directory, and
 // --ignore drops the trailing slash. DJANGO_SEGMENTS stores prefixes, so every
@@ -49,7 +48,7 @@ function matchAll(text, pattern) {
 // the person-on-events leg adds its own ignores on top of the shared ones. The
 // compat leg reads its targets from an env var, so it has no literal to pick up.
 function parseCoreStep(text) {
-    const step = section(text, 'full_targets="posthog ee/"', '--junitxml=junit-core.xml')
+    const step = section(text, 'full_targets="posthog"', '--junitxml=junit-core.xml')
     const targets = matchAll(step, /full_targets="([^"]*)"/g).filter((value) => !value.startsWith('$'))
     assert.equal(targets.length, 2, 'expected a Core and a person-on-events full_targets assignment')
     const [core, poe] = targets.map((value) => value.trim().split(/\s+/))

@@ -52,8 +52,6 @@ from products.error_tracking.backend.temporal.weekly_digest.workflow import (
 )
 from products.error_tracking.backend.weekly_digest import build_team_digest_data
 
-from ee.clickhouse.materialized_columns.columns import materialize
-
 _WEBHOOK_POST = "products.error_tracking.backend.weekly_digest_delivery.requests.post"
 _BUILD_TEAM_DIGEST_DATA = "products.error_tracking.backend.weekly_digest.build_team_digest_data"
 _IS_CLOUD = "products.error_tracking.backend.temporal.weekly_digest.activities.is_cloud"
@@ -144,11 +142,6 @@ _MAX_ATTEMPTS = SendOrgDigestInputs(org_id="").max_attempts
 
 @override_settings(CLOUD_DEPLOYMENT="US")
 class TestSendOrgDigest(ClickhouseTestMixin, APIBaseTest):
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-        materialize("events", "$exception_issue_id", is_nullable=True)
-
     def _run(self, attempt: int = 1, dry_run: bool = False) -> SendOrgDigestResult:
         return _send_org_digest(SendOrgDigestInputs(org_id=str(self.organization.id), dry_run=dry_run), attempt=attempt)
 

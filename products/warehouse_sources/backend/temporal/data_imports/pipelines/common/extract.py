@@ -22,7 +22,6 @@ from products.warehouse_sources.backend.billing import is_in_free_historical_win
 from products.warehouse_sources.backend.temporal.data_imports.pipelines.common.load import get_incremental_field_value
 from products.warehouse_sources.backend.temporal.data_imports.pipelines.core.arrow_utils import (
     DUPLICATE_PRIMARY_KEYS_ERROR,
-    BillingLimitsWillBeReachedException,
     DuplicatePrimaryKeysException,
     MissingPrimaryKeysException,
 )
@@ -34,7 +33,6 @@ from products.warehouse_sources.backend.temporal.data_imports.row_tracking impor
     decrement_rows,
     increment_rows,
     setup_row_tracking,
-    will_hit_billing_limit,
 )
 from products.warehouse_sources.backend.temporal.data_imports.sources.common.primary_keys import resolve_merge_keys
 from products.warehouse_sources.backend.temporal.data_imports.sources.common.sql.metadata import (
@@ -494,17 +492,12 @@ async def setup_row_tracking_with_billing_check(
     logger: FilteringBoundLogger,
     billable: bool | None = True,
 ) -> None:
-    # The limit check sums these rows over every running sync in the organization. A run the check skips (a
-    # non-billable job, or a source in its free first week at the start) must stay out, or it blocks the others.
+    # Rows tracked here count toward the organization's in-progress total. A non-billable job, or a source in
+    # its free first week, must stay out of that total.
     if not resource.rows_to_sync or not billable or is_in_free_historical_window(source.created_at):
         return
 
     await increment_rows(team_id, schema.id, resource.rows_to_sync)
-    if await will_hit_billing_limit(team_id=team_id, source=source, logger=logger):
-        raise BillingLimitsWillBeReachedException(
-            f"Your account will hit your Data Warehouse billing limits syncing {resource.name} "
-            f"with {resource.rows_to_sync} rows"
-        )
 
 
 def reset_pipeline_requested(

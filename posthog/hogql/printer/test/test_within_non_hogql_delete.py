@@ -18,27 +18,13 @@ This file checks two things:
 """
 
 import re
-from typing import cast
 
-from posthog.test.base import (
-    APIBaseTest,
-    ClickhouseTestMixin,
-    _create_event,
-    cleanup_materialized_columns,
-    flush_persons_and_events,
-    materialized,
-)
-
-from parameterized import parameterized
-
-from posthog.hogql.context import HogQLContext
-from posthog.hogql.hogql import translate_hogql
+from posthog.test.base import APIBaseTest, ClickhouseTestMixin
 
 from posthog.clickhouse.client.execute import sync_execute
-from posthog.models import Organization, Team
+from posthog.models import Team
 from posthog.models.data_deletion_request import compile_hogql_predicate
 from posthog.models.event.sql import EVENTS_DATA_TABLE
-from posthog.models.property import TableColumn
 from posthog.settings.data_stores import CLICKHOUSE_DATABASE
 
 
@@ -86,13 +72,6 @@ _MUTATION_SAFE_FUNCTIONS = frozenset(
 class TestWithinNonHogqlDelete(ClickhouseTestMixin, APIBaseTest):
     maxDiff = None
 
-    def _materialized_column_name(self, table: str, prop: str, table_column: str = "properties") -> str:
-        from ee.clickhouse.materialized_columns.columns import get_materialized_columns  # noqa: PLC0415
-
-        column = get_materialized_columns(table).get((prop, cast(TableColumn, table_column)))
-        assert column is not None, f"expected materialized column for {table}.{prop} ({table_column})"
-        return column.name
-
     def _assert_unqualified_and_mutation_safe(self, sql: str, expected_column_sql: str) -> None:
         sql_lower = sql.lower()
         expected_column_sql_lower = expected_column_sql.lower()
@@ -110,37 +89,6 @@ class TestWithinNonHogqlDelete(ClickhouseTestMixin, APIBaseTest):
         called = {name.lower() for name in re.findall(r"([A-Za-z_][A-Za-z0-9_]*)\s*\(", sql)}
         unexpected = called - _MUTATION_SAFE_FUNCTIONS
         assert not unexpected, f"fragment uses non-mutation-safe functions {unexpected} in: {sql}"
-
-    def _expected_browser_property_sql(self) -> str:
-        return self._materialized_column_name("events", "$browser")
-
-    def test_compiled_predicate_is_unqualified_and_mutation_safe_with_materialized_column(self) -> None:
-        self.addCleanup(cleanup_materialized_columns)
-        with materialized("events", "$browser", is_nullable=False):
-            sql, params = compile_hogql_predicate(_PredicateObj(self.team.pk, "properties.$browser = 'Chrome'"))
-
-            self._assert_unqualified_and_mutation_safe(sql, self._expected_browser_property_sql())
-            # The compared value is parameterized (not inlined), and resolves to the literal we passed.
-            assert params == {"hogql_val_0": "Chrome"}, params
-
-    def test_within_non_hogql_predicate_stays_unqualified_with_materialized_column(self) -> None:
-        # within_non_hogql_query queries run through lowering + the physical pass like any other: the synthetic
-        # materialized-column field is marked `unqualified`, so the printer drops the table prefix and the
-        # lightweight-delete mutation analyzer accepts the bare column.
-        self.addCleanup(cleanup_materialized_columns)
-        with materialized("events", "$browser", is_nullable=False):
-            context = HogQLContext(
-                team_id=self.team.pk,
-                within_non_hogql_query=True,
-                enable_select_queries=True,
-            )
-            sql = translate_hogql(
-                "properties.$browser = 'Chrome'",
-                context,
-                dialect="clickhouse",
-                events_table_use_new_schema=False,
-            )
-            self._assert_unqualified_and_mutation_safe(sql, self._expected_browser_property_sql())
 
     def test_compiled_predicate_is_unqualified_and_mutation_safe_without_materialized_column(self) -> None:
         # Without materialization the fragment is the JSON-blob form; it must STILL be unqualified and mutation-safe
@@ -178,41 +126,6 @@ class TestWithinNonHogqlDelete(ClickhouseTestMixin, APIBaseTest):
             {**params, "_del_team_id": team_id},
             settings={"lightweight_deletes_sync": 2, "mutations_sync": 2},
         )
-
-    @parameterized.expand([("materialized", True), ("unmaterialized", False)])
-    def test_lightweight_delete_mutation_removes_matching_rows(self, _name: str, is_materialized: bool) -> None:
-        self.addCleanup(cleanup_materialized_columns)
-
-        # A second team to prove the team_id guard keeps the delete scoped (cross-team safety).
-        other_org = Organization.objects.create(name="del-other-org")
-        other_team = Team.objects.create(organization=other_org, name="del-other-team")
-
-        def seed() -> None:
-            for i in range(5):
-                _create_event(
-                    team=self.team, distinct_id=f"chrome_{i}", event="$pageview", properties={"$browser": "Chrome"}
-                )
-            for i in range(3):
-                _create_event(
-                    team=self.team, distinct_id=f"firefox_{i}", event="$pageview", properties={"$browser": "Firefox"}
-                )
-            # Same matching property on a different team — must NOT be deleted.
-            _create_event(
-                team=other_team, distinct_id="other_chrome", event="$pageview", properties={"$browser": "Chrome"}
-            )
-            flush_persons_and_events()
-
-        if is_materialized:
-            with materialized("events", "$browser", is_nullable=False):
-                seed()
-                sql, params = compile_hogql_predicate(_PredicateObj(self.team.pk, "properties.$browser = 'Chrome'"))
-                # The physical property read must be unqualified or the mutation analyzer rejects it.
-                self._assert_unqualified_and_mutation_safe(sql, self._expected_browser_property_sql())
-                self._run_and_assert_delete(sql, params, other_team)
-        else:
-            seed()
-            sql, params = compile_hogql_predicate(_PredicateObj(self.team.pk, "properties.$browser = 'Chrome'"))
-            self._run_and_assert_delete(sql, params, other_team)
 
     def _run_and_assert_delete(self, predicate_fragment: str, params: dict, other_team: Team) -> None:
         # Pre-conditions.

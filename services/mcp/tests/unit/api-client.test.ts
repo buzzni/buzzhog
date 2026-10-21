@@ -735,7 +735,7 @@ describe('ApiClient', () => {
             expect(mockFetch).toHaveBeenCalledTimes(2)
         })
 
-        it.each(['/api/environments/17/query/', '/api/environments/17/mcp_tools/execute_sql/'])(
+        it.each(['/api/environments/17/query/', '/api/environments/17/run_insights/'])(
             'gives a query request to %s more time than the default deadline',
             async (path) => {
                 stubStalledFetch()

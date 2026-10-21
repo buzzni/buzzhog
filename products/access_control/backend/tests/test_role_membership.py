@@ -1,3 +1,5 @@
+from posthog.test.base import APIBaseTest
+
 from rest_framework import status
 
 from posthog.models.organization import Organization, OrganizationMembership
@@ -5,10 +7,8 @@ from posthog.models.user import User
 
 from products.access_control.backend.models.role import Role, RoleMembership
 
-from ee.api.test.base import APILicensedTest
 
-
-class TestRoleMembershipCrossOrgAuthorization(APILicensedTest):
+class TestRoleMembershipCrossOrgAuthorization(APIBaseTest):
     """Tests for cross-organization authorization bypass on role membership endpoints."""
 
     CLASS_DATA_LEVEL_SETUP = False
@@ -39,7 +39,7 @@ class TestRoleMembershipCrossOrgAuthorization(APILicensedTest):
         self.assertFalse(RoleMembership.objects.filter(role=self.org_b_role, user=self.org_b_user).exists())
 
 
-class TestRoleMembershipAPI(APILicensedTest):
+class TestRoleMembershipAPI(APIBaseTest):
     def setUp(self):
         super().setUp()
         self.eng_role = Role.objects.create(name="Engineering", organization=self.organization)

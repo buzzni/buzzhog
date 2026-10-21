@@ -336,7 +336,12 @@ class _BaseEvalRun:
                     logger.exception("Failed to append scores to local log summary for '%s'", case_name)
 
         evaluation_client = self.ctx.posthog_evaluation_client
-        if not self.no_send_logs and evaluation_client is not None and result.results:
+        if (
+            not self.no_send_logs
+            and evaluation_client is not None
+            and not evaluation_client.disabled
+            and result.results
+        ):
             try:
                 emit_evaluation_events(
                     evaluation_client,

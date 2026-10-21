@@ -17,8 +17,6 @@ from posthog.models.user import User
 from products.access_control.backend.models.access_control import AccessControl
 from products.access_control.backend.models.role import Role, RoleMembership
 
-from ee.models.explicit_team_membership import ExplicitTeamMembership
-
 
 class TestCoreEvent(BaseTest):
     @parameterized.expand(
@@ -136,18 +134,6 @@ class TestTeam(BaseTest):
         all_user_with_access_ids = list(self.team.all_users_with_access().values_list("id", flat=True))
 
         assert sorted(all_user_with_access_ids) == sorted([self.user.id, another_user.id])
-
-    def test_all_users_with_access_simple_org_membership_and_redundant_team_one(self):
-        self.organization_membership.level = OrganizationMembership.Level.MEMBER
-        self.organization_membership.save()
-        another_user = User.objects.create_and_join(self.organization, "test2@posthog.com", None)
-        ExplicitTeamMembership.objects.create(team=self.team, parent_membership=self.organization_membership)
-
-        all_user_with_access_ids = list(self.team.all_users_with_access().values_list("id", flat=True))
-
-        assert sorted(all_user_with_access_ids) == sorted(
-            [self.user.id, another_user.id]
-        )  # self.user should only be listed once
 
     def test_all_users_with_access_new_access_control_non_private_team(self):
         """Test that all organization members have access to a non-private team with the new access control system"""
@@ -424,10 +410,9 @@ class TestTeamSetTokenAndSave(BaseTest):
         assert self.team.api_token == "phc_old_token_value"
 
     @patch("posthog.tasks.remote_config.update_team_remote_config.delay")
-    @patch("posthog.tasks.integrations.push_vercel_secrets.delay")
     @patch("posthog.models.team.team.set_team_in_cache")
     def test_set_token_and_save_success_runs_full_side_effect_chain(
-        self, mock_set_cache, mock_push_vercel, mock_sync_remote_config
+        self, mock_set_cache, mock_sync_remote_config
     ) -> None:
         with self.captureOnCommitCallbacks(execute=True):
             self.team.set_token_and_save(
@@ -442,8 +427,6 @@ class TestTeamSetTokenAndSave(BaseTest):
         cache_calls = [call.args for call in mock_set_cache.call_args_list]
         assert ("phc_old_token_value", None) in cache_calls
         assert any(args[0] == "phc_new_token_value" and args[1] is self.team for args in cache_calls)
-
-        mock_push_vercel.assert_called_once_with(self.team.id)
 
         # Without the old token, the sync rewrites array/config.json in Redis only.
         # The revoked token then keeps serving.
@@ -481,9 +464,8 @@ class TestTeamSetTokenAndSave(BaseTest):
         self.team.refresh_from_db()
         assert self.team.api_token == "phc_trimmed"
 
-    @patch("posthog.tasks.integrations.push_vercel_secrets.delay")
     @patch("posthog.models.team.team.set_team_in_cache")
-    def test_set_token_and_save_accepts_token_at_field_max_length(self, _mock_set_cache, _mock_push_vercel) -> None:
+    def test_set_token_and_save_accepts_token_at_field_max_length(self, _mock_set_cache) -> None:
         new_token = "a" * self.API_TOKEN_MAX_LENGTH
         self.team.set_token_and_save(
             new_token=new_token,
@@ -493,8 +475,7 @@ class TestTeamSetTokenAndSave(BaseTest):
         self.team.refresh_from_db()
         assert self.team.api_token == new_token
 
-    @patch("posthog.tasks.integrations.push_vercel_secrets.delay")
-    def test_set_token_and_save_evicts_old_and_warms_new_cache(self, _mock_push_vercel) -> None:
+    def test_set_token_and_save_evicts_old_and_warms_new_cache(self) -> None:
         cache.clear()
         set_team_in_cache("phc_old_token_value", self.team)
         assert get_team_in_cache("phc_old_token_value") is not None
@@ -511,8 +492,7 @@ class TestTeamSetTokenAndSave(BaseTest):
         assert cached_new is not None
         assert cached_new.api_token == "phc_new_token_value"
 
-    @patch("posthog.tasks.integrations.push_vercel_secrets.delay")
-    def test_set_token_and_save_rejection_leaves_cache_untouched(self, _mock_push_vercel) -> None:
+    def test_set_token_and_save_rejection_leaves_cache_untouched(self) -> None:
         Team.objects.create(organization=self.organization, api_token="phc_already_taken")
         cache.clear()
         set_team_in_cache("phc_old_token_value", self.team)

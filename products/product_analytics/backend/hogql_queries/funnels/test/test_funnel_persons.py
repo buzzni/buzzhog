@@ -8,7 +8,6 @@ from posthog.test.base import (
     ClickhouseTestMixin,
     _create_event,
     _create_person,
-    also_test_with_materialized_columns,
     flush_persons_and_events,
     snapshot_clickhouse_queries,
 )
@@ -253,7 +252,6 @@ class TestFunnelPersons(ClickhouseTestMixin, APIBaseTest):
         results = get_actors(query, self.team, funnel_step=1, offset=100)
         self.assertEqual(10, len(results))
 
-    @also_test_with_materialized_columns(["$browser"])
     def test_first_step_breakdowns(self):
         person1, person2 = self._create_browser_breakdown_events()
         query = FunnelsQuery(
@@ -298,7 +296,6 @@ class TestFunnelPersons(ClickhouseTestMixin, APIBaseTest):
         # self.assertCountEqual([val[0]["id"] for val in results], [person2.uuid])
         self.assertCountEqual([results[0][0]], [person2.uuid])
 
-    @also_test_with_materialized_columns(person_properties=["$country"])
     def test_first_step_breakdown_person(self):
         person1, person2 = self._create_browser_breakdown_events()
         query = FunnelsQuery(
@@ -321,13 +318,12 @@ class TestFunnelPersons(ClickhouseTestMixin, APIBaseTest):
         # self.assertCountEqual([val[0]["id"] for val in results], [person1.uuid])
         self.assertCountEqual([results[0][0]], [person1.uuid])
 
-    @also_test_with_materialized_columns(["$browser"], verify_no_jsonextract=False)
     def test_funnel_cohort_breakdown_persons(self):
-        person = _create_person(distinct_ids=[f"person1"], team_id=self.team.pk, properties={"key": "value"})
+        person = _create_person(distinct_ids=["person1"], team_id=self.team.pk, properties={"key": "value"})
         _create_event(
             team=self.team,
             event="sign up",
-            distinct_id=f"person1",
+            distinct_id="person1",
             properties={},
             timestamp="2020-01-02T12:00:00Z",
         )
@@ -351,7 +347,7 @@ class TestFunnelPersons(ClickhouseTestMixin, APIBaseTest):
     @snapshot_clickhouse_queries
     @time_machine.travel("2021-01-02 00:00:00.000Z", tick=False)
     def test_funnel_person_recordings(self):
-        p1 = _create_person(distinct_ids=[f"user_1"], team=self.team)
+        p1 = _create_person(distinct_ids=["user_1"], team=self.team)
         _create_event(
             event="step one",
             distinct_id="user_1",

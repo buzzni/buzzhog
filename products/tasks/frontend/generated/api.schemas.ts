@@ -111,7 +111,7 @@ export interface DesktopBetaTermsAcceptanceDTOApi {
 export type TaskUserBasicInfoApiHedgehogConfig = { [key: string]: unknown } | null
 
 /**
- * Response shape for a task creator, mirroring core ``UserBasicSerializer`` output.
+ * Response shape for a `created_by` user — mirrors core `UserBasicSerializer` output.
  */
 export interface TaskUserBasicInfoApi {
     id: number

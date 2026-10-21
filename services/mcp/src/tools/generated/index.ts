@@ -8,7 +8,6 @@ import { GENERATED_TOOLS as alerts } from './alerts'
 import { GENERATED_TOOLS as annotations } from './annotations'
 import { GENERATED_TOOLS as autoresearch } from './autoresearch'
 import { GENERATED_TOOLS as batch_exports } from './batch_exports'
-import { GENERATED_TOOLS as billing } from './billing'
 import { GENERATED_TOOLS as business_knowledge } from './business_knowledge'
 import { GENERATED_TOOLS as canvas } from './canvas'
 import { GENERATED_TOOLS as cdp_function_templates } from './cdp_function_templates'
@@ -23,14 +22,12 @@ import { GENERATED_TOOLS as dashboards } from './dashboards'
 import { GENERATED_TOOLS as data_catalog } from './data_catalog'
 import { GENERATED_TOOLS as data_quality } from './data_quality'
 import { GENERATED_TOOLS as data_warehouse } from './data_warehouse'
-import { GENERATED_TOOLS as docs } from './docs'
 import { GENERATED_TOOLS as early_access_features } from './early_access_features'
 import { GENERATED_TOOLS as email_templates } from './email_templates'
 import { GENERATED_TOOLS as endpoints } from './endpoints'
 import { GENERATED_TOOLS as engineering_analytics } from './engineering_analytics'
 import { GENERATED_TOOLS as error_tracking } from './error_tracking'
 import { GENERATED_TOOLS as error_tracking_alerts } from './error_tracking_alerts'
-import { GENERATED_TOOLS as experiments } from './experiments'
 import { GENERATED_TOOLS as feature_flags } from './feature_flags'
 import { GENERATED_TOOLS as field_notes } from './field_notes'
 import { GENERATED_TOOLS as health_issues } from './health_issues'
@@ -46,7 +43,6 @@ import { GENERATED_TOOLS as metrics } from './metrics'
 import { GENERATED_TOOLS as notebooks } from './notebooks'
 import { GENERATED_TOOLS as persons } from './persons'
 import { GENERATED_TOOLS as platform_features } from './platform_features'
-import { GENERATED_TOOLS as posthog_ai } from './posthog_ai'
 import { GENERATED_TOOLS as product_analytics } from './product_analytics'
 import { GENERATED_TOOLS as proxyRecords } from './proxy-records'
 import { GENERATED_TOOLS as queryWrappers } from './query-wrappers'
@@ -58,7 +54,6 @@ import { GENERATED_TOOLS as signals } from './signals'
 import { GENERATED_TOOLS as skills } from './skills'
 import { GENERATED_TOOLS as stamphog } from './stamphog'
 import { GENERATED_TOOLS as streamlit_apps } from './streamlit_apps'
-import { GENERATED_TOOLS as subscriptions } from './subscriptions'
 import { GENERATED_TOOLS as surveys } from './surveys'
 import { GENERATED_TOOLS as tasks } from './tasks'
 import { GENERATED_TOOLS as tracing } from './tracing'
@@ -76,7 +71,6 @@ export const GENERATED_TOOL_MAP: Record<string, () => ToolBase<ZodObjectAny>> = 
     ...annotations,
     ...autoresearch,
     ...batch_exports,
-    ...billing,
     ...business_knowledge,
     ...canvas,
     ...cdp_function_templates,
@@ -91,14 +85,12 @@ export const GENERATED_TOOL_MAP: Record<string, () => ToolBase<ZodObjectAny>> = 
     ...data_catalog,
     ...data_quality,
     ...data_warehouse,
-    ...docs,
     ...early_access_features,
     ...email_templates,
     ...endpoints,
     ...engineering_analytics,
     ...error_tracking,
     ...error_tracking_alerts,
-    ...experiments,
     ...feature_flags,
     ...field_notes,
     ...health_issues,
@@ -114,7 +106,6 @@ export const GENERATED_TOOL_MAP: Record<string, () => ToolBase<ZodObjectAny>> = 
     ...notebooks,
     ...persons,
     ...platform_features,
-    ...posthog_ai,
     ...product_analytics,
     ...proxyRecords,
     ...queryWrappers,
@@ -126,7 +117,6 @@ export const GENERATED_TOOL_MAP: Record<string, () => ToolBase<ZodObjectAny>> = 
     ...skills,
     ...stamphog,
     ...streamlit_apps,
-    ...subscriptions,
     ...surveys,
     ...tasks,
     ...tracing,

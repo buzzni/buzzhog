@@ -18,11 +18,9 @@ export const eventDefinitionsCreateBodyPostToSlackDefault = false
 export const EventDefinitionsCreateBody = /* @__PURE__ */ zod
     .object({
         name: zod.string().max(eventDefinitionsCreateBodyNameMax),
-        owner: zod.number().nullish(),
-        description: zod.string().nullish(),
+        created_at: zod.iso.datetime({ offset: true }).nullish(),
+        last_seen_at: zod.iso.datetime({ offset: true }).nullish(),
         tags: zod.array(zod.unknown()).optional(),
-        verified: zod.boolean().optional(),
-        hidden: zod.boolean().nullish(),
         enforcement_mode: zod.enum(['allow', 'reject']).optional().describe('\* `allow` - Allow\n\* `reject` - Reject'),
         primary_property: zod
             .string()
@@ -32,7 +30,6 @@ export const EventDefinitionsCreateBody = /* @__PURE__ */ zod
                 "Name of a single property on this event that PostHog UIs should display alongside the event (for example `$pathname` on `$pageview`). When set, surfaces like the session replay inspector show the property's value next to the event name without the user having to open the event."
             ),
         post_to_slack: zod.boolean().default(eventDefinitionsCreateBodyPostToSlackDefault),
-        default_columns: zod.array(zod.string()).optional(),
     })
     .describe('Serializer mixin that handles tags for objects.')
 
@@ -45,11 +42,9 @@ export const eventDefinitionsUpdateBodyPostToSlackDefault = false
 export const EventDefinitionsUpdateBody = /* @__PURE__ */ zod
     .object({
         name: zod.string().max(eventDefinitionsUpdateBodyNameMax),
-        owner: zod.number().nullish(),
-        description: zod.string().nullish(),
+        created_at: zod.iso.datetime({ offset: true }).nullish(),
+        last_seen_at: zod.iso.datetime({ offset: true }).nullish(),
         tags: zod.array(zod.unknown()).optional(),
-        verified: zod.boolean().optional(),
-        hidden: zod.boolean().nullish(),
         enforcement_mode: zod.enum(['allow', 'reject']).optional().describe('\* `allow` - Allow\n\* `reject` - Reject'),
         primary_property: zod
             .string()
@@ -59,7 +54,6 @@ export const EventDefinitionsUpdateBody = /* @__PURE__ */ zod
                 "Name of a single property on this event that PostHog UIs should display alongside the event (for example `$pathname` on `$pageview`). When set, surfaces like the session replay inspector show the property's value next to the event name without the user having to open the event."
             ),
         post_to_slack: zod.boolean().default(eventDefinitionsUpdateBodyPostToSlackDefault),
-        default_columns: zod.array(zod.string()).optional(),
     })
     .describe('Serializer mixin that handles tags for objects.')
 
@@ -72,11 +66,9 @@ export const eventDefinitionsPartialUpdateBodyPostToSlackDefault = false
 export const EventDefinitionsPartialUpdateBody = /* @__PURE__ */ zod
     .object({
         name: zod.string().max(eventDefinitionsPartialUpdateBodyNameMax).optional(),
-        owner: zod.number().nullish(),
-        description: zod.string().nullish(),
+        created_at: zod.iso.datetime({ offset: true }).nullish(),
+        last_seen_at: zod.iso.datetime({ offset: true }).nullish(),
         tags: zod.array(zod.unknown()).optional(),
-        verified: zod.boolean().optional(),
-        hidden: zod.boolean().nullish(),
         enforcement_mode: zod.enum(['allow', 'reject']).optional().describe('\* `allow` - Allow\n\* `reject` - Reject'),
         primary_property: zod
             .string()
@@ -86,7 +78,6 @@ export const EventDefinitionsPartialUpdateBody = /* @__PURE__ */ zod
                 "Name of a single property on this event that PostHog UIs should display alongside the event (for example `$pathname` on `$pageview`). When set, surfaces like the session replay inspector show the property's value next to the event name without the user having to open the event."
             ),
         post_to_slack: zod.boolean().default(eventDefinitionsPartialUpdateBodyPostToSlackDefault),
-        default_columns: zod.array(zod.string()).optional(),
     })
     .describe('Serializer mixin that handles tags for objects.')
 
@@ -128,18 +119,7 @@ export const EventDefinitionsBulkUpdateTagsCreateBody = /* @__PURE__ */ zod
 /**
  * Mark multiple event definitions as verified or unverified in one request.
  *
- * In the same vein as ``bulk_update_tags``, but ``verified`` lives on the enterprise
- * ``EnterpriseEventDefinition`` extension rather than the base row, so this action:
- * - requires an enterprise license;
- * - scopes by project (``team__project_id``) and relies on project membership — the same
- *   boundary the single-object update path uses — rather than object-level RBAC;
- * - lazily promotes ingestion-created base rows to ``EnterpriseEventDefinition`` (mirroring
- *   ``_get_event_definition``) before setting ``verified``;
- * - mirrors the single-object semantics: verifying stamps ``verified_by``/``verified_at`` and
- *   unhides the event (an event cannot be both hidden and verified); unverifying clears them;
- * - logs a "changed" activity per event so the History tab matches the single-object path.
- *
- * Events already in the target state are skipped (not re-written, not logged).
+ * Verifying event definitions requires an enterprise license, so this action returns a validation error.
  */
 export const eventDefinitionsBulkUpdateVerifiedCreateBodyIdsMax = 500
 

@@ -24,10 +24,8 @@ from posthog.temporal.ai_observability.evaluation_clustering.constants import (
     AI_OBSERVABILITY_EVALUATION_RENDERING,
 )
 from posthog.temporal.ai_observability.evaluation_clustering.models import SamplerActivityInputs, SamplerActivityResult
+from posthog.temporal.ai_observability.summary_embedder import LLM_TRACES_SUMMARIES_PRODUCT, LLMTracesSummarizerEmbedder
 from posthog.temporal.common.heartbeat import Heartbeater
-
-from ee.hogai.llm_traces_summaries.constants import LLM_TRACES_SUMMARIES_PRODUCT
-from ee.hogai.llm_traces_summaries.tools.embed_summaries import LLMTracesSummarizerEmbedder
 
 logger = structlog.get_logger(__name__)
 
@@ -175,14 +173,7 @@ def _sample_and_embed_sync(inputs: SamplerActivityInputs) -> SamplerActivityResu
     rendering = AI_OBSERVABILITY_EVALUATION_RENDERING
     metadata = {AI_OBSERVABILITY_EVALUATION_JOB_ID_METADATA_KEY: inputs.job_id}
     # Use the small (1536-dim) model — see AI_OBSERVABILITY_EVALUATION_EMBEDDING_MODEL in constants.py.
-    # The lazy import keeps EmbeddingModelName out of the module top-level (avoids pulling
-    # posthog.schema into the workflow-side graph via the activity module).
-    from posthog.schema import EmbeddingModelName
-
-    embedder = LLMTracesSummarizerEmbedder(
-        team=team,
-        embedding_model_name=EmbeddingModelName(AI_OBSERVABILITY_EVALUATION_EMBEDDING_MODEL),
-    )
+    embedder = LLMTracesSummarizerEmbedder(team=team, embedding_model_name=AI_OBSERVABILITY_EVALUATION_EMBEDDING_MODEL)
 
     # Enrich the composed text with each evaluator's description (from the Evaluation
     # model) so the embedding picks up on rubric/intent, not just the emitted reasoning.

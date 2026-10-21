@@ -21,6 +21,7 @@ from posthoganalytics.ai.gemini import genai
 from pydantic import BaseModel, Field
 
 from posthog.hogql_queries.utils.aggregated_property_values import get_event_property_values_from_aggregated_table
+from posthog.llm.untrusted import neutralize_markup
 from posthog.models import EventDefinition
 from posthog.models.team import Team
 from posthog.models.user import User
@@ -29,8 +30,6 @@ from products.access_control.backend.facade.user_access_control import UserAcces
 from products.replay_vision.backend.models.replay_observation import ObservationStatus, ReplayObservation
 from products.replay_vision.backend.models.replay_scanner import ReplayScanner, ScannerType
 from products.replay_vision.backend.tags import slugify_tag
-
-from ee.hogai.utils.untrusted import neutralize_markup
 
 logger = structlog.get_logger(__name__)
 

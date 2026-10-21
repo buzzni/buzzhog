@@ -25,8 +25,6 @@ from products.error_tracking.backend.models import (
     sync_issues_to_clickhouse,
 )
 
-from ee.clickhouse.materialized_columns.columns import materialize
-
 MOCK_ALERTS_META = {
     "alerts": [
         {"key": "error-tracking-issue-created", "enabled": False},
@@ -48,11 +46,6 @@ def _days_ago(n: int) -> str:
 
 
 class TestRecommendationsAPI(ClickhouseTestMixin, APIBaseTest):
-    @classmethod
-    def setUpTestData(cls):
-        super().setUpTestData()
-        materialize("events", "$exception_issue_id", is_nullable=True)
-
     def _list(self):
         return self.client.get(f"/api/environments/{self.team.id}/error_tracking/recommendations/")
 

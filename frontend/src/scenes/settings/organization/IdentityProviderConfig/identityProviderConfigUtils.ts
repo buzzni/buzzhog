@@ -25,8 +25,8 @@ const INCOMPLETE_STATUS_DESCRIPTIONS: Record<
         partially_configured: 'Add the missing SAML details to finish the configuration.',
     },
     [ConfigScopeEnumApi.Scim]: {
-        not_configured: 'Configure SCIM to start provisioning organization members.',
-        partially_configured: 'Finish the SCIM setup to start provisioning organization members.',
+        not_configured: 'SCIM provisioning is not available.',
+        partially_configured: 'SCIM provisioning is not available.',
     },
     [ConfigScopeEnumApi.Xaa]: {
         not_configured: 'Add your identity provider details to automate API and MCP access.',

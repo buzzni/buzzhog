@@ -39,7 +39,17 @@ from products.tasks.backend.logic.services.process_killed import (
     parse_process_killed,
 )
 from products.tasks.backend.logic.services.workflow_step_resume import resume_workflow_step_after_final_message
-from products.tasks.backend.logic.stream.agent_events import is_agent_command_dispatched, is_agent_generation_event
+from products.tasks.backend.logic.stream.agent_events import (
+    PI_RUNTIME_ERROR_MESSAGE,
+    is_agent_command_dispatched,
+    is_agent_generation_event,
+    is_background_turn_complete,
+    is_idle_resume_turn_complete,
+    is_turn_complete,
+    pi_turn_error,
+    turn_complete_trace_id,
+    turn_completed_successfully,
+)
 from products.tasks.backend.logic.stream.redis_stream import TaskRunRedisStream, get_task_run_stream_key
 from products.tasks.backend.models import (
     Task as TaskModel,
@@ -58,16 +68,6 @@ from products.tasks.backend.temporal.process_task.utils import (
     is_slack_interaction_state,
 )
 from products.tasks.backend.turn_completed import dispatch_turn_completed
-
-from ee.hogai.sandbox import (
-    PI_RUNTIME_ERROR_MESSAGE,
-    is_background_turn_complete,
-    is_idle_resume_turn_complete,
-    is_turn_complete,
-    pi_turn_error,
-    turn_complete_trace_id,
-    turn_completed_successfully,
-)
 
 logger = structlog.get_logger(__name__)
 

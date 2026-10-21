@@ -31,6 +31,7 @@ from posthog.cloud_utils import is_ci
 from posthog.management.migration_profiling.profiler import profile_migrations
 
 from common.migration_utils import (
+    CORE_MANAGED_APPS,
     MIGRATION_CACHE_DIR,
     get_cached_migration,
     get_managed_app_names,
@@ -50,7 +51,7 @@ def get_managed_apps() -> set[str]:
         return get_managed_app_names(Path(settings.BASE_DIR))
     except Exception as e:
         warnings.warn(f"Could not scan product apps for migrations: {e}", stacklevel=2)
-        return {"posthog", "ee", "rbac"}
+        return set(CORE_MANAGED_APPS)
 
 
 def get_app_migrations_dir(app_label: str) -> Path | None:

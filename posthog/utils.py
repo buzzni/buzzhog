@@ -52,7 +52,7 @@ from rest_framework.request import Request
 from rest_framework.utils.encoders import JSONEncoder
 
 from posthog.cloud_utils import get_cached_instance_license, is_cloud
-from posthog.constants import POSTHOG_JS_CLOUD_HOST, POSTHOG_JS_CLOUD_TOKEN, AvailableFeature
+from posthog.constants import AvailableFeature
 from posthog.exceptions import RequestParsingError, UnspecifiedCompressionFallbackParsingError
 from posthog.exceptions_capture import capture_exception
 from posthog.git import get_git_branch, get_git_commit_short
@@ -61,6 +61,7 @@ from posthog.redis import get_client
 from posthog.run_mode import run_mode
 from posthog.security.url_validation import has_ambiguous_authority
 from posthog.stable_chunks import persist_stable_chunks_choice, stable_chunks_for_request
+from posthog.telemetry import get_telemetry_target
 
 from products.feature_flags.backend.persisted_flags import get_dynamic_persisted_feature_flags
 
@@ -553,11 +554,9 @@ def _build_template_context(
 
     if settings.E2E_TESTING:
         context["e2e_testing"] = True
-        context["js_posthog_api_key"] = "phc_ex7Mnvi4DqeB6xSQoXU1UVPzAmUIpiciRKQQXGGTYQO"
-        context["js_posthog_host"] = "https://internal-cf.posthog.com"
-        context["js_posthog_ui_host"] = "https://us.posthog.com"
 
-    elif settings.SELF_CAPTURE:
+    telemetry_target = get_telemetry_target()
+    if settings.SELF_CAPTURE:
         # posthog-js uses this token to evaluate PostHog's own gating flags, so it must point at the
         # team the server-side bootstrap evaluates against via _build_flag_provider(). Both resolve
         # through resolve_self_flags_team() for that reason: the POSTHOG_SELF_TEAM_ID override when
@@ -574,10 +573,9 @@ def _build_template_context(
             # unset, because sending any other team's token is the mismatch described above.
             context["js_posthog_api_key"] = posthoganalytics.api_key
             context["js_posthog_host"] = ""  # Becomes location.origin in the frontend
-    else:
-        context["js_posthog_api_key"] = POSTHOG_JS_CLOUD_TOKEN
-        context["js_posthog_host"] = POSTHOG_JS_CLOUD_HOST
-        context["js_posthog_ui_host"] = "https://us.posthog.com"
+    elif telemetry_target is not None:
+        context["js_posthog_api_key"] = telemetry_target.api_key
+        context["js_posthog_host"] = telemetry_target.host
 
     context["js_capture_time_to_see_data"] = settings.CAPTURE_TIME_TO_SEE_DATA
     context["js_url"] = get_js_url(request)
@@ -968,11 +966,12 @@ def _build_flag_provider() -> "HyperCacheFlagProvider":
         # Operator override: pin the flag-definitions team explicitly. The browser token resolves
         # through the same override in resolve_self_flags_team(), so both stay on this team.
         return HyperCacheFlagProvider.for_static_team(explicit_team_id)
-    if settings.SELF_CAPTURE and not settings.E2E_TESTING:
+    if (settings.SELF_CAPTURE or not is_cloud()) and not settings.E2E_TESTING:
         # Local/self-hosted: read flag definitions from the dogfood team
         # (project.teams.first()), resolved lazily once teams/migrations exist.
         # Intentionally the FIRST team, not self-capture's current_team — see
-        # resolve_dogfood_flags_team().
+        # resolve_dogfood_flags_team(). A self-hosted instance that sends to its own
+        # collector still gates its features on its own flags, not on PostHog Cloud's team 2.
         return HyperCacheFlagProvider.for_dynamic_resolution(get_dogfood_flags_team_id)
     if get_instance_region() == "EU":
         # EU has no rows for PostHog's own team — reads go to the sentinel-keyed
@@ -994,7 +993,7 @@ async def initialize_self_capture_api_token():
     local_api_key = team.api_token if team else None
 
     # This is running _after_ PostHogConfig.ready(), so we re-enable posthoganalytics while setting the params
-    if local_api_key is not None:
+    if local_api_key is not None and not settings.OPT_OUT_CAPTURE:
         posthoganalytics.disabled = False
         posthoganalytics.api_key = local_api_key
         posthoganalytics.host = settings.SELF_CAPTURE_HOST or settings.SITE_URL
@@ -1667,23 +1666,14 @@ def get_instance_available_sso_providers() -> dict[str, bool]:
         "google-oauth2": False,
     }
 
-    # Get license information
     bypass_license: bool = is_cloud() or settings.DEMO
-    license = None
-    if not bypass_license:
-        try:
-            from ee.models.license import License
-        except ImportError:
-            pass
-        else:
-            license = License.objects.first_valid()
 
     if getattr(settings, "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY", None) and getattr(
         settings,
         "SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET",
         None,
     ):
-        if bypass_license or (license is not None and AvailableFeature.SOCIAL_SSO in license.available_features):
+        if bypass_license:
             output["google-oauth2"] = True
         else:
             logger.warning("You have Google login set up, but not the required license!")

@@ -96,7 +96,7 @@ class TestFunnelStrictStepsPersons(ClickhouseTestMixin, APIBaseTest):
     @snapshot_clickhouse_queries
     @time_machine.travel("2021-01-02 00:00:00.000Z", tick=False)
     def test_strict_funnel_person_recordings(self):
-        p1 = _create_person(distinct_ids=[f"user_1"], team=self.team)
+        p1 = _create_person(distinct_ids=["user_1"], team=self.team)
         _create_event(
             event="step one",
             distinct_id="user_1",

@@ -312,7 +312,6 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
     "social_core.pipeline.social_auth.social_uid",
     "social_core.pipeline.social_auth.auth_allowed",
-    "ee.api.authentication.social_auth_allowed",
     "social_core.pipeline.social_auth.social_user",
     # Must stay ahead of association/provisioning so a mismatched authenticated identity is rejected first
     "posthog.api.authentication.social_identity_matches_session",
@@ -320,6 +319,9 @@ SOCIAL_AUTH_PIPELINE = (
     # Must stay ahead of associate_by_email, which links an existing account by email with no check of its own
     "posthog.api.authentication.social_email_verified_by_provider",
     "social_core.pipeline.social_auth.associate_by_email",
+    # Must stay ahead of social_create_user and the session start, and after the steps that resolve
+    # the existing account, so both the typed address and the account's own address are checked
+    "posthog.api.authentication.social_sso_enforcement_allows",
     # Must stay ahead of the end of the pipeline, where the session starts, and after the steps
     # that resolve the existing account
     "posthog.api.authentication.social_access_rules_allow",
@@ -1062,9 +1064,6 @@ DEV_DISABLE_NAVIGATION_HOOKS = get_from_env("DEV_DISABLE_NAVIGATION_HOOKS", Fals
 
 # one-click passwordless login on the login page (also requires DEBUG)
 ALLOW_DEV_LOGIN = get_from_env("ALLOW_DEV_LOGIN", False, type_cast=str_to_bool)
-
-# shows the full value of the seeded dev personal API key in the UI (also requires DEBUG)
-ALLOW_DEV_API_KEY_REVEAL = get_from_env("ALLOW_DEV_API_KEY_REVEAL", False, type_cast=str_to_bool)
 
 ####
 # Random/temporary

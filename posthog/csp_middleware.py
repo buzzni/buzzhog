@@ -10,22 +10,29 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 from django.conf import settings
 
 from posthog.cloud_utils import get_api_host, is_cloud, is_hobby
-from posthog.constants import POSTHOG_JS_CLOUD_HOST, POSTHOG_JS_CLOUD_TOKEN
 from posthog.models.utils import generate_random_token
-from posthog.ph_client import PH_US_API_KEY, PH_US_HOST
+from posthog.telemetry import get_telemetry_target
 
-_POSTHOG_CSP_REPORT_ENDPOINT = f"{PH_US_HOST}/report/?token={PH_US_API_KEY}&v=2"
+
+def telemetry_origin() -> str:
+    """The origin this instance's posthog-js sends to and loads its extensions from, or "" when it sends nothing."""
+    target = get_telemetry_target()
+    if target is None:
+        return ""
+    parts = urlsplit(target.host)
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else ""
 
 
 def csp_report_endpoint(**params: str) -> str:
     """The URL browsers report CSP violations and crashes to, or "" when reporting is turned off."""
     endpoint = settings.CSP_REPORT_ENDPOINT
     if endpoint is None:
-        # Only deployments PostHog runs report to PostHog. Violations from an instance we do not
-        # run tell us nothing we can act on, and reporting sends that instance's document URLs to a
-        # destination its operator never chose. The gate is cloud rather than hobby because a
-        # self-hosted install with DEBUG set runs in the local mode, not the hobby one.
-        endpoint = _POSTHOG_CSP_REPORT_ENDPOINT if is_cloud() else ""
+        # Only a cloud deployment reports without an explicit endpoint, and only to its telemetry
+        # collector. Elsewhere reporting sends the instance's document URLs to a destination its
+        # operator never chose. The gate is cloud rather than hobby because a self-hosted install
+        # with DEBUG set runs in the local mode, not the hobby one.
+        target = get_telemetry_target()
+        endpoint = f"{target.host}/report/?token={target.api_key}&v=2" if is_cloud() and target else ""
     if not endpoint or not params:
         return endpoint
     # The endpoint carries the destination's project token and report version, so a param the caller
@@ -175,7 +182,8 @@ def img_src_shadow_policy(csp_parts: list[str]) -> list[str]:
     """
     # The app's own images load from its bundle. posthog-js can load the toolbar on an app page, and the toolbar's
     # files sit under /static/ on the posthog-js host.
-    named_hosts = [source for source in (app_bundle_origin(), f"{POSTHOG_JS_CLOUD_HOST}/static/") if source]
+    target = get_telemetry_target()
+    named_hosts = [source for source in (app_bundle_origin(), f"{target.host}/static/" if target else "") if source]
     named = narrowed_app_policy(csp_parts, {"img-src": named_hosts})
     return [" ".join(s for s in part.split() if s != "https:") for part in named if part.split()[0] == "img-src"]
 
@@ -305,6 +313,16 @@ class CSPMiddleware:
                 resource_url = "https://*.dev.posthog.dev"
 
             connect_debug_url = "ws://localhost:8234" if settings.DEBUG or settings.TEST else ""
+            # The hosts swapped in below belong to PostHog Cloud, so self-hosted installs, E2E
+            # runs and the dev environment keep the wildcards. A load from a PostHog host that is not
+            # listed there therefore fails only in production.
+            narrowed = is_cloud() and resource_url == "https://*.posthog.com" and not settings.E2E_TESTING
+            # posthog-js sends to the telemetry collector and loads its extensions, the toolbar's
+            # stylesheet and fonts from there. The collector can be any host the operator names.
+            # The narrowed policy names collector paths instead, because the bare origin admits every project's config script.
+            telemetry_target = get_telemetry_target()
+            telemetry_host_origin = telemetry_origin()
+            telemetry_source = f" {telemetry_host_origin}" if telemetry_host_origin and not narrowed else ""
             object_storage_source = object_storage_upload_source()
             # The image exporter renders replay exports in the bare /exporter document, and a frame of
             # that render calls eval. 'report-sample' puts the first 40 characters of the evaluated
@@ -319,7 +337,7 @@ class CSPMiddleware:
                 # The fetch directives below each set their own sources, so only a load a browser
                 # cannot map to one of them falls back to this list.
                 f"default-src 'self' {bundle_origin}".rstrip(),
-                f"style-src 'self' 'unsafe-inline' {resource_url} https://fonts.googleapis.com",
+                f"style-src 'self' 'unsafe-inline' {resource_url}{telemetry_source} https://fonts.googleapis.com",
                 # 'wasm-unsafe-eval' permits WebAssembly compilation and nothing else. It is not
                 # 'unsafe-eval': it does not permit eval() or the Function constructor. Compiling a
                 # module still requires calling WebAssembly.instantiate from JavaScript, so it grants
@@ -343,13 +361,13 @@ class CSPMiddleware:
                 # matched against the URL path alone, so the `?2` the library appends does not
                 # defeat it. The cost is that a version bump which moves the file needs this line
                 # updated, or the editor stops loading.
-                f"script-src 'self' 'nonce-{nonce}' 'wasm-unsafe-eval'{report_sample} {resource_url} https://*.i.posthog.com https://js.stripe.com https://challenges.cloudflare.com https://editor.unlayer.com/embed.js",
+                f"script-src 'self' 'nonce-{nonce}' 'wasm-unsafe-eval'{report_sample} {resource_url}{telemetry_source} https://*.i.posthog.com https://js.stripe.com https://challenges.cloudflare.com https://editor.unlayer.com/embed.js",
                 # A data: font cannot execute script, and this directive governs font loading only,
                 # so the token widens nothing else. It also carries nothing out: a data: URL makes
                 # no request, which is what the CSS-injection attacks on this directive need. The
                 # `data:` refusal in the worker-src note below is a different case, because a
                 # worker body is code.
-                f"font-src 'self' data: {resource_url} https://app-static.eu.posthog.com https://app-static-prod.posthog.com https://fonts.gstatic.com",
+                f"font-src 'self' data: {resource_url}{telemetry_source} https://app-static.eu.posthog.com https://app-static-prod.posthog.com https://fonts.gstatic.com",
                 # `blob:` grants nothing to an attacker who cannot already run script, because only
                 # script can mint a blob URL, and a worker started from one inherits this policy
                 # rather than escaping it. The ServiceWorker spec rejects `blob:` on its own, so
@@ -390,7 +408,7 @@ class CSPMiddleware:
                 # SQL editor all render blob URLs, so they lose their images without it.
                 f"img-src 'self' data: blob: https: {resource_url} https://posthog.com https://www.gravatar.com https://res.cloudinary.com https://platform.slack-edge.com https://raw.githubusercontent.com",
                 frame_ancestors,
-                f"connect-src 'self' https://www.posthogstatus.com {resource_url} {connect_debug_url} https://raw.githubusercontent.com/PostHog/terminal-assets/ {object_storage_source}",
+                f"connect-src 'self' https://www.posthogstatus.com {resource_url}{telemetry_source} {connect_debug_url} https://raw.githubusercontent.com/PostHog/terminal-assets/ {object_storage_source}",
                 # https: lets heatmaps frame a customer's site. 'self' is for the replay player
                 # frame, whose document is same-origin: an http origin does not match https:.
                 "frame-src 'self' https:",
@@ -413,13 +431,10 @@ class CSPMiddleware:
                 # looks the same as a report from an app page that the browser blocks in a frame.
                 csp_parts.remove(frame_ancestors)
 
-            # The hosts and the config token below belong to PostHog Cloud, so self-hosted installs, E2E
-            # runs and the dev environment keep the wildcards. A load from a PostHog host that is not
-            # listed here therefore fails only in production.
-            narrowed = is_cloud() and resource_url == "https://*.posthog.com" and not settings.E2E_TESTING
             shadows: dict[str, list[str]] = {}
             if narrowed:
                 bundle = [bundle_origin] if bundle_origin else []
+                telemetry_static = [f"{telemetry_target.host}/static/"] if telemetry_target else []
                 agent_proxy_url = settings.TASKS_AGENT_PROXY_PUBLIC_URL
                 agent_proxy = (
                     [urlsplit(agent_proxy_url)._replace(path="", query="", fragment="").geturl()]
@@ -429,17 +444,23 @@ class CSPMiddleware:
                 csp_parts = narrowed_app_policy(
                     csp_parts,
                     {
-                        # posthog-js loads its extensions from /static/ and our project's remote config. The
-                        # config path names our token because the same path serves every project's config.
+                        # posthog-js loads its extensions from the collector's /static/ and our project's remote
+                        # config. The config path names our token because the same path serves every project's config.
                         "script-src": [
                             *bundle,
-                            f"{POSTHOG_JS_CLOUD_HOST}/static/",
-                            f"{POSTHOG_JS_CLOUD_HOST}/array/{POSTHOG_JS_CLOUD_TOKEN}/config.js",
+                            *(
+                                [
+                                    f"{telemetry_target.host}/static/",
+                                    f"{telemetry_target.host}/array/{telemetry_target.api_key}/config.js",
+                                ]
+                                if telemetry_target
+                                else []
+                            ),
                         ],
                         # liveEventsHostOrigin() in the frontend streams from live.<region host>.
                         "connect-src": [
                             *bundle,
-                            POSTHOG_JS_CLOUD_HOST,
+                            *([telemetry_host_origin] if telemetry_host_origin else []),
                             f"https://live.{urlsplit(settings.SITE_URL).hostname}",
                             # publicWebhooksHostOrigin() in the frontend posts source-webhook tests and manual
                             # workflow triggers to webhooks.<region host>.
@@ -458,8 +479,8 @@ class CSPMiddleware:
                         #
                         # Production is the first place these two lists apply. A host they miss leaves the page
                         # without its styles or fonts and shows the user no error.
-                        "style-src": [*bundle, f"{POSTHOG_JS_CLOUD_HOST}/static/"],
-                        "font-src": [*bundle, f"{POSTHOG_JS_CLOUD_HOST}/static/"],
+                        "style-src": [*bundle, *telemetry_static],
+                        "font-src": [*bundle, *telemetry_static],
                     },
                 )
                 shadows = {IMG_SRC_SHADOW_REPORT_VERSION: img_src_shadow_policy(csp_parts)}

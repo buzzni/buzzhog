@@ -105,18 +105,8 @@ class TestDataWarehouseViewSetAccessControl(WarehouseAccessControlTestMixin):
         response = self.client.get(self._path("total_rows_stats/"))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @parameterized.expand(["data_health_issues", "running_activity", "completed_activity", "total_rows_stats"])
-    @patch("products.data_warehouse.backend.presentation.views.data_warehouse.BillingManager")
-    def test_collection_actions_hide_objects_denied_per_object(self, action_path: str, mock_billing_manager):
-        # total_rows_stats only breaks rows down per source once billing returns a period.
-        mock_billing_manager.return_value.get_billing.return_value = {
-            "billing_period": {
-                "current_period_start": (timezone.now() - timedelta(days=1)).isoformat(),
-                "current_period_end": (timezone.now() + timedelta(days=1)).isoformat(),
-                "interval": "month",
-            },
-            "usage_summary": {"rows_synced": {"usage": 0}},
-        }
+    @parameterized.expand(["data_health_issues", "running_activity", "completed_activity"])
+    def test_collection_actions_hide_objects_denied_per_object(self, action_path: str):
         self._create_access_control(self.viewer_user, access_level="viewer")
         self._create_access_control(self.viewer_user, resource="external_data_source", access_level="viewer")
 
@@ -185,12 +175,8 @@ class TestDataWarehouseViewSetAccessControl(WarehouseAccessControlTestMixin):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         body = response.content.decode()
-        if action_path == "total_rows_stats":
-            allowed_tokens = [str(sources["allowed"].id)]
-            blocked_tokens = [str(sources["blocked"].id)]
-        else:
-            allowed_tokens = ["allowed_view", "allowed_schema"]
-            blocked_tokens = ["blocked_", str(saved_queries["blocked"].id), str(sources["blocked"].id)]
+        allowed_tokens = ["allowed_view", "allowed_schema"]
+        blocked_tokens = ["blocked_", str(saved_queries["blocked"].id), str(sources["blocked"].id)]
         for token in allowed_tokens:
             self.assertIn(token, body)
         for token in blocked_tokens:

@@ -57,8 +57,6 @@ from products.workflows.backend.services.data_suggestions.stages import (
 )
 from products.workflows.backend.services.hog_flow_templates import get_function_template_schema, list_step_templates
 
-from ee.hogai.utils.feature_flags import is_privacy_mode_enabled
-
 logger = structlog.get_logger(__name__)
 
 CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
@@ -374,10 +372,6 @@ def _chosen_template_bodies(
 def _unavailable_reason(team: Team) -> DataSuggestionsResult | None:
     if team.organization.is_ai_data_processing_approved is not True:
         return DataSuggestionsResult(status="ai_not_approved", suggestions=())
-    # The Jev client cannot send the gateway's privacy header, so event names would be recorded. Until it can,
-    # organizations in privacy mode get no suggestions.
-    if is_privacy_mode_enabled(team):
-        return _UNAVAILABLE
     # Without Jev the ranking cannot tell a sign-up from routine usage, so no suggestions are made.
     if not system_one_configured():
         return _UNAVAILABLE

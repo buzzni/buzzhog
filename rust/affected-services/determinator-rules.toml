@@ -56,7 +56,6 @@ mark-changed = ["feature-flags", "hypercache-server", "common-hypercache"]
 [[path-rule]]
 globs = [
     "../posthog/migrations/**",
-    "../ee/migrations/**",
     "../posthog/management/commands/setup_test_environment.py",
     "../docker-compose.dev.yml",
 ]

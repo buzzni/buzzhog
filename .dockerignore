@@ -113,7 +113,6 @@ services/mcp/tests
 services/agent-proxy/node_modules
 services/agent-proxy/dist
 services/agent-proxy/tests
-ee/**/node_modules
 docs/**/node_modules
 **/__pycache__
 rust/.env

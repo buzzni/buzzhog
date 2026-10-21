@@ -15,7 +15,7 @@ the miss is only caught on master, after merge.
 This script:
   1. Finds every dagster source file (posthog/dags/**, products/*/dags/**)
   2. Extracts imports via AST
-  3. Resolves each internal (posthog / ee / products / common) import to a
+  3. Resolves each internal (posthog / products / common) import to a
      concrete file path
   4. Checks every resolved path is matched by at least one filter pattern
 
@@ -33,14 +33,13 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci-dagster.yml"
 
-INTERNAL_PREFIXES = ("posthog.", "ee.", "products.", "common.")
+INTERNAL_PREFIXES = ("posthog.", "products.", "common.")
 
 
 def find_dag_files() -> list[Path]:
     files = list((REPO_ROOT / "posthog" / "dags").rglob("*.py"))
     for dags_dir in (REPO_ROOT / "products").glob("*/dags"):
         files.extend(dags_dir.rglob("*.py"))
-    files.extend((REPO_ROOT / "ee" / "billing" / "dags").rglob("*.py"))
     return files
 
 

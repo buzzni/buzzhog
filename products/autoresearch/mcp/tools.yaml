@@ -99,12 +99,11 @@ tools:
             feature and label parquet files directly into your sandbox. Returns the local paths (train_features_path,
             train_labels_path, holdout_features_path, holdout_labels_path), row counts, and the feature column list —
             the feature rows never pass through your context and there is NO 500-row cap. Then pd.read_parquet the
-            returned paths and iterate in Python. Use this to pull training data instead of execute-sql, and re-call it
+            returned paths and iterate in Python. Use this to pull training data, and re-call it
             whenever you change features.sql. Also returns what the feature query cost (elapsed_s and rows_read) and
             hints about features.sql shapes that scale badly. A promoted model must score its inference population under
             batch limits before it serves, so a slow or heavy query here is a warning. Works only for a run that
-            autoresearch-train-create opened in a PostHog sandbox; an agent training outside PostHog pulls its data with
-            execute-sql instead.
+            autoresearch-train-create opened in a PostHog sandbox; an agent training outside PostHog pulls its own data.
         feature_flag: autoresearch
     autoresearch-models-list:
         operation: autoresearch_models_list
@@ -327,9 +326,7 @@ tools:
             pipeline until its next cadence date. Do not start another run for the same prediction date: it can
             duplicate predictions. The pipeline must not be paused; an action target also needs the action:read scope.
             Each scored user gets an 'autoresearch_prediction' event with '$autoresearch_p_y' and a person property
-            update. After the run completes, query predictions with execute-sql: SELECT distinct_id,
-            properties.$autoresearch_p_y FROM events WHERE event = 'autoresearch_prediction' AND
-            properties.$autoresearch_pipeline_id = '<pipeline_id>' ORDER BY properties.$autoresearch_p_y DESC LIMIT 50.
+            update.
         feature_flag: autoresearch
     autoresearch-suggestions-create:
         operation: autoresearch_suggestions_create

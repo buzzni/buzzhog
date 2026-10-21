@@ -1,4 +1,3 @@
-import json
 from datetime import UTC, datetime
 from typing import TypeVar, cast
 from uuid import UUID
@@ -6,8 +5,6 @@ from uuid import UUID
 from django.db import transaction
 
 import structlog
-from langchain_core.messages import HumanMessage, SystemMessage
-from posthoganalytics.ai.langchain.callbacks import CallbackHandler
 from pydantic import BaseModel
 from temporalio import activity
 from temporalio.common import MetricMeter
@@ -23,13 +20,11 @@ from posthog.models.user import User
 from posthog.temporal.common.heartbeat_sync import HeartbeaterSync
 from posthog.temporal.common.utils import asyncify
 
-from products.business_knowledge.backend import learning_settings, llm_telemetry, logic
+from products.business_knowledge.backend import learning_settings, logic
 from products.business_knowledge.backend.constants import BK_EMBEDDING_MODEL, BK_QUERY_EMBEDDING_TIMEOUT
 from products.business_knowledge.backend.learning.contracts import EvidenceBundle, EvidenceRef
 from products.business_knowledge.backend.learning.providers import get_learning_provider
 from products.business_knowledge.backend.models import KnowledgeLearningRun, LearningRunResult, LearningRunStatus
-
-from ee.hogai.llm import MaxChatAnthropic
 
 from ..constants import (
     ANALYSIS_VERSION,
@@ -38,7 +33,6 @@ from ..constants import (
     LEARNING_MAX_ERROR_CHARS,
     LEARNING_MAX_SEARCH_CONTEXT_CHARS,
     LEARNING_MAX_TOKENS,
-    LEARNING_MODEL,
     LEARNING_PII_MAX_TOKENS,
     LEARNING_SEARCH_LIMIT,
 )
@@ -145,44 +139,6 @@ def _resolve_learning_user(team: Team) -> User:
     return membership.user
 
 
-def _learning_generation_properties(*, stage: str, trace_id: str, team_id: int) -> dict[str, str | int]:
-    return {
-        "ai_product": "business_knowledge",
-        "ai_feature": f"support_learning_{stage}",
-        "learning_run_id": trace_id,
-        "team_id": team_id,
-    }
-
-
-def _learning_trace_callback(team: Team, *, stage: str, trace_id: str) -> CallbackHandler | None:
-    return llm_telemetry.trace_callback(
-        team.id,
-        trace_id=trace_id,
-        properties=_learning_generation_properties(stage=stage, trace_id=trace_id, team_id=team.id),
-    )
-
-
-def _build_model(
-    team: Team,
-    user: User,
-    *,
-    stage: str,
-    trace_id: str,
-    max_tokens: int = LEARNING_MAX_TOKENS,
-) -> MaxChatAnthropic:
-    return MaxChatAnthropic(
-        model=LEARNING_MODEL,
-        streaming=False,
-        user=user,
-        team=team,
-        max_tokens=max_tokens,
-        billable=False,
-        inject_context=False,
-        temperature=0,
-        posthog_properties=_learning_generation_properties(stage=stage, trace_id=trace_id, team_id=team.id),
-    )
-
-
 def _invoke_structured_model(
     team: Team,
     user: User,
@@ -194,26 +150,7 @@ def _invoke_structured_model(
     output_model: type[ModelOutput],
     max_tokens: int = LEARNING_MAX_TOKENS,
 ) -> ModelOutput:
-    callback = _learning_trace_callback(team, stage=stage, trace_id=trace_id)
-    try:
-        model = _build_model(team, user, stage=stage, trace_id=trace_id, max_tokens=max_tokens).with_structured_output(
-            output_model,
-            method="json_schema",
-            include_raw=False,
-        )
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
-        ]
-        if callback is None:
-            result = model.invoke(messages)
-        else:
-            result = model.invoke(messages, config={"callbacks": [callback]})
-    except Exception:
-        raise LearningAnalysisError(f"{stage}_model_failed") from None
-    if not isinstance(result, output_model):
-        raise LearningAnalysisError(f"invalid_{stage}_output") from None
-    return result
+    raise LearningAnalysisError(f"{stage}_model_failed")
 
 
 def _extract_candidate(team: Team, user: User, bundle: EvidenceBundle, trace_id: str) -> ExtractedKnowledge:

@@ -23,18 +23,13 @@ from rest_framework.request import Request
 from rest_framework.viewsets import GenericViewSet
 
 from posthog.api.routing import TeamAndOrgViewSetMixin
-from posthog.api.streaming import sse_streaming_response
+from posthog.api.streaming import sse_streaming_response, sync_stream_to_async
 from posthog.auth import SessionAuthentication
-from posthog.exceptions import QuotaLimitExceeded
 from posthog.llm.gateway_client import ai_gateway_headers, resolve_ai_gateway_config
 from posthog.models.user import User
 from posthog.ph_client import feature_enabled_or_false
 from posthog.rate_limit import AIBurstRateThrottle, AISustainedRateThrottle
 from posthog.renderers import SafeJSONRenderer, ServerSentEventRenderer
-
-from ee.billing.quota_limiting import QuotaLimitingCaches, QuotaResource, is_team_limited
-from ee.hogai.utils.asgi import SyncIterableToAsync
-from ee.hogai.utils.feature_flags import is_privacy_mode_enabled
 
 logger = structlog.get_logger(__name__)
 
@@ -132,8 +127,6 @@ class TerminalAIViewSet(TeamAndOrgViewSetMixin, GenericViewSet):
             groups={"organization": str(self.team.organization_id)},
         ):
             raise PermissionDenied("The terminal is not enabled for this account.")
-        if is_team_limited(self.team.api_token, QuotaResource.AI_CREDITS, QuotaLimitingCaches.QUOTA_LIMITER_CACHE_KEY):
-            raise QuotaLimitExceeded("Your organization reached its AI credit limit. Check your billing settings.")
         gateway = resolve_ai_gateway_config()
         if gateway is None:
             raise TerminalAIUnavailable()
@@ -164,10 +157,8 @@ class TerminalAIViewSet(TeamAndOrgViewSetMixin, GenericViewSet):
         )
         if is_impersonated_session(request):
             headers["X-PostHog-Billable"] = "false"
-        if is_privacy_mode_enabled(self.team):
-            headers["X-PostHog-Privacy-Mode"] = "true"
         stream = _stream_generation(f"{gateway.url.rstrip('/')}/messages", headers, body)
         return sse_streaming_response(
-            SyncIterableToAsync(stream) if settings.SERVER_GATEWAY_INTERFACE == "ASGI" else stream,
+            sync_stream_to_async(stream) if settings.SERVER_GATEWAY_INTERFACE == "ASGI" else stream,
             endpoint="terminal_ai",
         )

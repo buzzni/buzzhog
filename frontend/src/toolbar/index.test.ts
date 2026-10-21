@@ -205,29 +205,71 @@ describe('Toolbar flag loading', () => {
     })
 
     it.each([
-        { launch: 'without a user to identify', params: {}, expectedReloads: 1 },
-        { launch: 'with instrumentation but no distinct id', params: { instrument: true }, expectedReloads: 1 },
+        { launch: 'without a user to identify', collector: true, params: {}, expectedReloads: 1 },
+        {
+            launch: 'with instrumentation but no distinct id',
+            collector: true,
+            params: { instrument: true },
+            expectedReloads: 1,
+        },
         // identify() changes the distinct id, and posthog-js then loads the flags for that user
-        { launch: 'with a user to identify', params: { instrument: true, distinctId: 'user-1' }, expectedReloads: 0 },
-    ])('loads the toolbar instance flags only when the toolbar mounts $launch', async ({ params, expectedReloads }) => {
-        await import('./index')
-        const { default: posthog } = await import('posthog-js')
+        {
+            launch: 'with a user to identify',
+            collector: true,
+            params: { instrument: true, distinctId: 'user-1' },
+            expectedReloads: 0,
+        },
+        // Without a collector the toolbar instance must make no request at all
+        {
+            launch: 'without a telemetry collector',
+            collector: false,
+            params: { instrument: true, distinctId: 'user-1' },
+            expectedReloads: 0,
+        },
+    ])(
+        'loads the toolbar instance flags only when the toolbar mounts $launch',
+        async ({ collector, params, expectedReloads }) => {
+            if (collector) {
+                ;(window as any).POSTHOG_APP_CONTEXT = {}
+                window.JS_POSTHOG_API_KEY = 'phc_test_key'
+            }
+            try {
+                await import('./index')
+                const { default: posthog } = await import('posthog-js')
 
-        expect(posthog.init).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({
-                advanced_disable_feature_flags_on_first_load: true,
-                remote_config_refresh_interval_ms: 0,
-            }),
-            'ph_toolbar_internal'
-        )
-        expect(posthog.reloadFeatureFlags).not.toHaveBeenCalled()
+                expect(posthog.init).toHaveBeenCalledWith(
+                    expect.any(String),
+                    expect.objectContaining({
+                        advanced_disable_feature_flags_on_first_load: true,
+                        remote_config_refresh_interval_ms: 0,
+                    }),
+                    'ph_toolbar_internal'
+                )
+                expect(posthog.reloadFeatureFlags).not.toHaveBeenCalled()
 
-        await (window as any).ph_load_toolbar({ apiURL: 'http://localhost:8010', token: 'test-token', ...params })
+                await (window as any).ph_load_toolbar({
+                    apiURL: 'http://localhost:8010',
+                    token: 'test-token',
+                    ...params,
+                })
 
-        expect(posthog.reloadFeatureFlags).toHaveBeenCalledTimes(expectedReloads)
-        expect(posthog.set_config).toHaveBeenCalledWith({ remote_config_refresh_interval_ms: 300000 })
-    })
+                expect(posthog.reloadFeatureFlags).toHaveBeenCalledTimes(expectedReloads)
+                if (collector) {
+                    expect(posthog.set_config).toHaveBeenCalledWith({ remote_config_refresh_interval_ms: 300000 })
+                } else {
+                    expect(posthog.init).toHaveBeenCalledWith(
+                        'fake_token',
+                        expect.objectContaining({ api_host: window.location.origin, advanced_disable_flags: true }),
+                        'ph_toolbar_internal'
+                    )
+                    expect(posthog.set_config).not.toHaveBeenCalledWith({ remote_config_refresh_interval_ms: 300000 })
+                }
+            } finally {
+                delete (window as any).POSTHOG_APP_CONTEXT
+                delete (window as any).JS_POSTHOG_API_KEY
+            }
+        }
+    )
 
     it('is idempotent — a repeat ph_load_toolbar keeps the live toolbar instead of remounting it', async () => {
         // On an SPA, posthog-js calls ph_load_toolbar again on client-side route changes.

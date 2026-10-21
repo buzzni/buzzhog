@@ -6,12 +6,11 @@ from unittest.mock import MagicMock, patch
 
 from posthog.models.integration import GitHubIntegration
 
+from products.tasks.backend.logic.stream.agent_events import turn_completed_successfully
 from products.tasks.backend.temporal.babysit_pr.snapshot import PRSnapshot
 from products.tasks.backend.temporal.process_task.activities import mark_pr_ready as ready_module
 from products.tasks.backend.temporal.process_task.activities.get_task_processing_context import TaskProcessingContext
 from products.tasks.backend.temporal.process_task.activities.mark_pr_ready import MarkPrReadyInput, mark_pr_ready
-
-from ee.hogai.sandbox import turn_completed_successfully
 
 
 @pytest.mark.parametrize(
