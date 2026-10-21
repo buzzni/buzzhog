@@ -1,7 +1,7 @@
 # buzzhog 의존성 라이선스 정책
 #
 # 상태: 채택(2026-10-16, 레이븐). 목록과 범위 규칙은 확정이다. [[package]]·[[path]] 항목이 판정을 바꾸는 규칙은 아래 "패키지별 결정" 머리말에 있다.
-# 읽을 곳(예정): wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm), PR 게이트(buzzhog-djp9.m0z),
+# 읽는 곳: wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm). 읽을 곳(예정): PR 게이트(buzzhog-djp9.m0z),
 # 저장소 전체 스캔(buzzhog-djp9.fai), 고지문 생성(buzzhog-djp9.63o). 앞의 세 검사는 판정을 모두 이 한 파일에서 얻게 된다.
 # 식별자는 SPDX(https://spdx.org/licenses/)를 쓴다. SPDX에 없는 라이선스는 `LicenseRef-`를 앞에 붙인다.
 # 근거는 wiki/licenses.md다. 이 파일은 법률 자문이 아니다. 최종 판단은 법무 검토다.
@@ -86,7 +86,7 @@ require_one_of = ["version", "review_by"]
 # SPDX 식의 판정. 등급은 allow > review > deny 순으로 좋다.
 or = "best"      # `A OR B`: 고를 수 있으므로 더 좋은 쪽
 and = "worst"    # `A AND B`: 모두 걸리므로 더 나쁜 쪽
-with = "base"    # `X WITH 예외`: X로 본다
+with = "base-unless-deny"   # `X WITH 예외`: X로 본다. 다만 예외가 deny 목록에 걸리면(`Apache-2.0 WITH Commons-Clause`) deny다
 slash = "or"     # `MIT/Apache-2.0`(cargo의 옛 표기)은 OR로 읽는다
 plus = "strip"   # `MPL-2.0+`(SPDX가 버린 표기)는 `+`를 뗀다
 # 정확히 맞는 식별자가 접두사보다 먼저다. 접두사끼리는 deny가 review보다 먼저다.
@@ -106,6 +106,8 @@ plus = "strip"   # `MPL-2.0+`(SPDX가 버린 표기)는 `+`를 뗀다
 # 필수: ecosystem(pip | npm | cargo | go), name, reason, status. 선택: version(없으면 모든 버전), license, verdict,
 #       decided_by, decided_on, review_by, proposed_on, scope(distributed | development).
 # approved 항목은 version을 고정하거나 review_by를 적는다. 둘 다 없으면 검사가 거부한다([approval]).
+# [[path]]는 glob으로만 맞추므로 version이 아무것도 고정하지 않는다. approved [[path]]는 review_by를 적는다.
+# review_by는 YYYY-MM-DD다. 위 목록에 없는 필드가 있으면 검사가 판정하지 않고 끝난다.
 # ---------------------------------------------------------------------------
 
 # --- 레지스트리 값을 본문으로 바로잡은 것 (wiki/licenses.md "허용형이지만 표기가 특이한 항목") ---
@@ -276,7 +278,7 @@ proposed_on = "2026-10-16"
 
 # ---------------------------------------------------------------------------
 # 잠금 파일 밖 파일. glob은 저장소 루트 기준이다. 필드는 [[package]]와 같다. 다만 ecosystem과 name 대신 glob을 쓴다.
-# 저장소 전체 스캔(buzzhog-djp9.fai)이 읽는다.
+# gen_licenses.py --check가 읽는다. 저장소 전체 스캔(buzzhog-djp9.fai)도 읽게 된다.
 # ---------------------------------------------------------------------------
 
 [[path]]

@@ -38,7 +38,7 @@
 ## 범위
 
 <!-- generated:scope:begin -->
-Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv` — Do not edit by hand.
+Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml` — Do not edit by hand.
 
 `git ls-files | grep -E '(^|/)(uv\.lock|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock|go\.mod|go\.sum|requirements[^/]*\.txt)$'`는 32개 파일을 낸다. `yarn.lock`은 없다.
 
@@ -78,48 +78,175 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 
 ## 집계 요약
 
-열의 뜻은 [분류 규칙](#분류-규칙)에 있다. "허용형"은 허용 목록에 든 라이선스만으로 만족되는 항목만 센다. 나머지는 모두 "비OSI·독점·미확인"으로 간다.
+잠금 파일마다 항목을 `license-policy.toml`로 판정한 수다. 열의 뜻은 [분류 규칙](#분류-규칙)에 있다.
+`review`와 `deny`가 `--check`를 실패시킨다. "승인된 예외"는 `status = "approved"`인 `[[package]]`·`[[path]]` 항목이 통과시킨 것이다. "review 면제"는 `[scope]`의 `development`가 면제한 `review`다.
 
 <!-- generated:summary:begin -->
-Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv` — Do not edit by hand.
+Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml` — Do not edit by hand.
 
-| 파일 | 생태계 | 항목 수 | 허용형 | 약한 카피레프트(MPL, EPL, CDDL) | 강한·라이브러리 카피레프트(GPL, LGPL) | 비OSI·독점·미확인 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `uv.lock` | pip | 614 | 564 | 6 | 13 | 31 |
-| `services/llm-gateway/uv.lock` | pip | 98 | 92 | 4 | 0 | 2 |
-| `services/stripe-mock/uv.lock` | pip | 32 | 31 | 1 | 0 | 0 |
-| `common/ingestion/acceptance_tests/requirements.txt` | pip | 9 | 9 | 0 | 0 | 0 |
-| `pnpm-lock.yaml` | npm | 3984 | 3929 | 27 | 15 | 13 |
-| `products/desktop/pnpm-lock.yaml` | npm | 3097 | 3040 | 36 | 0 | 21 |
-| `packages/agent/pnpm-lock.yaml` | npm | 600 | 579 | 12 | 0 | 9 |
-| `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml` | npm | 567 | 552 | 0 | 14 | 1 |
-| `frontend/@posthog/lemon-ui/pnpm-lock.yaml` | npm | 110 | 110 | 0 | 0 | 0 |
-| `tools/hedgebox-dummy/pnpm-lock.yaml` | npm | 450 | 433 | 1 | 14 | 2 |
-| `products/canvas/packages/canvas_builder/package-lock.json` | npm | 226 | 226 | 0 | 0 | 0 |
-| `products/visual_review/cli/package-lock.json` | npm | 157 | 131 | 12 | 14 | 0 |
-| `.github/actions/paths-filter/package-lock.json` | npm | 550 | 548 | 1 | 0 | 1 |
-| `.depot/actions/paths-filter/package-lock.json` | npm | 550 | 548 | 1 | 0 | 1 |
-| `rust/batch-import-worker/scripts/package-lock.json` | npm | 4 | 4 | 0 | 0 | 0 |
-| `rust/Cargo.lock` | cargo | 1200 | 1181 | 10 | 0 | 9 |
-| `cli/Cargo.lock` | cargo | 446 | 439 | 5 | 0 | 2 |
-| `funnel-udf/Cargo.lock` | cargo | 61 | 61 | 0 | 0 | 0 |
-| `rust/common/hogvm/node/Cargo.lock` | cargo | 111 | 111 | 0 | 0 | 0 |
-| `livestream/go.mod` | go | 86 | 84 | 1 | 0 | 1 |
-| `bin/hobby-installer/go.mod` | go | 25 | 23 | 1 | 0 | 1 |
-| `tools/phrocs/go.mod` | go | 30 | 30 | 0 | 0 | 0 |
-| `clickhouse-udfs/util/go.mod` | go | 7 | 7 | 0 | 0 | 0 |
-| `services/hogql-language-service/go.mod` | go | 1 | 1 | 0 | 0 | 0 |
-| `packages/agent/agent-shadow/go.mod` | go | 0 | 0 | 0 | 0 | 0 |
+| 파일 | 생태계 | 항목 수 | allow | 승인된 예외 | review 면제(development) | review | deny |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `uv.lock` | pip | 614 | 568 | 0 | 0 | 46 | 0 |
+| `services/llm-gateway/uv.lock` | pip | 98 | 96 | 0 | 0 | 2 | 0 |
+| `services/stripe-mock/uv.lock` | pip | 32 | 32 | 0 | 0 | 0 | 0 |
+| `common/ingestion/acceptance_tests/requirements.txt` | pip | 9 | 9 | 0 | 0 | 0 | 0 |
+| `pnpm-lock.yaml` | npm | 3984 | 3958 | 0 | 0 | 25 | 1 |
+| `products/desktop/pnpm-lock.yaml` | npm | 3097 | 3078 | 0 | 0 | 18 | 1 |
+| `packages/agent/pnpm-lock.yaml` | npm | 600 | 591 | 0 | 0 | 9 | 0 |
+| `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml` | npm | 567 | 553 | 0 | 0 | 14 | 0 |
+| `frontend/@posthog/lemon-ui/pnpm-lock.yaml` | npm | 110 | 110 | 0 | 0 | 0 | 0 |
+| `tools/hedgebox-dummy/pnpm-lock.yaml` | npm | 450 | 435 | 0 | 0 | 15 | 0 |
+| `products/canvas/packages/canvas_builder/package-lock.json` | npm | 226 | 226 | 0 | 0 | 0 | 0 |
+| `products/visual_review/cli/package-lock.json` | npm | 157 | 143 | 0 | 0 | 14 | 0 |
+| `.github/actions/paths-filter/package-lock.json` | npm | 550 | 550 | 0 | 0 | 0 | 0 |
+| `.depot/actions/paths-filter/package-lock.json` | npm | 550 | 550 | 0 | 0 | 0 | 0 |
+| `rust/batch-import-worker/scripts/package-lock.json` | npm | 4 | 4 | 0 | 0 | 0 | 0 |
+| `rust/Cargo.lock` | cargo | 1200 | 1192 | 0 | 0 | 8 | 0 |
+| `cli/Cargo.lock` | cargo | 446 | 446 | 0 | 0 | 0 | 0 |
+| `funnel-udf/Cargo.lock` | cargo | 61 | 61 | 0 | 0 | 0 | 0 |
+| `rust/common/hogvm/node/Cargo.lock` | cargo | 111 | 111 | 0 | 0 | 0 | 0 |
+| `livestream/go.mod` | go | 86 | 85 | 0 | 0 | 1 | 0 |
+| `bin/hobby-installer/go.mod` | go | 25 | 24 | 0 | 0 | 1 | 0 |
+| `tools/phrocs/go.mod` | go | 30 | 30 | 0 | 0 | 0 | 0 |
+| `clickhouse-udfs/util/go.mod` | go | 7 | 7 | 0 | 0 | 0 | 0 |
+| `services/hogql-language-service/go.mod` | go | 1 | 1 | 0 | 0 | 0 | 0 |
+| `packages/agent/agent-shadow/go.mod` | go | 0 | 0 | 0 | 0 | 0 | 0 |
+| 잠금 파일 밖 파일(`[[path]]` 항목) | path | 14 | 0 | 0 | 0 | 13 | 1 |
 <!-- generated:summary:end -->
 
 - 항목은 잠금 파일의 `이름@버전` 하나다. 잠금 파일끼리 겹치는 항목은 파일마다 따로 센다.
 - pip 항목 수는 레지스트리 출처 패키지만이다. git 출처(`infi-clickhouse-orm`, `pytest-split`, `pyproject.toml:344`, `:349`)와 워크스페이스 멤버는 빠진다.
 - cargo 항목 수는 `source != null`인 외부 크레이트다. go 항목 수는 `go.mod`의 `require` 줄(직접과 `// indirect` 모두)이다.
 
+### 위반 목록
+
+`license-policy.toml`이 실패로 세는 항목이다. `--check`가 같은 판정에서 한 줄씩 낸다. 이 표는 이름·버전·라이선스·규칙이 같은 항목을 잠금 파일끼리 묶는다.
+규칙 열은 판정을 정한 자리다. `[deny]`·`[review]`는 정책의 목록, `[[package]]`·`[[path]]`는 항목별 결정이다. `not an SPDX expression`은 찾은 문자열이 SPDX식이 아니라는 뜻이다.
+
+<!-- generated:violations:begin -->
+Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml` — Do not edit by hand.
+
+`--check`가 실패로 세는 항목: 잠금 파일별 169건, 아래 표 111줄.
+
+| 판정 | 생태계 | 이름 | 버전 | 찾은 라이선스 | 잠금 파일 | 규칙 |
+| --- | --- | --- | --- | --- | --- | --- |
+| deny | npm | `@posthog/brand` | 0.11.0, 0.12.3 | `SEE LICENSE IN LICENSE` | `pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | [[package]] `@posthog/brand` status=rejected |
+| deny | path | `frontend/src/lib/components/Hogfetti/hogs/*.png` |  | `LicenseRef-PolyForm-Strict-1.0.0` | 추적 파일 15개 | [[path]] `frontend/src/lib/components/Hogfetti/hogs/*.png` status=rejected |
+| review | cargo | `aws-lc-sys` | 0.37.1 | `ISC AND (Apache-2.0 OR ISC) AND OpenSSL` | `rust/Cargo.lock` | [review] licenses `OpenSSL` |
+| review | cargo | `inferno` | 0.11.21, 0.12.4 | `CDDL-1.0` | `rust/Cargo.lock` | [review] licenses `CDDL-1.0` |
+| review | cargo | `ring` | 0.16.20 | `FILE:LICENSE` | `rust/Cargo.lock` | [[package]] `ring` 0.16.20 status=proposed |
+| review | cargo | `temporalio-client` | 0.5.0 | `FILE:LICENSE.txt` | `rust/Cargo.lock` | [[package]] `temporalio-client` status=proposed |
+| review | cargo | `temporalio-common` | 0.5.0 | `FILE:LICENSE.txt` | `rust/Cargo.lock` | [[package]] `temporalio-common` status=proposed |
+| review | cargo | `temporalio-common-wasm` | 0.5.0 | `FILE:LICENSE.txt` | `rust/Cargo.lock` | [[package]] `temporalio-common-wasm` status=proposed |
+| review | cargo | `temporalio-protos` | 0.5.0 | `FILE:LICENSE.txt` | `rust/Cargo.lock` | [[package]] `temporalio-protos` status=proposed |
+| review | go | `github.com/mattn/go-localereader` | v0.0.1 | `NO-LICENSE-FILE` | `bin/hobby-installer/go.mod`, `livestream/go.mod` | [[package]] `github.com/mattn/go-localereader` status=proposed |
+| review | npm | `@anthropic-ai/claude-agent-sdk` | 0.3.280 | `SEE LICENSE IN README.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | [[package]] `@anthropic-ai/claude-agent-sdk` status=proposed |
+| review | npm | `@anthropic-ai/claude-agent-sdk-darwin-arm64` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-darwin-x64` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-linux-arm64` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-linux-arm64-musl` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-linux-x64` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-linux-x64-musl` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-win32-arm64` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@anthropic-ai/claude-agent-sdk-win32-x64` | 0.3.280 | `SEE LICENSE IN LICENSE.md` | `packages/agent/pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `@elevenlabs/types` | 0.13.0 | `UNKNOWN` | `pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `@img/sharp-libvips-darwin-arm64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-darwin-x64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linux-arm` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linux-arm64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linux-ppc64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linux-riscv64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linux-s390x` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linux-x64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linuxmusl-arm64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-libvips-linuxmusl-x64` | 1.2.4, 1.3.2 | `LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `@img/sharp-libvips-*` status=proposed |
+| review | npm | `@img/sharp-wasm32` | 0.34.5, 0.35.3 | `Apache-2.0 AND LGPL-3.0-or-later AND MIT` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [review] licenses `LGPL-3.0-or-later` |
+| review | npm | `@img/sharp-win32-arm64` | 0.34.5, 0.35.3 | `Apache-2.0 AND LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [review] licenses `LGPL-3.0-or-later` |
+| review | npm | `@img/sharp-win32-ia32` | 0.34.5, 0.35.3 | `Apache-2.0 AND LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [review] licenses `LGPL-3.0-or-later` |
+| review | npm | `@img/sharp-win32-x64` | 0.34.5, 0.35.3 | `Apache-2.0 AND LGPL-3.0-or-later` | `nodejs/.../ml-mirror-image-scrub-sidecar/pnpm-lock.yaml`, `pnpm-lock.yaml`, `products/visual_review/cli/package-lock.json`, `tools/hedgebox-dummy/pnpm-lock.yaml` | [review] licenses `LGPL-3.0-or-later` |
+| review | npm | `@mapbox/jsonlint-lines-primitives` | 2.0.2 | `UNKNOWN` | `pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `@react-grab/cli` | 0.2.0 | `UNKNOWN` | `products/desktop/pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `@segment/fql-ts` | 1.10.1 | `UNKNOWN` | `pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `elkjs` | 0.10.0 | `EPL-2.0` | `pnpm-lock.yaml` | [review] licenses `EPL-2.0` |
+| review | npm | `exif-parser` | 0.1.12 | `UNKNOWN` | `products/desktop/pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `ffmpeg-static` | 5.3.0 | `GPL-3.0-or-later` | `pnpm-lock.yaml` | [[package]] `ffmpeg-static` status=proposed |
+| review | npm | `gsap` | 3.14.2 | `Standard 'no charge' license: https://gsap.com/standard-license.` | `pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | [[package]] `gsap` status=proposed |
+| review | npm | `heatmap.js` | 2.0.5 | `UNKNOWN` | `pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `khroma` | 2.1.0 | `UNKNOWN` | `pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `oxlint-plugin-react-doctor` | 0.9.18 | `SEE LICENSE IN LICENSE` | `products/desktop/pnpm-lock.yaml` | not an SPDX expression |
+| review | npm | `pastable` | 2.2.1 | `UNKNOWN` | `products/desktop/pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `posthog-js` | 1.438.8 | `(Apache-2.0 AND MIT)` | `pnpm-lock.yaml`, `products/desktop/pnpm-lock.yaml` | [[package]] `posthog-js` status=proposed |
+| review | npm | `posthog-js` | 1.376.2 | `SEE LICENSE IN LICENSE` | `tools/hedgebox-dummy/pnpm-lock.yaml` | [[package]] `posthog-js` status=proposed |
+| review | npm | `react-doctor` | 0.9.18 | `SEE LICENSE IN LICENSE` | `products/desktop/pnpm-lock.yaml` | [[package]] `react-doctor` status=proposed |
+| review | npm | `typed-openapi` | 2.2.7 | `UNKNOWN` | `products/desktop/pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `union` | 0.5.0 | `UNKNOWN` | `pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | npm | `unionfs` | 4.6.0 | `UNKNOWN` | `pnpm-lock.yaml` | `UNKNOWN` is in no list |
+| review | path | `.github/scripts/signal-fanout` |  | `MIT` | 추적 파일 1개 | [[path]] `.github/scripts/signal-fanout` status=proposed |
+| review | path | `frontend/public/Inter.{woff,woff2}` |  | `OFL-1.1` | 추적 파일 2개 | [[path]] `frontend/public/Inter.{woff,woff2}` status=proposed |
+| review | path | `frontend/public/fonts/TwemojiCountryFlags.woff2` |  | `CC-BY-4.0` | 추적 파일 1개 | [[path]] `frontend/public/fonts/TwemojiCountryFlags.woff2` status=proposed |
+| review | path | `frontend/public/fonts/cmunti-webfont.woff` |  | `OFL-1.1` | 추적 파일 1개 | [[path]] `frontend/public/fonts/cmunti-webfont.woff` status=proposed |
+| review | path | `frontend/public/fonts/fairytale_serif-webfont.{woff,woff2}` |  | `LicenseRef-Unknown` | 추적 파일 2개 | [[path]] `frontend/public/fonts/fairytale_serif-webfont.{woff,woff2}` status=proposed |
+| review | path | `frontend/src/scenes/terminal/assets/buildroot-bzimage.bin` |  | `GPL-2.0-only` | 추적 파일 1개 | [[path]] `frontend/src/scenes/terminal/assets/buildroot-bzimage.bin` status=proposed |
+| review | path | `frontend/src/scenes/terminal/assets/jq-linux-i386.bin` |  | `MIT AND BSD-2-Clause AND LGPL-2.1-only` | 추적 파일 1개 | [[path]] `frontend/src/scenes/terminal/assets/jq-linux-i386.bin` status=proposed |
+| review | path | `frontend/src/scenes/terminal/assets/tools-linux-i386.tar.gz.bin` |  | `GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT` | 추적 파일 1개 | [[path]] `frontend/src/scenes/terminal/assets/tools-linux-i386.tar.gz.bin` status=proposed |
+| review | path | `frontend/src/scenes/terminal/assets/{seabios,vgabios}.bin` |  | `LGPL-3.0-only AND GPL-3.0-only` | 추적 파일 2개 | [[path]] `frontend/src/scenes/terminal/assets/{seabios,vgabios}.bin` status=proposed |
+| review | path | `products/desktop/**/OpenRunde/*` |  | `LicenseRef-Unknown` | 추적 파일 12개 | [[path]] `products/desktop/**/OpenRunde/*` status=proposed |
+| review | path | `products/desktop/apps/mobilehog/assets/fonts/RoundHog*.ttf` |  | `OFL-1.1` | 추적 파일 5개 | [[path]] `products/desktop/apps/mobilehog/assets/fonts/RoundHog*.ttf` status=proposed |
+| review | path | `products/desktop/apps/{mobile,mobilehog}/assets/fonts/JetBrainsMono*` |  | `OFL-1.1` | 추적 파일 18개 | [[path]] `products/desktop/apps/{mobile,mobilehog}/assets/fonts/JetBrainsMono*` status=proposed |
+| review | path | `products/desktop/packages/electron-trpc/**` |  | `MIT` | 추적 파일 29개 | [[path]] `products/desktop/packages/electron-trpc/**` status=proposed |
+| review | pip | `arro3-core` | 0.6.5 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `autoevals` | 0.2.0 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `braintrust` | 0.2.4 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `braintrust-core` | 0.0.59 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `braintrust-langchain` | 0.0.4 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `browser-cookie3` | 0.20.1 | `R:lgpl` | `uv.lock` | `lgpl` is in no list |
+| review | pip | `chardet` | 5.2.0 | `C:GNU Lesser General Public License v2 or later (LGPLv2+)` | `uv.lock` | [review] licenses `LGPL-2.0-or-later` |
+| review | pip | `clickhouse-pool` | 0.5.3 | `C:GNU Lesser General Public License v3 or later (LGPLv3+)` | `uv.lock` | [review] licenses `LGPL-3.0-or-later` |
+| review | pip | `cramjam` | 2.12.1 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `docker-image-py` | 0.1.13 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `google-crc32c` | 1.8.0 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `jwcrypto` | 1.5.7 | `E:LGPL-3.0-or-later` | `uv.lock` | [review] licenses `LGPL-3.0-or-later` |
+| review | pip | `linkedin-api-client` | 0.3.0 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `linkedin-api-client` status=proposed |
+| review | pip | `lupa` | 2.7 | `R:MIT style` | `uv.lock` | not an SPDX expression |
+| review | pip | `mistralai` | 1.6.0 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `mypy-extensions` | 1.1.0 | `R:` | `services/llm-gateway/uv.lock`, `uv.lock` | not an SPDX expression |
+| review | pip | `nvidia-cublas-cu12` | 12.8.4.1 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cuda-cupti-cu12` | 12.8.90 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cuda-nvrtc-cu12` | 12.8.93 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cuda-runtime-cu12` | 12.8.90 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cudnn-cu12` | 9.10.2.21 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cufft-cu12` | 11.3.3.83 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cufile-cu12` | 1.13.1.3 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-curand-cu12` | 10.3.9.90 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cusolver-cu12` | 11.7.3.90 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cusparse-cu12` | 12.5.8.93 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-cusparselt-cu12` | 0.7.1 | `R:NVIDIA Proprietary Software` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-nccl-cu12` | 2.27.5 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-nvjitlink-cu12` | 12.8.93 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-nvshmem-cu12` | 3.3.20 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `nvidia-nvtx-cu12` | 12.8.90 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `nvidia-*-cu12` status=proposed |
+| review | pip | `paramiko` | 3.5.1 | `C:GNU Library or Lesser General Public License (LGPL)` | `uv.lock` | [[package]] `paramiko` status=proposed |
+| review | pip | `playwright` | 1.60.0 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `polyleven` | 0.11.0 | `R:` | `uv.lock` | not an SPDX expression |
+| review | pip | `prometheus-fastapi-instrumentator` | 7.1.0 | `C:OSI Approved` | `services/llm-gateway/uv.lock` | not an SPDX expression |
+| review | pip | `psycopg` | 3.2.10 | `C:GNU Lesser General Public License v3 (LGPLv3)` | `uv.lock` | [[package]] `psycopg` status=proposed |
+| review | pip | `psycopg-binary` | 3.2.10 | `C:GNU Lesser General Public License v3 (LGPLv3)` | `uv.lock` | [review] licenses `LGPL-3.0-only` |
+| review | pip | `psycopg2-binary` | 2.9.11 | `C:GNU Library or Lesser General Public License (LGPL)` | `uv.lock` | not an SPDX expression |
+| review | pip | `pymssql` | 2.3.8 | `E:LGPL-2.1-or-later` | `uv.lock` | [review] licenses `LGPL-2.1-or-later` |
+| review | pip | `python-stdnum` | 2.2 | `C:GNU Lesser General Public License v2 or later (LGPLv2+)` | `uv.lock` | [review] licenses `LGPL-2.0-or-later` |
+| review | pip | `suds-community` | 1.2.0 | `C:GNU Library or Lesser General Public License (LGPL)` | `uv.lock` | not an SPDX expression |
+| review | pip | `tbb` | 2022.3.1 | `C:Other/Proprietary License` | `uv.lock` | [[package]] `tbb` status=proposed |
+| review | pip | `tcmlib` | 1.4.1 | `C:Other/Proprietary License` | `uv.lock` | not an SPDX expression |
+| review | pip | `text-unidecode` | 1.3 | `C:Artistic License;GNU General Public License (GPL);GNU General Public License v2 or later (GPLv2+)` | `uv.lock` | not an SPDX expression |
+| review | pip | `tld` | 0.13.2 | `E:MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later` | `uv.lock` | [review] licenses `MPL-1.1` |
+| review | pip | `umap-learn` | 0.5.7 | `C:OSI Approved` | `uv.lock` | not an SPDX expression |
+| review | pip | `uritemplate` | 4.2.0 | `R:BSD 3-Clause OR Apache-2.0` | `uv.lock` | not an SPDX expression |
+<!-- generated:violations:end -->
+
 가장 많은 라이선스(루트 잠금 파일 기준):
 
 <!-- generated:top:begin -->
-Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv` — Do not edit by hand.
+Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml` — Do not edit by hand.
 
 | 생태계 | 상위 5개 | 기준 |
 | --- | --- | --- |
@@ -173,7 +300,7 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 | `text-unidecode` 1.3 | `uv.lock` | 전이(`python-slugify`) | 분류자 `Artistic License`, GPL, GPLv2+가 함께 붙음 | 선택 가능한지 미확인 |
 | `tld` 0.13.2 | `uv.lock` | 전이(`courlan`) | `MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later` | 선택 가능 |
 
-`OR`의 한쪽이 허용형이면 허용형으로 센다(분류 규칙 1). 그래서 이 표에 두지 않은 이중 라이선스가 있다: `node-forge` 1.4.0(`(BSD-3-Clause OR GPL-2.0)`), `r-efi` 5.3.0(`MIT OR Apache-2.0 OR LGPL-2.1-or-later`), `dompurify`(`(MPL-2.0 OR Apache-2.0)`). 어느 쪽을 고르는지는 법무 검토 몫이다.
+`OR`의 한쪽이 `allow`이면 `allow`로 센다(분류 규칙 5). 그래서 이 표에 두지 않은 이중 라이선스가 있다: `node-forge` 1.4.0(`(BSD-3-Clause OR GPL-2.0)`), `r-efi` 5.3.0(`MIT OR Apache-2.0 OR LGPL-2.1-or-later`), `dompurify`(`(MPL-2.0 OR Apache-2.0)`). 어느 쪽을 고르는지는 법무 검토 몫이다.
 
 ### 약한 카피레프트 (MPL, EPL, CDDL)
 
@@ -197,7 +324,7 @@ Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv
 
 ### 허용형이지만 표기가 특이한 항목
 
-아래는 분류 규칙상 "비OSI·독점·미확인" 열로 들어가지만, 본문을 확인해 보니 허용형인 것이다. 고지나 출처 표시 의무가 붙는다.
+아래는 2026-10-16 집계에서 "비OSI·독점·미확인"으로 센 것 가운데 본문을 확인해 보니 허용형인 것이다. 지금의 요약 표에서는 정책 판정에 따라 `allow`나 `review`다. 고지나 출처 표시 의무가 붙는다.
 
 | 패키지 | 잠금 파일 | 라이선스 표기 | 확인한 본문 |
 | --- | --- | --- | --- |
@@ -313,12 +440,12 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 
 저장소 루트의 `license-policy.toml`이 어느 라이선스를 허용하고 막을지 적는 정책 원본이다.
 2026-10-16에 레이븐이 채택했다(`status = "adopted"`, buzzhog-djp9).
-검사 셋(생성 스크립트 `--check`, PR 게이트, 저장소 전체 스캔)은 아직 이 파일을 읽지 않는다. 각각 buzzhog-djp9.9lm, .m0z, .fai에서 붙인다.
+`wiki/_tools/gen_licenses.py --check`가 이 파일을 읽는다([집계 방법](#집계-방법)). PR 게이트와 저장소 전체 스캔은 아직 읽지 않는다. 각각 buzzhog-djp9.m0z, .fai에서 붙인다.
 이 결정은 법률 자문이 아니다. 판매 전 법무 검토는 따로 받는다.
 
 - 판정은 `allow`, `review`, `deny` 세 가지다. `review`는 사람이 보고 결정을 적기 전까지 검사 실패로 센다. 어느 목록에도 없는 식별자, `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류, `license_file`만 있는 크레이트는 `review`다.
 - 식별자는 SPDX다. SPDX에 없는 것(PolyForm Strict, GSAP, 독점)은 `LicenseRef-`를 붙였다.
-- `A OR B`는 더 좋은 쪽, `A AND B`는 더 나쁜 쪽, `X WITH 예외`는 `X`로 판정한다. 이 페이지의 [분류 규칙](#분류-규칙) 1과 같은 해석이다. 정확히 맞는 식별자가 접두사보다 먼저이고, 접두사끼리는 `deny`가 `review`보다 먼저다.
+- `A OR B`는 더 좋은 쪽, `A AND B`는 더 나쁜 쪽, `X WITH 예외`는 `X`로 판정하되 예외가 deny 목록에 걸리면 `deny`다(`Apache-2.0 WITH Commons-Clause`). [분류 규칙](#분류-규칙)이 그 구현이다. 정확히 맞는 식별자가 접두사보다 먼저이고, 접두사끼리는 `deny`가 `review`보다 먼저다.
 
 ### 결정한 목록
 
@@ -331,15 +458,15 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 | review | GPL, LGPL, `MPL-1.1`, EPL, CDDL, `CC-BY-SA-*`, Artistic, `OpenSSL`, `BSD-4-Clause`, EUPL, OSL, CPAL | 패키지·경로마다 사람이 한 번 보고 결정을 적는다 |
 | deny | AGPL, SSPL, BUSL, Elastic-2.0, Commons Clause, PolyForm, `CC-BY-NC`, 독점 | 예외는 제거·대체 작업으로 푼다 |
 
-정책과 `gen_licenses.py` 허용 목록의 차이: 스크립트의 허용 목록에 없는 `BSD-1-Clause`, `BSD-2-Clause-Patent`, `BSD-3-Clause-Clear`, `Libpng`, `libpng-2.0`, `PostgreSQL`, `HPND`, `UPL-1.0`, `W3C`, `AFL-3.0`, `MPL-2.0`, `WTFPL`, `CC-BY-3.0`, `CC-BY-4.0`, `CDLA-Permissive-2.0`, `bzip2-1.0.6`이 정책에서는 `allow`다.
-스크립트의 `BSD`는 정책에서 `[expression.alias]`가 `BSD-3-Clause`로 바꾼다.
-buzzhog-djp9.9lm에서 스크립트의 `ALLOW`를 이 파일에서 읽게 바꾼다.
+`gen_licenses.py`의 허용 목록은 이 파일의 `[allow]`다. 스크립트에 따로 적은 목록은 없다.
 
 ### 범위와 승인
 
 - 항목의 `scope`는 `distributed`(기본) 또는 `development`다. 개발·테스트·CI 전용 의존(uv `dev` 그룹, devDependencies, `.github/actions`·`.depot/actions`)은 `development`다. `deny`는 두 범위에 똑같이 걸리고, `review`는 `development`에서 면제한다.
+- 검사는 범위를 두 곳에서만 읽는다. `.github/actions/`·`.depot/actions/` 아래 잠금 파일의 항목은 `development`다. 나머지는 `distributed`다. `approved` 항목의 `scope`는 그 항목이 `verdict = "review"`를 적었을 때만 차이를 낸다. 다른 `approved` 항목은 `deny`가 아니면 이미 "승인된 예외"로 통과하고, `deny`는 두 범위에 똑같이 걸리기 때문이다. uv `dev` 그룹과 devDependencies는 잠금 파일에서 읽지 않는다. 프런트엔드는 devDependencies도 번들에 넣으므로, 개발 전용 패키지도 사람이 패키지마다 승인해야 통과한다. `proposed` 항목의 `scope`도 `license`·`verdict`처럼 적용하지 않는다.
 - `[[package]]`는 패키지별 결정이다. 레지스트리 값이 비어 있는 패키지의 라이선스를 본문으로 바로잡거나(`license`), 정책 판정을 덮어쓴다(`verdict`). `license`와 `verdict`는 `status`가 `approved`인 항목에만 적용한다. `proposed` 항목에 걸리면 `license`·`verdict`와 상관없이 `review`로 센다(찾은 라이선스가 `deny`면 `deny`). 그래서 라이선스가 `allow`여도 `proposed`는 검사 실패다. `rejected`는 제거·대체가 결정된 것이고, 걸리면 `deny`로 센다.
-- `approved` 항목은 `version`을 고정하거나 `review_by`를 적어야 한다. 둘 다 없으면 검사가 거부한다.
+- `approved` 항목은 `version`을 고정하거나 `review_by`를 적어야 한다. 둘 다 없으면 검사가 거부한다. 그런 항목과 `review_by`가 지난 항목은 `proposed`처럼 센다. `[[path]]`는 glob으로만 맞추므로 `version`이 아무것도 고정하지 않는다. 그래서 `approved` `[[path]]`는 `review_by`가 있어야 한다. `review_by`는 `YYYY-MM-DD`다.
+- `approved` 항목은 `verdict`가 있으면 그것을, 없으면 `license`를, 그것도 없으면 찾은 라이선스를 판정한다. 결과가 `deny`가 아니면 "승인된 예외"로 통과한다. `deny` 라이선스를 통과시키려면 `verdict = "allow"`를 적는다.
 - `[[path]]`는 잠금 파일 밖 파일(터미널 바이너리, 글꼴, 복사한 이미지, 벤더링한 코드)에 같은 결정을 적는 자리다.
 
 ### 이미 들어 있는 deny·review 대상
@@ -350,14 +477,15 @@ buzzhog-djp9.9lm에서 스크립트의 `ALLOW`를 이 파일에서 읽게 바꾼
 
 ## 집계 방법
 
-요약 표, 범위 표, 상위 라이선스 표, 허용 목록은 `wiki/_tools/gen_licenses.py`가 만든다. 이 페이지의 `generated:` 구역이 그 결과다. 구역 밖은 손으로 쓴 글이고, 스크립트는 건드리지 않는다.
+요약 표, 위반 목록, 범위 표, 상위 라이선스 표, 허용 목록은 `wiki/_tools/gen_licenses.py`가 만든다. 이 페이지의 `generated:` 구역이 그 결과다. 구역 밖은 손으로 쓴 글이고, 스크립트는 건드리지 않는다.
 스크립트는 저장소 루트에서 돌린다. 레지스트리와 `cargo`가 필요하다.
 
 ```bash
 python3 -I wiki/_tools/gen_licenses.py                              # 구역을 다시 쓴다
-python3 -I wiki/_tools/gen_licenses.py --check                      # 페이지가 낡았으면 종료 코드 1
+python3 -I wiki/_tools/gen_licenses.py --check                      # 정책 위반이 있거나 페이지가 낡았으면 종료 코드 1
 python3 -I wiki/_tools/gen_licenses.py --cache-dir /tmp/lic-cache   # 레지스트리 답을 저장소 밖에 보관한다
-python3 -I wiki/_tools/gen_licenses.py --list                       # 허용형이 아닌 항목을 TSV로 낸다. 페이지는 쓰지 않는다
+python3 -I wiki/_tools/gen_licenses.py --list                       # allow가 아닌 항목을 TSV로 낸다. 페이지는 쓰지 않는다
+python3 -I wiki/_tools/test_gen_licenses.py                         # 판정 규칙의 테스트. 네트워크가 필요 없다
 ```
 
 - 스크립트는 `wiki/licenses.md` 말고는 저장소에 아무것도 쓰지 않는다. 임시 파일은 시스템 임시 디렉터리에만 둔다. `--cache-dir`이 저장소 안이면 거부한다.
@@ -365,24 +493,26 @@ python3 -I wiki/_tools/gen_licenses.py --list                       # 허용형�
 - 실패한 조회가 하나라도 있으면 스크립트는 실패한 패키지 수와 앞쪽 10개를 오류로 내고, `licenses.md`를 쓰지 않은 채 0이 아닌 코드로 끝난다(2026-10-16 실행에서는 실패가 없었다).
 - 레지스트리 답은 시간이 지나면 바뀐다. 저장소가 그대로여도 `--check`가 낡았다고 말할 수 있다.
 - `--cache-dir`에 든 답은 다시 조회하지 않는다. 레지스트리 쪽 변화를 보려면 캐시 없이 돌리거나 캐시 디렉터리를 비운다. 조회 코드(`fetch_*`)가 바뀌면 스크립트가 그 캐시를 버린다.
-- `--list`는 열 다섯 개(분류, 잠금 파일, 이름, 버전, 라이선스)를 탭으로 나눠 낸다. 분류는 `weak`(약한 카피레프트), `copyleft`(강한·라이브러리 카피레프트), `other`(비OSI·독점·미확인)다.
+- `--check`는 위반마다 한 줄을 표준 출력에 낸다. 여섯 열(판정, 잠금 파일, 이름, 버전, 라이선스, 규칙)를 탭으로 나눈다. `[[path]]` 항목은 잠금 파일 열에 "추적 파일 N개"를 적는다. 위반 수는 표준 오류에 낸다. 정책이 `status = "draft"`이면 위반을 내도 실패하지 않는다.
+- `--list`는 `allow`가 아닌 모든 항목(승인된 예외, review 면제 포함)을 `--check`와 같은 열로 낸다.
+- 페이지와 `--check`는 한 번의 판정을 함께 쓴다. 그래서 요약 표, 위반 목록, 검사 결과가 어긋나지 않는다.
 - 잠금 파일에는 라이선스 필드가 없다(cargo는 `cargo metadata`가 바로 준다). 그래서 이름·버전을 뽑아 레지스트리에 조회한다. `node_modules`나 가상 환경은 설치하지 않는다.
 
 ### 분류 규칙
 
-스크립트의 `classify()`가 정한다. 순서대로 먼저 맞는 것을 쓴다.
+스크립트의 `Policy`가 `license-policy.toml`을 읽어 정한다. 정책 파일이 스크립트가 구현하지 않은 값(`[expression]`의 다른 해석, 모르는 `status`·`scope`, `[[package]]`·`[[path]]`의 모르는 필드, `YYYY-MM-DD`가 아닌 `review_by`)을 적으면 스크립트는 판정하지 않고 끝난다.
 
-1. SPDX식(npm, cargo, go, pip의 `license_expression`)은 `OR`는 한쪽이라도, `AND`는 모두 허용 목록에 있으면 허용형이다. `/`는 `OR`로, `WITH 예외`는 앞의 라이선스로 읽는다. `MIT OR GPL-2.0`처럼 `OR`의 한쪽이 허용형이면 카피레프트 쪽이 있어도 허용형으로 센다.
-2. 문자열에 `gpl` 또는 `gnu`가 있으면(대소문자 무시) 강한·라이브러리 카피레프트다.
-3. `mpl`, `mozilla`, `epl`, `eclipse public`, `cddl`이 있으면 약한 카피레프트다.
-4. pip 분류자는 `OSI Approved`, `DFSG approved`를 뺀 나머지가 모두 허용형 분류자(`MIT License`, `Apache Software License`, `BSD License`, `ISC License (ISCL)`, `Python Software Foundation License`, `Public Domain`, `The Unlicense (Unlicense)`)면 허용형이다.
-5. pip 원문은 `mit`, `apache`, `bsd`, `3-clause bsd`, `isc`, `cc0`, MIT 라이선스 URL로 시작하고 `proprietary`가 없으면 허용형이다.
-6. 나머지는 모두 비OSI·독점·미확인이다. `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류, `license_file`만 있는 크레이트, `CC-BY-*`, `WTFPL`, `CDLA-Permissive-2.0`, `bzip2-1.0.6`, `OpenSSL`이 여기에 든다.
+1. 찾은 문자열을 SPDX식으로 바꾼다. npm, cargo, go와 pip의 `license_expression`은 그대로 쓴다. pip 분류자는 표(`PIP_CLASSIFIERS`)로 SPDX 식별자로 바꾸고 `AND`로 잇는다. `OSI Approved`, `DFSG approved`는 뺀다. 표에 없는 분류자(`Other/Proprietary License`, `GNU Library or Lesser General Public License (LGPL)` 등)가 하나라도 있으면 SPDX식이 없는 것으로 본다. pip 원문은 `MIT License`, MIT 라이선스 URL, `Apache License 2.0`류, `3-Clause BSD`로 시작하면 그 식별자로 읽고, 아니면 원문을 SPDX식으로 읽어 본다. 다만 원문에 `proprietary`, `Commons Clause`, `non-commercial`이 있으면 시작 부분으로 읽지 않는다(`Apache License 2.0 with Commons Clause`는 `review`다).
+2. SPDX식이 아니면 `review`다. `UNKNOWN`, `SEE LICENSE IN ...`, `license_file`만 있는 크레이트, `NO-LICENSE-FILE`, 빈 값이 여기에 든다.
+3. 식별자는 대소문자를 가리지 않는다. 끝의 `+`를 먼저 떼고, `[expression.alias]`로 바꾼다. 정확한 목록(`allow`, `deny`, `review`)이 먼저이고, 다음이 `deny` 접두사, 그다음이 `review` 접두사다. 어디에도 없으면 `review`다.
+4. SPDX에 없는 맨 식별자(`Proprietary`, `Commons-Clause`)는 `LicenseRef-`를 붙인 이름으로도 정확한 목록과 `deny` 접두사에 맞춰 본다. 그래서 `Commons-Clause`는 `LicenseRef-Commons-Clause`(`deny`)다.
+5. `A OR B`는 더 좋은 쪽, `A AND B`는 더 나쁜 쪽이다(`allow` > `review` > `deny`). `/`는 `OR`다. `X WITH 예외`는 `X`의 판정이고, 예외가 3·4로 `deny`이면 `deny`다.
+6. 판정 뒤에 `[[package]]`·`[[path]]` 항목과 범위를 적용한다([범위와 승인](#범위와-승인)). `[[package]]`는 생태계와 이름(`*` 글롭)으로 맞추고, 버전을 고정한 항목이 먼저, 그다음 정확한 이름이 먼저다. pip 이름은 양쪽 다 PEP 503 형태(소문자, `-`·`_`·`.`의 연속은 `-` 하나)로 바꿔 맞춘다. 어느 의존성에도 적용되지 않는 `[[package]]` 항목은 경고만 낸다. `[[path]]` 글롭은 `git ls-files` 목록에 맞춘다. `**/`는 디렉터리 여러 개, `*`는 한 디렉터리 안, `{a,b}`는 둘 중 하나다. 맞는 파일이 없는 항목은 경고만 낸다.
 
 <!-- generated:allow:begin -->
-Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv` — Do not edit by hand.
+Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml` — Do not edit by hand.
 
-허용 목록: `MIT`, `MIT-0`, `MIT-CMU`, `X11`, `NCSA`, `Apache-2.0`, `BSD`, `BSD-2-Clause`, `BSD-3-Clause`, `0BSD`, `ISC`, `Zlib`, `BSL-1.0`, `Unlicense`, `CC0-1.0`, `Python-2.0`, `PSF-2.0`, `CNRI-Python`, `BlueOak-1.0.0`, `Unicode-3.0`, `Unicode-DFS-2016`, `OFL-1.1`, `AFL-2.1`.
+허용 목록(`license-policy.toml`의 `[allow]`): `MIT`, `MIT-0`, `MIT-CMU`, `X11`, `NCSA`, `Apache-2.0`, `BSD-1-Clause`, `BSD-2-Clause`, `BSD-2-Clause-Patent`, `BSD-3-Clause`, `BSD-3-Clause-Clear`, `0BSD`, `ISC`, `Zlib`, `Libpng`, `libpng-2.0`, `BSL-1.0`, `PostgreSQL`, `HPND`, `UPL-1.0`, `W3C`, `Unlicense`, `CC0-1.0`, `Python-2.0`, `PSF-2.0`, `CNRI-Python`, `BlueOak-1.0.0`, `Unicode-3.0`, `Unicode-DFS-2016`, `AFL-2.1`, `AFL-3.0`, `MPL-2.0`, `WTFPL`, `OFL-1.1`, `CC-BY-3.0`, `CC-BY-4.0`, `CDLA-Permissive-2.0`, `bzip2-1.0.6`.
 <!-- generated:allow:end -->
 
 ### 조회 방식
