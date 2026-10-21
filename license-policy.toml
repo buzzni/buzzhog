@@ -1,16 +1,16 @@
 # buzzhog 의존성 라이선스 정책
 #
-# 상태: 초안. 법무가 목록과 예외를 확정하기 전까지는 어떤 검사도 이 파일을 읽지 않는다.
+# 상태: 채택(2026-10-16, 레이븐). 목록과 범위 규칙은 확정이다. [[package]]·[[path]] 항목은 status가 approved인 것만 효력이 있다.
 # 읽을 곳(예정): wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm), PR 게이트(buzzhog-djp9.m0z),
 # 저장소 전체 스캔(buzzhog-djp9.fai). 세 검사가 모두 이 한 파일에서 판정을 얻는다.
 # 식별자는 SPDX(https://spdx.org/licenses/)를 쓴다. SPDX에 없는 라이선스는 `LicenseRef-`를 앞에 붙인다.
 # 근거는 wiki/licenses.md다. 이 파일은 법률 자문이 아니다. 최종 판단은 법무 검토다.
 
 schema = 1
-status = "draft"   # draft | adopted. adopted가 되어야 검사가 실패를 낸다
-decided_by = ""    # 법무 결정자
-decided_on = ""    # YYYY-MM-DD
-review_by = ""     # 정책 전체의 다음 재검토일
+status = "adopted"   # draft | adopted. adopted가 되어야 검사가 실패를 낸다
+decided_by = "레이븐"   # 결정자
+decided_on = "2026-10-16"   # YYYY-MM-DD
+review_by = "2027-04-16"    # 정책 전체의 다음 재검토일
 
 # 판정은 allow, review, deny 세 가지다. review는 사람이 보기 전까지 검사 실패로 센다.
 # 어느 목록에도 없는 식별자, UNKNOWN, `SEE LICENSE IN ...`, 조회 오류, 라이선스 파일만 있는 크레이트는 review다.
@@ -25,9 +25,15 @@ licenses = [
   "Unlicense", "CC0-1.0",
   "Python-2.0", "PSF-2.0", "CNRI-Python",
   "BlueOak-1.0.0", "Unicode-3.0", "Unicode-DFS-2016", "AFL-2.1", "AFL-3.0",
+  "MPL-2.0",               # 파일 단위 카피레프트. 수정하지 않고 쓸 때만 allow. 수정하면 그 파일을 MPL-2.0으로 공개해야 한다
+  "WTFPL",                 # 허용형. 본문이 비격식이다
+  "OFL-1.1", "CC-BY-3.0", "CC-BY-4.0",   # 글꼴·데이터. 아래 notice 목록의 고지를 함께 싣는다
   "CDLA-Permissive-2.0",   # 데이터 라이선스. webpki-roots
   "bzip2-1.0.6",           # BSD식 4개 조항. libbz2-rs-sys
 ]
+# 허용하되 고지(저작권·라이선스 본문·출처 표시)를 산출물이나 NOTICE에 싣는 라이선스.
+# 고지문 생성(buzzhog-djp9.63o)과 gen_licenses.py가 이 목록으로 고지 대상을 뽑는다
+notice = ["OFL-1.1", "CC-BY-3.0", "CC-BY-4.0"]
 
 [deny]
 # 네트워크 카피레프트, 소스 공개형(source-available), 독점
@@ -51,18 +57,29 @@ prefixes = [
 licenses = [
   "GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later",
   "LGPL-2.0-only", "LGPL-2.0-or-later", "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later",
-  "MPL-1.1", "MPL-2.0",
+  "MPL-1.1",
   "EPL-1.0", "EPL-2.0",
   "CDDL-1.0", "CDDL-1.1",
-  "CC-BY-3.0", "CC-BY-4.0", "CC-BY-SA-3.0", "CC-BY-SA-4.0",   # 출처 표시 의무
-  "OFL-1.1",                 # 글꼴. 고지 의무. gen_licenses.py의 현재 허용 목록에는 들어 있다
+  "CC-BY-SA-3.0", "CC-BY-SA-4.0",   # 동일 조건 변경 허락 의무
   "Artistic-1.0", "Artistic-2.0",
   "OpenSSL",                 # 광고 고지 조항. ring, aws-lc-sys
   "BSD-4-Clause",            # 광고 고지 조항
-  "WTFPL",                   # 허용형이지만 본문이 비격식. esbuild-plugin-less, truncate-utf8-bytes
   "EUPL-1.2", "OSL-3.0", "CPAL-1.0",
 ]
 prefixes = ["GPL-", "LGPL-", "MPL-", "EPL-", "CDDL-", "CC-BY-", "Artistic-", "LicenseRef-"]
+
+# 정확히 맞는 식별자가 접두사보다 먼저다. 그래서 MPL-2.0, CC-BY-4.0, OFL-1.1은 allow가 이기고,
+# 접두사 `MPL-`·`CC-BY-`에 걸리는 나머지(MPL-1.1, CC-BY-SA-*)는 review다. `CC-BY-NC`는 deny 접두사가 먼저다.
+
+[scope]
+# 범위(scope)별 규칙. 항목의 scope가 없으면 distributed다.
+# development는 개발·테스트·CI 전용 의존이다(uv `dev` 그룹, devDependencies, `.github/actions` 잠금 파일).
+distributed = { deny = "fail", review = "fail" }
+development = { deny = "fail", review = "exempt" }   # deny는 배포 범위와 같다. review는 면제한다
+
+[approval]
+# status = "approved" 항목은 version을 고정하거나 review_by를 적어야 한다. 둘 다 없으면 검사가 거부한다
+require_one_of = ["version", "review_by"]
 
 [expression]
 # SPDX 식의 판정. 등급은 allow > review > deny 순으로 좋다.
@@ -85,7 +102,7 @@ plus = "strip"   # `MPL-2.0+`(SPDX가 버린 표기)는 `+`를 뗀다
 #     rejected는 제거·대체가 결정된 것이다. verdict는 deny로 두고 reason에 그 이슈를 적는다
 # 필수: ecosystem(pip | npm | cargo | go), name, reason, status. 선택: version(없으면 모든 버전), license, verdict,
 #       decided_by, decided_on, review_by, proposed_on, scope(distributed | development).
-# approved 항목은 version을 고정하거나 review_by를 적는다. 둘 다 없으면 검사가 거부한다.
+# approved 항목은 version을 고정하거나 review_by를 적는다. 둘 다 없으면 검사가 거부한다([approval]).
 # ---------------------------------------------------------------------------
 
 # --- 레지스트리 값을 본문으로 바로잡은 것 (wiki/licenses.md "허용형이지만 표기가 특이한 항목") ---
@@ -154,8 +171,10 @@ ecosystem = "npm"
 name = "@posthog/brand"
 license = "LicenseRef-PolyForm-Strict-1.0.0"
 verdict = "deny"
-reason = "PolyForm Strict 1.0.0. 상업 사용·배포·파생물이 허가되지 않는다. 루트 `pnpm-lock.yaml`과 desktop에서 직접 의존, import 파일 163개. 복사본 `frontend/src/lib/components/Hogfetti/hogs/*.png`도 같다"
-status = "proposed"
+reason = "PolyForm Strict 1.0.0. 상업 사용·배포·파생물이 허가되지 않는다. 루트 `pnpm-lock.yaml`과 desktop에서 직접 의존, import 파일 163개. 복사본 `frontend/src/lib/components/Hogfetti/hogs/*.png`도 같다. 제거·대체가 결정됐다(대체 작업은 backlog `@posthog/brand 대체`)"
+status = "rejected"
+decided_by = "레이븐"
+decided_on = "2026-10-16"
 proposed_on = "2026-10-16"
 scope = "distributed"
 
@@ -249,15 +268,6 @@ name = "nvidia-*-cu12"
 license = "LicenseRef-NVIDIA-Proprietary"
 verdict = "review"
 reason = "`torch` CUDA 빌드의 전이 의존 15개. 분류자 `Other/Proprietary License`. `sentiment` 그룹이 어느 이미지에 설치되는지 미확인. 배포 산출물에 안 들어가면 scope를 development로"
-status = "proposed"
-proposed_on = "2026-10-16"
-
-[[package]]
-ecosystem = "npm"
-name = "caniuse-lite"
-license = "CC-BY-4.0"
-verdict = "review"
-reason = "데이터. 출처 표시 필요. `frontend/package.json` 직접 의존. 빌드 시점에만 쓰이면 scope를 development로"
 status = "proposed"
 proposed_on = "2026-10-16"
 

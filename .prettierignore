@@ -8,3 +8,7 @@ common/hogvm/typescript/src/stl/bytecode.ts
 # pass would re-indent every schema body under the builder arrow (see
 # services/mcp/scripts/generate-orval-schemas.mjs).
 services/mcp/src/generated/
+
+# wiki/licenses.md holds regions that wiki/_tools/gen_licenses.py rewrites and --check compares byte for byte.
+# A formatter pass would pad its tables and make --check report the page as stale.
+wiki/licenses.md
