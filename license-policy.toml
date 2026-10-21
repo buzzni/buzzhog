@@ -86,7 +86,7 @@ require_one_of = ["version", "review_by"]
 # SPDX 식의 판정. 등급은 allow > review > deny 순으로 좋다.
 or = "best"      # `A OR B`: 고를 수 있으므로 더 좋은 쪽
 and = "worst"    # `A AND B`: 모두 걸리므로 더 나쁜 쪽
-with = "base"    # `X WITH 예외`: X로 본다
+with = "base-unless-deny"   # `X WITH 예외`: X로 본다. 다만 예외가 deny 목록에 걸리면(`Apache-2.0 WITH Commons-Clause`) deny다
 slash = "or"     # `MIT/Apache-2.0`(cargo의 옛 표기)은 OR로 읽는다
 plus = "strip"   # `MPL-2.0+`(SPDX가 버린 표기)는 `+`를 뗀다
 # 정확히 맞는 식별자가 접두사보다 먼저다. 접두사끼리는 deny가 review보다 먼저다.
