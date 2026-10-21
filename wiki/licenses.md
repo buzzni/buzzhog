@@ -311,37 +311,42 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 
 ## 정책 파일
 
-저장소 루트의 `license-policy.toml`이 어느 라이선스를 허용하고 막을지 적는 정책 원본이다. 2026-10-16에 레이븐이 채택했다(`status = "adopted"`, buzzhog-djp9). 검사 셋(생성 스크립트 `--check`, PR 게이트, 저장소 전체 스캔)은 아직 이 파일을 읽지 않는다. 각각 buzzhog-djp9.9lm, .m0z, .fai에서 붙인다. 이 결정은 법률 자문이 아니다. 판매 전 법무 검토는 따로 받는다.
+저장소 루트의 `license-policy.toml`이 어느 라이선스를 허용하고 막을지 적는 정책 원본이다.
+2026-10-16에 레이븐이 채택했다(`status = "adopted"`, buzzhog-djp9).
+검사 셋(생성 스크립트 `--check`, PR 게이트, 저장소 전체 스캔)은 아직 이 파일을 읽지 않는다. 각각 buzzhog-djp9.9lm, .m0z, .fai에서 붙인다.
+이 결정은 법률 자문이 아니다. 판매 전 법무 검토는 따로 받는다.
 
-- 판정은 `allow`, `review`, `deny` 세 가지다. `review`는 사람이 보고 결정을 적기 전까지 검사 실패로 센다. 어느 목록에도 없는 식별자, `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류는 `review`다.
+- 판정은 `allow`, `review`, `deny` 세 가지다. `review`는 사람이 보고 결정을 적기 전까지 검사 실패로 센다. 어느 목록에도 없는 식별자, `UNKNOWN`, `SEE LICENSE IN ...`, 조회 오류, `license_file`만 있는 크레이트는 `review`다.
 - 식별자는 SPDX다. SPDX에 없는 것(PolyForm Strict, GSAP, 독점)은 `LicenseRef-`를 붙였다.
 - `A OR B`는 더 좋은 쪽, `A AND B`는 더 나쁜 쪽, `X WITH 예외`는 `X`로 판정한다. 이 페이지의 [분류 규칙](#분류-규칙) 1과 같은 해석이다. 정확히 맞는 식별자가 접두사보다 먼저이고, 접두사끼리는 `deny`가 `review`보다 먼저다.
 
 ### 결정한 목록
 
-| 구분         | 라이선스                                                                                            | 비고                                                                                               |
-| ------------ | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| allow        | MIT, BSD, Apache-2.0, ISC, 0BSD, Zlib, BSL-1.0, Unlicense, CC0, PSF, BlueOak, Unicode 등 33개       | 고지(저작권·라이선스 본문)만 싣는다                                                                |
-| allow        | `MPL-2.0`                                                                                           | 파일 단위 카피레프트. 수정하지 않고 쓸 때만 허용한다. 수정하면 그 파일을 MPL-2.0으로 공개해야 한다 |
-| allow        | `WTFPL`                                                                                             | 본문이 비격식이지만 허용형이다                                                                     |
-| allow + 고지 | `OFL-1.1`, `CC-BY-3.0`, `CC-BY-4.0`                                                                 | `[allow] notice` 목록. 글꼴 사본, 출처 표시를 산출물이나 NOTICE에 싣는다                           |
-| review       | GPL, LGPL, `MPL-1.1`, EPL, CDDL, `CC-BY-SA-*`, Artistic, `OpenSSL`, `BSD-4-Clause`, EUPL, OSL, CPAL | 패키지·경로마다 사람이 한 번 보고 결정을 적는다                                                    |
-| deny         | AGPL, SSPL, BUSL, Elastic-2.0, Commons Clause, PolyForm, `CC-BY-NC`, 독점                           | 예외는 제거·대체 작업으로 푼다                                                                     |
+| 구분 | 라이선스 | 비고 |
+| --- | --- | --- |
+| allow | MIT, BSD, Apache-2.0, ISC, 0BSD, Zlib, BSL-1.0, Unlicense, CC0, PSF, BlueOak, Unicode 등 33개 | 고지(저작권·라이선스 본문)를 싣는다 |
+| allow | `MPL-2.0` | 파일 단위 카피레프트. 수정하지 않고 쓸 때만 허용한다. 수정하면 그 파일을 MPL-2.0으로 공개해야 한다 |
+| allow | `WTFPL` | 본문이 비격식이지만 허용형이다 |
+| allow + 고지 | `OFL-1.1`, `CC-BY-3.0`, `CC-BY-4.0` | `[allow] notice` 목록. 저작권·라이선스 본문에 더해 글꼴의 OFL 사본, 출처 표시를 산출물이나 NOTICE에 싣는다 |
+| review | GPL, LGPL, `MPL-1.1`, EPL, CDDL, `CC-BY-SA-*`, Artistic, `OpenSSL`, `BSD-4-Clause`, EUPL, OSL, CPAL | 패키지·경로마다 사람이 한 번 보고 결정을 적는다 |
+| deny | AGPL, SSPL, BUSL, Elastic-2.0, Commons Clause, PolyForm, `CC-BY-NC`, 독점 | 예외는 제거·대체 작업으로 푼다 |
 
-초안과 `gen_licenses.py` 허용 목록의 차이: 스크립트의 허용 목록에 없는 `MPL-2.0`, `WTFPL`, `CC-BY-3.0`, `CC-BY-4.0`, `CDLA-Permissive-2.0`, `bzip2-1.0.6`이 정책에서는 `allow`다. 확정되면 스크립트의 `ALLOW`는 이 파일에서 읽는다(buzzhog-djp9.9lm).
+정책과 `gen_licenses.py` 허용 목록의 차이: 스크립트의 허용 목록에 없는 `BSD-1-Clause`, `BSD-2-Clause-Patent`, `BSD-3-Clause-Clear`, `Libpng`, `libpng-2.0`, `PostgreSQL`, `HPND`, `UPL-1.0`, `W3C`, `AFL-3.0`, `MPL-2.0`, `WTFPL`, `CC-BY-3.0`, `CC-BY-4.0`, `CDLA-Permissive-2.0`, `bzip2-1.0.6`이 정책에서는 `allow`다.
+스크립트의 `BSD`는 정책에서 `[expression.alias]`가 `BSD-3-Clause`로 바꾼다.
+buzzhog-djp9.9lm에서 스크립트의 `ALLOW`를 이 파일에서 읽게 바꾼다.
 
 ### 범위와 승인
 
-- 항목의 `scope`는 `distributed`(기본) 또는 `development`다. 개발·테스트·CI 전용 의존(uv `dev` 그룹, devDependencies, `.github/actions`)은 `development`다. `deny`는 두 범위에 똑같이 걸리고, `review`는 `development`에서 면제한다.
-- `[[package]]`는 패키지별 결정이다. 레지스트리 값이 비어 있는 패키지의 라이선스를 본문으로 바로잡거나(`license`), 정책 판정을 덮어쓴다(`verdict`). `status`가 `approved`인 항목만 효력이 있고, `proposed`는 여전히 검사 실패다. `rejected`는 제거·대체가 결정된 것이다.
+- 항목의 `scope`는 `distributed`(기본) 또는 `development`다. 개발·테스트·CI 전용 의존(uv `dev` 그룹, devDependencies, `.github/actions`·`.depot/actions`)은 `development`다. `deny`는 두 범위에 똑같이 걸리고, `review`는 `development`에서 면제한다.
+- `[[package]]`는 패키지별 결정이다. 레지스트리 값이 비어 있는 패키지의 라이선스를 본문으로 바로잡거나(`license`), 정책 판정을 덮어쓴다(`verdict`). `license`와 `verdict`는 `status`가 `approved`인 항목에만 적용한다. `proposed` 항목에 걸리면 `license`·`verdict`와 상관없이 `review`로 센다(찾은 라이선스가 `deny`면 `deny`). 그래서 라이선스가 `allow`여도 `proposed`는 검사 실패다. `rejected`는 제거·대체가 결정된 것이고, 걸리면 `deny`로 센다.
 - `approved` 항목은 `version`을 고정하거나 `review_by`를 적어야 한다. 둘 다 없으면 검사가 거부한다.
 - `[[path]]`는 잠금 파일 밖 파일(터미널 바이너리, 글꼴, 복사한 이미지, 벤더링한 코드)에 같은 결정을 적는 자리다.
 
-### 이미 들어 있는 deny 대상
+### 이미 들어 있는 deny·review 대상
 
-- `@posthog/brand`: `rejected`. 상업 사용이 허가되지 않아 제거·대체가 결정됐다. 대체 작업은 backlog로 따로 판다. 복사본인 Hogfetti PNG와 RoundHog 글꼴 항목은 그 작업에서 함께 정리하므로 `proposed`로 둔다.
-- `@anthropic-ai/claude-agent-sdk`, `react-doctor`, 터미널 GPL 바이너리, `linkedin-api-client`, `tbb`, `nvidia-*`, `gsap`: `proposed`다. 항목별 조사 backlog에서 예외로 둘지 제거할지 정한다.
-- 나머지 `[[package]]`·`[[path]]` 항목도 `proposed`다. 위 "법무 검토가 필요한 항목"과 "잠금 파일 밖 제3자 구성요소" 표에서 옮겼다. `OFL-1.1`·`CC-BY` 글꼴·데이터 항목의 `review`는 라이선스가 아니라 고지 파일이 없어서 남은 것이다.
+- `@posthog/brand`와 복사본 Hogfetti PNG: `rejected`. 상업 사용이 허가되지 않아 제거·대체가 결정됐다. 대체 작업은 buzzhog-9ies다. RoundHog 글꼴 항목은 OFL과 PolyForm 중 어느 쪽이 걸리는지 정하지 않았으므로 `proposed`로 두고, 같은 작업에서 바꾼다.
+- `@anthropic-ai/claude-agent-sdk`, `react-doctor`, `linkedin-api-client`, `tbb`(`deny`), 터미널 GPL 바이너리, `nvidia-*`, `gsap`(`review`): `proposed`다. 항목별 조사(buzzhog-wrap, buzzhog-2txv, buzzhog-ra0l, buzzhog-auf6, buzzhog-nhi6)에서 예외로 둘지 제거할지 정한다.
+- 나머지 `[[package]]`·`[[path]]` 항목도 `proposed`다. 위 "법무 검토가 필요한 항목"과 "잠금 파일 밖 제3자 구성요소" 표에서 옮겼다. `OFL-1.1`·`CC-BY` 글꼴·데이터 항목의 `review`는 라이선스가 아니라 고지 파일이 없어서 남은 것이다. `proposed`라서 라이선스가 `allow`여도 고지 파일을 넣고 `approved`로 닫기 전까지 검사 실패다.
 
 ## 집계 방법
 

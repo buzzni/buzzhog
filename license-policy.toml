@@ -1,8 +1,8 @@
 # buzzhog 의존성 라이선스 정책
 #
-# 상태: 채택(2026-10-16, 레이븐). 목록과 범위 규칙은 확정이다. [[package]]·[[path]] 항목은 status가 approved인 것만 효력이 있다.
+# 상태: 채택(2026-10-16, 레이븐). 목록과 범위 규칙은 확정이다. [[package]]·[[path]] 항목이 판정을 바꾸는 규칙은 아래 "패키지별 결정" 머리말에 있다.
 # 읽을 곳(예정): wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm), PR 게이트(buzzhog-djp9.m0z),
-# 저장소 전체 스캔(buzzhog-djp9.fai). 세 검사가 모두 이 한 파일에서 판정을 얻는다.
+# 저장소 전체 스캔(buzzhog-djp9.fai), 고지문 생성(buzzhog-djp9.63o). 앞의 세 검사는 판정을 모두 이 한 파일에서 얻게 된다.
 # 식별자는 SPDX(https://spdx.org/licenses/)를 쓴다. SPDX에 없는 라이선스는 `LicenseRef-`를 앞에 붙인다.
 # 근거는 wiki/licenses.md다. 이 파일은 법률 자문이 아니다. 최종 판단은 법무 검토다.
 
@@ -16,7 +16,7 @@ review_by = "2027-04-16"    # 정책 전체의 다음 재검토일
 # 어느 목록에도 없는 식별자, UNKNOWN, `SEE LICENSE IN ...`, 조회 오류, 라이선스 파일만 있는 크레이트는 review다.
 
 [allow]
-# 고지(저작권·라이선스 본문)만 함께 실으면 되는 허용형
+# 허용형. 모두 저작권·라이선스 본문을 함께 싣는다. 조건이나 의무가 더 붙는 것은 줄 끝 주석과 아래 notice에 적었다
 licenses = [
   "MIT", "MIT-0", "MIT-CMU", "X11", "NCSA",
   "Apache-2.0",
@@ -31,8 +31,9 @@ licenses = [
   "CDLA-Permissive-2.0",   # 데이터 라이선스. webpki-roots
   "bzip2-1.0.6",           # BSD식 4개 조항. libbz2-rs-sys
 ]
-# 허용하되 고지(저작권·라이선스 본문·출처 표시)를 산출물이나 NOTICE에 싣는 라이선스.
-# 고지문 생성(buzzhog-djp9.63o)과 gen_licenses.py가 이 목록으로 고지 대상을 뽑는다
+# 저작권·라이선스 본문 말고 의무가 더 있는 allow 라이선스다(출처 표시, 글꼴과 함께 싣는 OFL 사본).
+# 고지 대상을 이 목록으로만 뽑으면 안 된다. 위 allow 전체도 저작권·라이선스 본문을 산출물이나 NOTICE에 실어야 한다.
+# 고지문 생성(buzzhog-djp9.63o)은 allow 전체의 고지를 싣고, 이 목록의 항목에는 추가 의무를 더한다
 notice = ["OFL-1.1", "CC-BY-3.0", "CC-BY-4.0"]
 
 [deny]
@@ -68,12 +69,12 @@ licenses = [
 ]
 prefixes = ["GPL-", "LGPL-", "MPL-", "EPL-", "CDDL-", "CC-BY-", "Artistic-", "LicenseRef-"]
 
-# 정확히 맞는 식별자가 접두사보다 먼저다. 그래서 MPL-2.0, CC-BY-4.0, OFL-1.1은 allow가 이기고,
-# 접두사 `MPL-`·`CC-BY-`에 걸리는 나머지(MPL-1.1, CC-BY-SA-*)는 review다. `CC-BY-NC`는 deny 접두사가 먼저다.
+# `MPL-2.0`, `CC-BY-3.0`, `CC-BY-4.0`은 review 접두사 `MPL-`·`CC-BY-`에도 걸린다. allow의 정확한 식별자가 이기므로 allow다.
+# `CC-BY-NC*`는 deny 접두사가 review 접두사 `CC-BY-`보다 먼저다. 순서는 [expression] 끝에 있다.
 
 [scope]
 # 범위(scope)별 규칙. 항목의 scope가 없으면 distributed다.
-# development는 개발·테스트·CI 전용 의존이다(uv `dev` 그룹, devDependencies, `.github/actions` 잠금 파일).
+# development는 개발·테스트·CI 전용 의존이다(uv `dev` 그룹, devDependencies, `.github/actions`·`.depot/actions` 잠금 파일).
 distributed = { deny = "fail", review = "fail" }
 development = { deny = "fail", review = "exempt" }   # deny는 배포 범위와 같다. review는 면제한다
 
@@ -98,8 +99,10 @@ plus = "strip"   # `MPL-2.0+`(SPDX가 버린 표기)는 `+`를 뗀다
 # 패키지별 결정. 세 가지 쓰임이 있다.
 #  1. license: 레지스트리 값이 비어 있거나 `SEE LICENSE IN ...`일 때 본문을 읽고 정한 라이선스
 #  2. verdict: 정책 판정을 덮어쓴다 (allow | review | deny). review 항목을 사람이 본 뒤 allow로 닫는 자리
-#  3. status: proposed | approved | rejected. approved만 verdict를 적용한다. proposed는 여전히 검사 실패다.
-#     rejected는 제거·대체가 결정된 것이다. verdict는 deny로 두고 reason에 그 이슈를 적는다
+#  3. status: proposed | approved | rejected. approved 항목만 license와 verdict를 적용한다.
+#     proposed 항목에 걸리는 패키지·파일은 license·verdict와 상관없이 review로 센다. 검사가 찾은 라이선스의 판정이 deny면 deny다.
+#     라이선스가 allow여도 사람이 아직 닫지 않은 항목(고지 파일이 없는 OFL 글꼴 등)이 통과하지 않게 하려는 것이다.
+#     rejected는 제거·대체가 결정된 것이다. 걸리는 패키지·파일은 deny로 센다. verdict는 deny로 두고 reason에 그 이슈를 적는다
 # 필수: ecosystem(pip | npm | cargo | go), name, reason, status. 선택: version(없으면 모든 버전), license, verdict,
 #       decided_by, decided_on, review_by, proposed_on, scope(distributed | development).
 # approved 항목은 version을 고정하거나 review_by를 적는다. 둘 다 없으면 검사가 거부한다([approval]).
@@ -171,7 +174,7 @@ ecosystem = "npm"
 name = "@posthog/brand"
 license = "LicenseRef-PolyForm-Strict-1.0.0"
 verdict = "deny"
-reason = "PolyForm Strict 1.0.0. 상업 사용·배포·파생물이 허가되지 않는다. 루트 `pnpm-lock.yaml`과 desktop에서 직접 의존, import 파일 163개. 복사본 `frontend/src/lib/components/Hogfetti/hogs/*.png`도 같다. 제거·대체가 결정됐다(대체 작업은 backlog `@posthog/brand 대체`)"
+reason = "PolyForm Strict 1.0.0. 상업 사용·배포·파생물이 허가되지 않는다. 루트 `pnpm-lock.yaml`과 desktop에서 직접 의존, import 파일 163개. 복사본 `frontend/src/lib/components/Hogfetti/hogs/*.png`도 같다. 제거·대체가 결정됐다(대체 작업 buzzhog-9ies)"
 status = "rejected"
 decided_by = "레이븐"
 decided_on = "2026-10-16"
@@ -272,7 +275,7 @@ status = "proposed"
 proposed_on = "2026-10-16"
 
 # ---------------------------------------------------------------------------
-# 잠금 파일 밖 파일. glob은 저장소 루트 기준이다. 필드는 [[package]]와 같고 name 대신 glob을 쓴다.
+# 잠금 파일 밖 파일. glob은 저장소 루트 기준이다. 필드는 [[package]]와 같다. 다만 ecosystem과 name 대신 glob을 쓴다.
 # 저장소 전체 스캔(buzzhog-djp9.fai)이 읽는다.
 # ---------------------------------------------------------------------------
 
@@ -316,8 +319,10 @@ scope = "distributed"
 glob = "frontend/src/lib/components/Hogfetti/hogs/*.png"
 license = "LicenseRef-PolyForm-Strict-1.0.0"
 verdict = "deny"
-reason = "`@posthog/brand`에서 복사한 헤지호그 일러스트 15개. 패키지 라이선스가 복사본에도 걸리는지"
-status = "proposed"
+reason = "`@posthog/brand`에서 복사한 헤지호그 일러스트 15개. 패키지와 함께 제거·대체가 결정됐다(대체 작업 buzzhog-9ies)"
+status = "rejected"
+decided_by = "레이븐"
+decided_on = "2026-10-16"
 proposed_on = "2026-10-16"
 scope = "distributed"
 

@@ -9,6 +9,8 @@ common/hogvm/typescript/src/stl/bytecode.ts
 # services/mcp/scripts/generate-orval-schemas.mjs).
 services/mcp/src/generated/
 
-# wiki/licenses.md holds regions that wiki/_tools/gen_licenses.py rewrites and --check compares byte for byte.
-# A formatter pass would pad its tables and make --check report the page as stale.
+# These wiki pages hold regions that wiki/_tools/gen_licenses.py and gen_modules.py rewrite, and each
+# script's --check compares the page byte for byte. A formatter pass would pad their tables and make
+# --check report the page as stale.
 wiki/licenses.md
+wiki/modules.md
