@@ -11,7 +11,7 @@
 ## 요약
 
 - 테스트 러너는 여섯 종류다. pytest(Python), Jest(TS/JS), Vitest(독립 워크스페이스와 일부 서비스), Playwright(E2E), `cargo test`(Rust), `go test`(Go). `hogli test <경로>`가 경로를 보고 하나를 고른다.
-- **이 포크에는 `.github/workflows`가 없다.** `b068ff99030`(Sync and remove all non-FOSS parts)이 워크플로 140개를 지웠다. 그래서 GitHub Actions로 도는 CI는 없다. `.depot/workflows/`에는 Depot CI 워크플로 4개(`ci-backend.yml` 등)가 남아 있지만, 이 포크에 Depot CI가 연결돼 있는지는 미확인이다. 이 페이지는 테스트와 린트를 로컬에서 직접 돌린다고 보고 쓴다.
+- **이 포크의 `.github/workflows`에는 라이선스 게이트(`license-gate.yml`) 하나만 있다.** `b068ff99030`(Sync and remove all non-FOSS parts)이 워크플로 140개를 지웠고, 그 뒤 라이선스 검사만 다시 넣었다([licenses.md](licenses.md)의 "PR 게이트"). 테스트와 린트를 돌리는 GitHub Actions CI는 없다. `.depot/workflows/`에는 Depot CI 워크플로 4개(`ci-backend.yml` 등)가 남아 있지만, 이 포크에 Depot CI가 연결돼 있는지는 미확인이다. 이 페이지는 테스트와 린트를 로컬에서 직접 돌린다고 보고 쓴다.
 - 워크플로가 없어도 `.github/actions/`, `.github/scripts/`와 CI 전제 도구(`hogli lint:workflows`, `hogli test:workflows`, `hogli ci:plan`, `hogli ci:preflight`)는 남아 있다. 일부는 워크플로 파일을 입력으로 받으므로 지금은 할 일이 없거나 결과가 비어 있다(아래 [남은 CI 자산](#남은-ci-자산)).
 - Python 테스트는 Postgres, ClickHouse, Redis가 떠 있어야 돈다. persons DB 마이그레이션에 `sqlx` CLI도 필요하다. Kafka 브로커는 보통 필요 없다(`TEST`에서는 프로듀서가 테스트용으로 바뀐다).
 - 모듈을 뺄 때는 `tach`, `hogli product:lint`, import 검색 세 가지로 깨지는 곳을 찾는다.
@@ -22,17 +22,17 @@
 
 파일 이름이 `test_*.py` 또는 `*_test.py`인 파일은 5,911개다.
 
-| 위치 | 파일 수 |
-| --- | ---: |
-| `products/` | 4,507 |
-| `posthog/` | 1,231 |
-| `tools/` | 68 |
-| `services/` | 60 |
-| `.github/` | 19 |
-| `rust/` | 10 |
-| `common/` | 8 |
-| `bin/` | 6 |
-| `packages/` | 2 |
+| 위치        | 파일 수 |
+| ----------- | ------: |
+| `products/` |   4,507 |
+| `posthog/`  |   1,231 |
+| `tools/`    |      68 |
+| `services/` |      60 |
+| `.github/`  |      19 |
+| `rust/`     |      10 |
+| `common/`   |       8 |
+| `bin/`      |       6 |
+| `packages/` |       2 |
 
 `products/` 안에서는 `warehouse_sources`(1,976)가 가장 많다. 그다음은 `tasks`(176), `signals`(168), `batch_exports`(112), `experiments`(106), `web_analytics`(96), `ai_observability`(96), `slack_app`(79), `product_analytics`(78), `replay_vision`(73)다.
 이 패턴은 테스트 폴더 안의 보조 파일도 일부 센다. 테스트 케이스 수가 아니라 파일 수다.
@@ -63,18 +63,18 @@ product 하나의 백엔드 테스트는 그 product의 `package.json`에 `backe
 Vitest 패키지의 파일 1,685개가 섞여 있다: `products/desktop` 1,156, `products/visual_review/cli` 3, `packages/agent` 253, `services/` 270(전부), `tools/workflow-plan` 3.
 `.semgrep/` 14개는 semgrep 규칙 fixture이고, `.github/scripts/*.test.js` 14개는 `node --test`로 돈다.
 
-| 위치 | 파일 수 |
-| --- | ---: |
-| `products/` | 2,596 |
-| `frontend/` | 1,233 |
-| `nodejs/` | 701 |
-| `packages/` | 371 |
-| `services/` | 270 |
-| `common/` | 23 |
-| `.github/` | 19 |
-| `.semgrep/` | 14 |
-| `.depot/` | 5 |
-| `tools/` | 3 |
+| 위치        | 파일 수 |
+| ----------- | ------: |
+| `products/` |   2,596 |
+| `frontend/` |   1,233 |
+| `nodejs/`   |     701 |
+| `packages/` |     371 |
+| `services/` |     270 |
+| `common/`   |      23 |
+| `.github/`  |      19 |
+| `.semgrep/` |      14 |
+| `.depot/`   |       5 |
+| `tools/`    |       3 |
 
 - 웹 앱의 Jest 설정은 `frontend/jest.config.ts`다. `rootDirectories()`가 `frontend/src`, `frontend/bin`, `products/`, quill 차트·컴포넌트, `packages/llm-normalizer/src`, `common/esbuilder`를 모은다. 그래서 `products/*/frontend/`의 테스트는 product 자기 `package.json`이 아니라 `@posthog/frontend`의 Jest로 돈다. 근거: `frontend/jest.config.ts:rootDirectories`, `tools/hogli-commands/hogli_commands/test_runner.py:_detect_jest_test`.
 - 수집 서버(`nodejs/`)는 설정이 둘이다. `nodejs/jest.config.js`(병렬)의 `testMatch`는 `*.serial.test.ts`를 뺀다. 그 파일들은 `nodejs/jest.serial.config.js`로 `--runInBand` 실행된다(`pnpm --filter=@posthog/nodejs test:serial`). 근거: `nodejs/jest.config.js`, `nodejs/package.json:scripts`.
@@ -118,15 +118,15 @@ Vitest 설정은 21개다. `products/desktop`(10), `packages/agent`(4), `service
 
 `hogli test <파일 또는 디렉터리>`가 경로를 보고 러너를 고른다. 근거: `tools/hogli-commands/hogli_commands/test_runner.py:detect_test_type`, `_detect_directory`.
 
-| 경로 | 실행되는 명령 |
-| --- | --- |
-| `playwright/**/*.spec.ts` | `pnpm exec playwright test <경로>` |
-| `posthog/`, `ee/`, `products/`, `common/`, `dags/`, `tools/`, `services/` 아래 `.py` | `pytest -s <경로>` (`REDIS_URL=redis:///`를 넣는다) |
-| `*.test.ts`, `*.test.tsx` | `pnpm --filter=<가장 가까운 package.json의 name> exec jest <경로>`. `products/` 아래면 `@posthog/frontend` |
-| `products/desktop/**`, `packages/agent/**` | `pnpm --dir <패키지> exec vitest run <경로>` |
-| `*.rs` | 가장 가까운 `Cargo.toml` 기준 `cargo test` |
-| `*.go`, `go.mod` | 가장 가까운 `go.mod`에서 `go test ./<패키지>/...` |
-| `products/<name>` (최상위만) | `pnpm turbo run backend:test --filter=<그 product 패키지>` (아래 예외 참고) |
+| 경로                                                                                 | 실행되는 명령                                                                                              |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `playwright/**/*.spec.ts`                                                            | `pnpm exec playwright test <경로>`                                                                         |
+| `posthog/`, `ee/`, `products/`, `common/`, `dags/`, `tools/`, `services/` 아래 `.py` | `pytest -s <경로>` (`REDIS_URL=redis:///`를 넣는다)                                                        |
+| `*.test.ts`, `*.test.tsx`                                                            | `pnpm --filter=<가장 가까운 package.json의 name> exec jest <경로>`. `products/` 아래면 `@posthog/frontend` |
+| `products/desktop/**`, `packages/agent/**`                                           | `pnpm --dir <패키지> exec vitest run <경로>`                                                               |
+| `*.rs`                                                                               | 가장 가까운 `Cargo.toml` 기준 `cargo test`                                                                 |
+| `*.go`, `go.mod`                                                                     | 가장 가까운 `go.mod`에서 `go test ./<패키지>/...`                                                          |
+| `products/<name>` (최상위만)                                                         | `pnpm turbo run backend:test --filter=<그 product 패키지>` (아래 예외 참고)                                |
 
 - 디렉터리를 주면 `hogli test`는 표보다 먼저 테스트 종류가 섞였는지 본다. Python 테스트와 TS 테스트가 함께 있으면 파일을 종류별로 묶어 pytest와 Jest를 따로 돌린다. `products/` 가운데 51개가 그렇다. 그래서 그 product들에서는 `backend:test`(turbo) 줄이 쓰이지 않는다. 근거: `test_runner.py:test_command`, `_check_multi_type`, `_run_grouped`.
 - 단일 테스트: `hogli test path/to/test_x.py::TestClass::test_method`. Rust는 `file.rs::test_name`, Jest는 `file.test.ts::<이름 패턴>`.
@@ -183,16 +183,16 @@ Python 테스트는 실제 데이터 저장소에 붙는다. 개발 스택을 �
 
 워크플로는 지웠지만 워크플로가 부르던 부품과 CI 전제 도구는 남아 있다. 일부는 로컬 테스트와 hook이 지금도 읽는다.
 
-| 자산 | 상태 |
-| --- | --- |
-| `.github/actions/` (22개 composite action) | GitHub Actions 쪽에서 부르는 워크플로는 없다. `.depot/workflows/ci-backend.yml`은 `./.github/actions/trunk-quarantine-gate`를 부른다(Depot는 `.depot/actions/`의 미러로 푼다). 예: `setup-python-cached`, `setup-pnpm`, `paths-filter`, `rust-compute-affected`, `trunk-quarantine-gate` |
-| `.github/scripts/` | 워크플로가 부르던 검사 스크립트다. 로컬에서도 쓰인다: `jest-retries.cjs`는 `frontend/jest.config.ts`와 `nodejs/jest.config.shared.js`가 `setupFilesAfterEnv`로 읽고, `.husky/pre-commit`과 `package.json`의 lint-staged가 여기 스크립트를 부른다. `.depot/workflows/`도 여러 스크립트를 부른다. 그래서 지우면 로컬 Jest와 commit hook이 깨진다. 테스트 파일도 있다(Python 19, `node --test`로 도는 `*.test.js` 14) |
-| `.github/new-events-schema-targets.txt` (75줄) | Backend CI가 새 events 스키마로 다시 돌리던 경로 목록. 지금도 `.depot/workflows/ci-backend.yml`, `.github/scripts/turbo-discover.js`, `tools/snob_backend_test_selection_shadow.py`, `posthog/test/repo_invariants/test_events_json_prune_removal.py`가 읽는다 |
-| `.github/actionlint.yaml`, `.github/renovate.json5`, `.github/CODEOWNERS`, `.github/owners.yaml` | 설정 파일만 남았다 |
-| `hogli lint:workflows` | 입력이 `.github/workflows/**`다. 검사할 파일이 없다. 근거: `tools/hogli-commands/hogli_commands/workflow_lint/cli.py` |
-| `hogli test:workflows`, `hogli ci:plan` | `tools/workflow-plan`이 워크플로 파일을 읽는다. `hogli ci:plan`은 경로를 주면 `.depot/workflows/*.yml`도 읽는다(`tools/workflow-plan/src/cli.ts:resolveWorkflowPath`). `hogli test:workflows`가 도는 `tools/workflow-plan/tests/workflows.test.ts`는 파일을 읽어 들일 때 `readdirSync`로 `.github/workflows`를 읽는다. 그 디렉터리가 없으므로 코드상 이 테스트 파일은 시작 단계에서 실패한다. 실제로 돌려 본 결과는 미확인 |
-| `hogli ci:preflight` | 남아 있다. 바뀐 파일에서 닿는 CI 실패를 로컬에서 미리 잡는 도구다. 워크플로 파일에 걸린 트리거(`.github/workflows/*.yml`)는 이제 일치할 파일이 없다. 근거: `tools/hogli-commands/hogli_commands/ci_preflight.py` |
-| `.test_quarantine.json` | 남아 있다. Trunk 쪽 연동이 없으므로 로컬 의미만 있다 |
+| 자산                                                                                             | 상태                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/actions/` (22개 composite action)                                                       | GitHub Actions 쪽에서 부르는 워크플로는 없다. `.depot/workflows/ci-backend.yml`은 `./.github/actions/trunk-quarantine-gate`를 부른다(Depot는 `.depot/actions/`의 미러로 푼다). 예: `setup-python-cached`, `setup-pnpm`, `paths-filter`, `rust-compute-affected`, `trunk-quarantine-gate`                                                                                                                                   |
+| `.github/scripts/`                                                                               | 워크플로가 부르던 검사 스크립트다. 로컬에서도 쓰인다: `jest-retries.cjs`는 `frontend/jest.config.ts`와 `nodejs/jest.config.shared.js`가 `setupFilesAfterEnv`로 읽고, `.husky/pre-commit`과 `package.json`의 lint-staged가 여기 스크립트를 부른다. `.depot/workflows/`도 여러 스크립트를 부른다. 그래서 지우면 로컬 Jest와 commit hook이 깨진다. 테스트 파일도 있다(Python 19, `node --test`로 도는 `*.test.js` 14)         |
+| `.github/new-events-schema-targets.txt` (75줄)                                                   | Backend CI가 새 events 스키마로 다시 돌리던 경로 목록. 지금도 `.depot/workflows/ci-backend.yml`, `.github/scripts/turbo-discover.js`, `tools/snob_backend_test_selection_shadow.py`, `posthog/test/repo_invariants/test_events_json_prune_removal.py`가 읽는다                                                                                                                                                             |
+| `.github/actionlint.yaml`, `.github/renovate.json5`, `.github/CODEOWNERS`, `.github/owners.yaml` | 설정 파일만 남았다                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `hogli lint:workflows`                                                                           | 입력이 `.github/workflows/**`다. 검사할 파일이 없다. 근거: `tools/hogli-commands/hogli_commands/workflow_lint/cli.py`                                                                                                                                                                                                                                                                                                      |
+| `hogli test:workflows`, `hogli ci:plan`                                                          | `tools/workflow-plan`이 워크플로 파일을 읽는다. `hogli ci:plan`은 경로를 주면 `.depot/workflows/*.yml`도 읽는다(`tools/workflow-plan/src/cli.ts:resolveWorkflowPath`). `hogli test:workflows`가 도는 `tools/workflow-plan/tests/workflows.test.ts`는 파일을 읽어 들일 때 `readdirSync`로 `.github/workflows`를 읽는다. 그 디렉터리가 없으므로 코드상 이 테스트 파일은 시작 단계에서 실패한다. 실제로 돌려 본 결과는 미확인 |
+| `hogli ci:preflight`                                                                             | 남아 있다. 바뀐 파일에서 닿는 CI 실패를 로컬에서 미리 잡는 도구다. 워크플로 파일에 걸린 트리거(`.github/workflows/*.yml`)는 이제 일치할 파일이 없다. 근거: `tools/hogli-commands/hogli_commands/ci_preflight.py`                                                                                                                                                                                                           |
+| `.test_quarantine.json`                                                                          | 남아 있다. Trunk 쪽 연동이 없으므로 로컬 의미만 있다                                                                                                                                                                                                                                                                                                                                                                       |
 
 ### 로컬에서 CI를 대신하는 명령
 

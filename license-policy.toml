@@ -1,0 +1,411 @@
+# buzzhog 의존성 라이선스 정책
+#
+# 상태: 채택(2026-10-16, 레이븐). 목록과 범위 규칙은 확정이다. [[package]]·[[path]] 항목이 판정을 바꾸는 규칙은 아래 "패키지별 결정" 머리말에 있다.
+# 읽는 곳: wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm), PR 게이트 .github/workflows/license-gate.yml(buzzhog-djp9.m0z).
+# 읽을 곳(예정): 저장소 전체 스캔(buzzhog-djp9.fai), 고지문 생성(buzzhog-djp9.63o). 검사, 게이트, 전체 스캔은 판정을 모두 이 한 파일에서 얻는다.
+# 식별자는 SPDX(https://spdx.org/licenses/)를 쓴다. SPDX에 없는 라이선스는 `LicenseRef-`를 앞에 붙인다.
+# 근거는 wiki/licenses.md다. 이 파일은 법률 자문이 아니다. 최종 판단은 법무 검토다.
+
+schema = 1
+status = "adopted"   # draft | adopted. adopted가 되어야 검사가 실패를 낸다
+decided_by = "레이븐"   # 결정자
+decided_on = "2026-10-16"   # YYYY-MM-DD
+review_by = "2027-04-16"    # 정책 전체의 다음 재검토일
+
+# 판정은 allow, review, deny 세 가지다. review는 사람이 보기 전까지 검사 실패로 센다.
+# 어느 목록에도 없는 식별자, UNKNOWN, `SEE LICENSE IN ...`, 조회 오류, 라이선스 파일만 있는 크레이트는 review다.
+
+[allow]
+# 허용형. 모두 저작권·라이선스 본문을 함께 싣는다. 조건이나 의무가 더 붙는 것은 줄 끝 주석과 아래 notice에 적었다
+licenses = [
+  "MIT", "MIT-0", "MIT-CMU", "X11", "NCSA",
+  "Apache-2.0",
+  "BSD-1-Clause", "BSD-2-Clause", "BSD-2-Clause-Patent", "BSD-3-Clause", "BSD-3-Clause-Clear", "0BSD",
+  "ISC", "Zlib", "Libpng", "libpng-2.0", "BSL-1.0", "PostgreSQL", "HPND", "UPL-1.0", "W3C",
+  "Unlicense", "CC0-1.0",
+  "Python-2.0", "PSF-2.0", "CNRI-Python",
+  "BlueOak-1.0.0", "Unicode-3.0", "Unicode-DFS-2016", "AFL-2.1", "AFL-3.0",
+  "MPL-2.0",               # 파일 단위 카피레프트. 수정하지 않고 쓸 때만 allow. 수정하면 그 파일을 MPL-2.0으로 공개해야 한다
+  "WTFPL",                 # 허용형. 본문이 비격식이다
+  "OFL-1.1", "CC-BY-3.0", "CC-BY-4.0",   # 글꼴·데이터. 아래 notice 목록의 고지를 함께 싣는다
+  "CDLA-Permissive-2.0",   # 데이터 라이선스. webpki-roots
+  "bzip2-1.0.6",           # BSD식 4개 조항. libbz2-rs-sys
+]
+# 저작권·라이선스 본문 말고 의무가 더 있는 allow 라이선스다(출처 표시, 글꼴과 함께 싣는 OFL 사본).
+# 고지 대상을 이 목록으로만 뽑으면 안 된다. 위 allow 전체도 저작권·라이선스 본문을 산출물이나 NOTICE에 실어야 한다.
+# 고지문 생성(buzzhog-djp9.63o)은 allow 전체의 고지를 싣고, 이 목록의 항목에는 추가 의무를 더한다
+notice = ["OFL-1.1", "CC-BY-3.0", "CC-BY-4.0"]
+
+[deny]
+# 네트워크 카피레프트, 소스 공개형(source-available), 독점
+licenses = [
+  "AGPL-1.0-only", "AGPL-1.0-or-later", "AGPL-3.0-only", "AGPL-3.0-or-later",
+  "SSPL-1.0",
+  "BUSL-1.1",
+  "Elastic-2.0",
+  "LicenseRef-Commons-Clause",
+  "LicenseRef-Proprietary",
+]
+# PR 게이트는 LicenseRef- 아닌 접두사를 license-gate.yml의 PREFIX_IDS 표로 SPDX 식별자로 풀어 쓴다.
+# 접두사를 더하면 그 표에도 줄을 더한다. 줄이 없으면 게이트의 deny 목록 단계가 실패한다
+prefixes = [
+  "AGPL-", "SSPL-", "BUSL-", "Elastic-",
+  "PolyForm-", "LicenseRef-PolyForm-",   # PolyForm Strict는 SPDX에 없다. Noncommercial·Small-Business는 있다
+  "CC-BY-NC",                            # 비상업 조건
+  "LicenseRef-Proprietary",
+]
+
+[review]
+# 사람이 한 번 보고 [[package]]·[[path]]에 결정을 적어야 통과한다
+licenses = [
+  "GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later",
+  "LGPL-2.0-only", "LGPL-2.0-or-later", "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later",
+  "MPL-1.1",
+  "EPL-1.0", "EPL-2.0",
+  "CDDL-1.0", "CDDL-1.1",
+  "CC-BY-SA-3.0", "CC-BY-SA-4.0",   # 동일 조건 변경 허락 의무
+  "Artistic-1.0", "Artistic-2.0",
+  "OpenSSL",                 # 광고 고지 조항. ring, aws-lc-sys
+  "BSD-4-Clause",            # 광고 고지 조항
+  "EUPL-1.2", "OSL-3.0", "CPAL-1.0",
+]
+prefixes = ["GPL-", "LGPL-", "MPL-", "EPL-", "CDDL-", "CC-BY-", "Artistic-", "LicenseRef-"]
+
+# `MPL-2.0`, `CC-BY-3.0`, `CC-BY-4.0`은 review 접두사 `MPL-`·`CC-BY-`에도 걸린다. allow의 정확한 식별자가 이기므로 allow다.
+# `CC-BY-NC*`는 deny 접두사가 review 접두사 `CC-BY-`보다 먼저다. 순서는 [expression] 끝에 있다.
+
+[scope]
+# 범위(scope)별 규칙. 항목의 scope가 없으면 distributed다.
+# development는 개발·테스트·CI 전용 의존이다(uv `dev` 그룹, devDependencies, `.github/actions`·`.depot/actions` 잠금 파일).
+distributed = { deny = "fail", review = "fail" }
+development = { deny = "fail", review = "exempt" }   # deny는 배포 범위와 같다. review는 면제한다
+
+[approval]
+# status = "approved" 항목은 version을 고정하거나 review_by를 적어야 한다. 둘 다 없으면 검사가 거부한다
+require_one_of = ["version", "review_by"]
+
+[expression]
+# SPDX 식의 판정. 등급은 allow > review > deny 순으로 좋다.
+or = "best"      # `A OR B`: 고를 수 있으므로 더 좋은 쪽
+and = "worst"    # `A AND B`: 모두 걸리므로 더 나쁜 쪽
+with = "base-unless-deny"   # `X WITH 예외`: X로 본다. 다만 예외가 deny 목록에 걸리면(`Apache-2.0 WITH Commons-Clause`) deny다
+slash = "or"     # `MIT/Apache-2.0`(cargo의 옛 표기)은 OR로 읽는다
+plus = "strip"   # `MPL-2.0+`(SPDX가 버린 표기)는 `+`를 뗀다
+# 정확히 맞는 식별자가 접두사보다 먼저다. 접두사끼리는 deny가 review보다 먼저다.
+
+[expression.alias]
+# 레지스트리가 돌려주는 SPDX 아닌 표기를 SPDX로 바꾼다. pip 분류자(`MIT License` 등)는 스크립트가 따로 맞춘다
+"BSD" = "BSD-3-Clause"
+
+# ---------------------------------------------------------------------------
+# 패키지별 결정. 세 가지 쓰임이 있다.
+#  1. license: 레지스트리 값이 비어 있거나 `SEE LICENSE IN ...`일 때 본문을 읽고 정한 라이선스
+#  2. verdict: 정책 판정을 덮어쓴다 (allow | review | deny). review 항목을 사람이 본 뒤 allow로 닫는 자리
+#  3. status: proposed | approved | rejected. approved 항목만 license와 verdict를 적용한다.
+#     proposed 항목에 걸리는 패키지·파일은 license·verdict와 상관없이 review로 센다. 검사가 찾은 라이선스의 판정이 deny면 deny다.
+#     라이선스가 allow여도 사람이 아직 닫지 않은 항목(고지 파일이 없는 OFL 글꼴 등)이 통과하지 않게 하려는 것이다.
+#     rejected는 제거·대체가 결정된 것이다. 걸리는 패키지·파일은 deny로 센다. verdict는 deny로 두고 reason에 그 이슈를 적는다
+# 필수: ecosystem(pip | npm | cargo | go), name, reason, status. 선택: version(없으면 모든 버전), license, verdict,
+#       decided_by, decided_on, review_by, proposed_on, scope(distributed | development).
+# approved 항목은 version을 고정하거나 review_by를 적는다. 둘 다 없으면 검사가 거부한다([approval]).
+# [[path]]는 glob으로만 맞추므로 version이 아무것도 고정하지 않는다. approved [[path]]는 review_by를 적는다.
+# review_by는 YYYY-MM-DD다. 위 목록에 없는 필드가 있으면 검사가 판정하지 않고 끝난다.
+# ---------------------------------------------------------------------------
+
+# --- 레지스트리 값을 본문으로 바로잡은 것 (wiki/licenses.md "허용형이지만 표기가 특이한 항목") ---
+
+[[package]]
+ecosystem = "npm"
+name = "posthog-js"
+license = "Apache-2.0"
+reason = "레지스트리 `SEE LICENSE IN LICENSE`. tarball LICENSE는 Apache-2.0"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "cargo"
+name = "temporalio-client"
+license = "MIT"
+reason = "`license_file`만 있음. LICENSE.txt는 MIT, Temporal Technologies"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "cargo"
+name = "temporalio-common"
+license = "MIT"
+reason = "위와 같음"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "cargo"
+name = "temporalio-common-wasm"
+license = "MIT"
+reason = "위와 같음"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "cargo"
+name = "temporalio-protos"
+license = "MIT"
+reason = "위와 같음"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "cargo"
+name = "ring"
+version = "0.16.20"
+license = "ISC AND OpenSSL"
+reason = "`license_file`만 있음. LICENSE는 ISC 계열과 OpenSSL·SSLeay 본문(광고 고지 조항)을 함께 담는다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "go"
+name = "github.com/mattn/go-localereader"
+license = "MIT"
+reason = "모듈 zip에 LICENSE 파일이 없고 README만 MIT라고 적는다. 본문 확인 필요"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+# --- deny에 걸리는 것. 예외로 둘지, 제거·대체 epic을 만들지 결정 필요 ---
+
+[[package]]
+ecosystem = "npm"
+name = "@posthog/brand"
+license = "LicenseRef-PolyForm-Strict-1.0.0"
+verdict = "deny"
+reason = "PolyForm Strict 1.0.0. 상업 사용·배포·파생물이 허가되지 않는다. 루트 `pnpm-lock.yaml`과 desktop에서 직접 의존, import 파일 163개. 복사본 `frontend/src/lib/components/Hogfetti/hogs/*.png`도 같다. 제거·대체가 결정됐다(대체 작업 buzzhog-9ies)"
+status = "rejected"
+decided_by = "레이븐"
+decided_on = "2026-10-16"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[package]]
+ecosystem = "npm"
+name = "@anthropic-ai/claude-agent-sdk"
+license = "LicenseRef-Proprietary"
+verdict = "deny"
+reason = "`SEE LICENSE IN README.md`. LICENSE.md는 All rights reserved, Anthropic Commercial Terms. `packages/agent`와 desktop `workspace-server`의 직접 의존. desktop 빌드가 SDK 실행 파일을 앱에 복사해 서명한다. 플랫폼별 `@anthropic-ai/claude-agent-sdk-*` 8개도 같다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[package]]
+ecosystem = "npm"
+name = "react-doctor"
+license = "LicenseRef-Modified-MIT-Million"
+verdict = "deny"
+reason = "MIT 본문 뒤에 판매·유료 호스팅 제공과 AI 학습 데이터 사용에 서면 허가를 요구한다. desktop `apps/code`의 `react-scan`이 끌어온다. `oxlint-plugin-react-doctor`도 같다. 배포 앱에 들어가는지 미확인"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "pip"
+name = "linkedin-api-client"
+license = "LicenseRef-Proprietary"
+verdict = "deny"
+reason = "분류자 `Other/Proprietary License`, 원문 `Proprietary`. LinkedIn Ads 웨어하우스 소스가 import한다. 본문 미확인"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "pip"
+name = "tbb"
+license = "LicenseRef-Intel-Simplified-Software-License"
+verdict = "deny"
+reason = "분류자 `Other/Proprietary License`. `pyproject.toml`의 직접 의존(linux x86_64). 쓰는 코드는 찾지 못했다. `tcmlib`도 같다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+# --- review에 걸리는 것. 사람이 보고 allow로 닫거나 제거를 결정한다 ---
+
+[[package]]
+ecosystem = "npm"
+name = "gsap"
+license = "LicenseRef-GSAP-Standard"
+verdict = "review"
+reason = "레지스트리 `Standard 'no charge' license`. Webflow가 Permitted Uses에 한해 주는 비독점 라이선스. 금지·해지·약관 변경 조항이 있다. `@posthog/hedgehog-mode`가 끌어온다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "npm"
+name = "ffmpeg-static"
+license = "GPL-3.0-or-later"
+verdict = "review"
+reason = "`puppeteer-capture`의 optionalDependencies. 래스터라이저 이미지는 Debian ffmpeg를 따로 설치한다. 이미지에 이 바이너리가 실제로 받아지는지 미확인"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "npm"
+name = "@img/sharp-libvips-*"
+license = "LGPL-3.0-or-later"
+verdict = "review"
+reason = "`sharp`의 플랫폼별 libvips 바이너리. 동적 링크 라이브러리. `@img/sharp-win32-*`, `@img/sharp-wasm32`도 같다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "pip"
+name = "psycopg"
+license = "LGPL-3.0-or-later"
+verdict = "review"
+reason = "PostgreSQL 드라이버. 직접 의존. `psycopg-binary`, `psycopg2-binary`도 같다. Python import는 동적 사용이다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "pip"
+name = "paramiko"
+license = "LGPL-2.1-or-later"
+verdict = "review"
+reason = "직접 의존. `sshtunnel`도 끌어온다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[package]]
+ecosystem = "pip"
+name = "nvidia-*-cu12"
+license = "LicenseRef-NVIDIA-Proprietary"
+verdict = "review"
+reason = "`torch` CUDA 빌드의 전이 의존 15개. 분류자 `Other/Proprietary License`. `sentiment` 그룹이 어느 이미지에 설치되는지 미확인. 배포 산출물에 안 들어가면 scope를 development로"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+# ---------------------------------------------------------------------------
+# 잠금 파일 밖 파일. glob은 저장소 루트 기준이다. 필드는 [[package]]와 같다. 다만 ecosystem과 name 대신 glob을 쓴다.
+# gen_licenses.py --check가 읽는다. 저장소 전체 스캔(buzzhog-djp9.fai)도 읽게 된다.
+# ---------------------------------------------------------------------------
+
+[[path]]
+glob = "frontend/src/scenes/terminal/assets/buildroot-bzimage.bin"
+license = "GPL-2.0-only"
+verdict = "review"
+reason = "Linux 커널 bzImage. 브라우저로 배포된다. 대응 소스·설정·빌드 방법을 가리키는 파일이 저장소에 없다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/src/scenes/terminal/assets/{seabios,vgabios}.bin"
+license = "LGPL-3.0-only AND GPL-3.0-only"
+verdict = "review"
+reason = "SeaBIOS 1.16.2. `frontend/public/terminal/firmware-manifest.json`이 소스와 빌드 스크립트를 가리킨다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/src/scenes/terminal/assets/tools-linux-i386.tar.gz.bin"
+license = "GPL-3.0-or-later AND LGPL-2.1-or-later AND MIT"
+verdict = "review"
+reason = "Alpine 패키지 24개(bash, readline, nano, mc 등 GPL, gettext LGPL, 나머지 허용형). 라이선스 사본은 tarball 안 `licenses/`에 있다. 원본 URL만 적는 방식이 GPL 대응 소스 제공으로 충분한지"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/src/scenes/terminal/assets/jq-linux-i386.bin"
+license = "MIT AND BSD-2-Clause AND LGPL-2.1-only"
+verdict = "review"
+reason = "jq 1.8.2(MIT). Oniguruma와 glibc 사본이 함께 있다. glibc가 정적 링크인지 미확인"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/src/lib/components/Hogfetti/hogs/*.png"
+license = "LicenseRef-PolyForm-Strict-1.0.0"
+verdict = "deny"
+reason = "`@posthog/brand`에서 복사한 헤지호그 일러스트 15개. 패키지와 함께 제거·대체가 결정됐다(대체 작업 buzzhog-9ies)"
+status = "rejected"
+decided_by = "레이븐"
+decided_on = "2026-10-16"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/public/fonts/TwemojiCountryFlags.woff2"
+license = "CC-BY-4.0"
+verdict = "review"
+reason = "Twemoji 국기 부분집합. 출처 표시가 없다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/public/fonts/cmunti-webfont.woff"
+license = "OFL-1.1"
+verdict = "review"
+reason = "CMU Serif. OFL.txt 사본이 없다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/public/fonts/fairytale_serif-webfont.{woff,woff2}"
+license = "LicenseRef-Unknown"
+verdict = "review"
+reason = "글꼴 메타데이터가 비어 있다. 출처·라이선스 미확인"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "frontend/public/Inter.{woff,woff2}"
+license = "OFL-1.1"
+verdict = "review"
+reason = "앱 기본 글꼴. 메타데이터에 OFL URL만 있고 OFL.txt 사본이 없다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "products/desktop/apps/{mobile,mobilehog}/assets/fonts/JetBrainsMono*"
+license = "OFL-1.1"
+verdict = "review"
+reason = "모바일 앱 두 곳에 OFL.txt 사본이 없다. `packages/ui`에는 있다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "products/desktop/**/OpenRunde/*"
+license = "LicenseRef-Unknown"
+verdict = "review"
+reason = "Open Runde. 메타데이터에 라이선스 필드가 비어 있다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "products/desktop/apps/mobilehog/assets/fonts/RoundHog*.ttf"
+license = "OFL-1.1"
+verdict = "review"
+reason = "글꼴 메타데이터는 OFL 1.1, 담긴 패키지 `@posthog/brand`는 PolyForm Strict. 어느 쪽이 걸리는지"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "distributed"
+
+[[path]]
+glob = "products/desktop/packages/electron-trpc/**"
+license = "MIT"
+verdict = "review"
+reason = "`electron-trpc`의 포크. 원본의 LICENSE와 저작권 고지가 없다"
+status = "proposed"
+proposed_on = "2026-10-16"
+
+[[path]]
+glob = ".github/scripts/signal-fanout"
+license = "MIT"
+verdict = "review"
+reason = "`dimikot/signal-fanout` 사본. 파일에 라이선스·저작권 고지가 없다. CI 스크립트라 배포되지 않는다"
+status = "proposed"
+proposed_on = "2026-10-16"
+scope = "development"

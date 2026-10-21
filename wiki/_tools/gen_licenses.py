@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""Regenerate the generated regions of wiki/licenses.md.
+"""Regenerate the generated regions of wiki/licenses.md and check the dependencies against license-policy.toml.
 
 Usage, from the repository root:
 
     python3 -I wiki/_tools/gen_licenses.py                      # rewrite wiki/licenses.md in place
-    python3 -I wiki/_tools/gen_licenses.py --check              # exit 1 when licenses.md is out of date
+    python3 -I wiki/_tools/gen_licenses.py --check              # exit 1 on a policy violation or a stale licenses.md
     python3 -I wiki/_tools/gen_licenses.py --cache-dir DIR      # keep registry answers in DIR between runs
-    python3 -I wiki/_tools/gen_licenses.py --list               # print every entry outside 허용형 as TSV
+    python3 -I wiki/_tools/gen_licenses.py --list               # print every entry that is not allow as TSV
 
 The script reads the lockfiles that `git ls-files` lists, asks the package registries
 (PyPI, the npm registry, the Go module proxy) for each license, and runs `cargo metadata --locked`.
 It needs network access and `cargo`.
+It rules on every dependency and every `[[path]]` entry of `license-policy.toml` once,
+and both the page and `--check` read those rulings.
+`--check` prints one line per violation (verdict, lockfile, name, version, license, rule) to stdout.
+A violation is a deny verdict, or a review verdict that no approved entry closes and no [scope] rule exempts.
+Violations fail the check only while the policy says `status = "adopted"`.
 In the repository it writes nothing except `wiki/licenses.md`, and `--list` writes nothing there.
 Every temporary file lives in a system temporary directory.
 `--cache-dir` must point outside the repository.
@@ -27,11 +32,13 @@ import sys
 import json
 import time
 import shutil
+import fnmatch
 import hashlib
 import inspect
 import tomllib
 import zipfile
 import argparse
+import datetime
 import tempfile
 import subprocess
 import urllib.error
@@ -40,21 +47,76 @@ from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple, NoReturn
 
-ALLOW = """MIT MIT-0 MIT-CMU X11 NCSA Apache-2.0 BSD BSD-2-Clause BSD-3-Clause 0BSD ISC Zlib BSL-1.0
-Unlicense CC0-1.0 Python-2.0 PSF-2.0 CNRI-Python BlueOak-1.0.0 Unicode-3.0 Unicode-DFS-2016 OFL-1.1 AFL-2.1""".split()
-ALLOW_LOWER = {x.lower() for x in ALLOW}
-PIP_SYN = {
+POLICY_FILE = "license-policy.toml"
+# Worst first. An `A AND B` takes the earlier of the two, an `A OR B` the later.
+VERDICTS = ("deny", "review", "allow")
+RANK = {v: i for i, v in enumerate(VERDICTS)}
+STATUSES = ("proposed", "approved", "rejected")
+# How `Policy.evaluate` reads each [expression] key. A policy that asks for another reading stops the run.
+EXPRESSION_RULES = {"or": "best", "and": "worst", "with": "base-unless-deny", "slash": "or", "plus": "strip"}
+# Lockfiles in these directories hold only CI dependencies, so their entries are `development` in [scope].
+DEVELOPMENT_LOCKFILE_DIRS = (".github/actions/", ".depot/actions/")
+# The outcome of one dependency. `exception` is an approved [[package]] or [[path]] entry.
+# `exempt` is a review verdict that [scope] does not fail. The last two fail `--check`.
+OUTCOMES = ("allow", "exception", "exempt", "review", "deny")
+FAILING = ("review", "deny")
+SPDX_TOKEN = re.compile(r"[A-Za-z0-9.\-]+\+?")
+KEYWORDS = ("AND", "OR", "WITH")
+PIP_CLASSIFIERS = {
     "mit license": "MIT",
+    "mit no attribution license (mit-0)": "MIT-0",
     "apache software license": "Apache-2.0",
     "bsd license": "BSD",
     "isc license (iscl)": "ISC",
     "python software foundation license": "PSF-2.0",
     "public domain": "CC0-1.0",
     "the unlicense (unlicense)": "Unlicense",
+    "boost software license 1.0 (bsl-1.0)": "BSL-1.0",
+    "zlib/libpng license": "Zlib",
+    "historical permission notice and disclaimer (hpnd)": "HPND",
+    "universal permissive license (upl)": "UPL-1.0",
+    "mozilla public license 1.1 (mpl 1.1)": "MPL-1.1",
+    "mozilla public license 2.0 (mpl 2.0)": "MPL-2.0",
+    "eclipse public license 1.0 (epl-1.0)": "EPL-1.0",
+    "eclipse public license 2.0 (epl-2.0)": "EPL-2.0",
+    "gnu general public license v2 (gplv2)": "GPL-2.0-only",
+    "gnu general public license v2 or later (gplv2+)": "GPL-2.0-or-later",
+    "gnu general public license v3 (gplv3)": "GPL-3.0-only",
+    "gnu general public license v3 or later (gplv3+)": "GPL-3.0-or-later",
+    "gnu lesser general public license v2 (lgplv2)": "LGPL-2.0-only",
+    "gnu lesser general public license v2 or later (lgplv2+)": "LGPL-2.0-or-later",
+    "gnu lesser general public license v3 (lgplv3)": "LGPL-3.0-only",
+    "gnu lesser general public license v3 or later (lgplv3+)": "LGPL-3.0-or-later",
+    "gnu affero general public license v3": "AGPL-3.0-only",
+    "gnu affero general public license v3 or later (agplv3+)": "AGPL-3.0-or-later",
+    "server side public license (sspl)": "SSPL-1.0",
 }
-PIP_RAW = re.compile(r"^(mit|apache|bsd|3-clause bsd|isc|cc0|http://www\.opensource\.org/licenses/mit)", re.I)
+# A pip `license` text that is not an SPDX expression is read as the SPDX id of the first pattern it starts with.
+PIP_RAW = [
+    (re.compile(r"(mit license\b|https?://(www\.)?opensource\.org/licenses/mit)", re.I), "MIT"),
+    (re.compile(r"apache( software)? license,?( version| v)? ?2(\.0)?\b|apache 2\.0\b", re.I), "Apache-2.0"),
+    (re.compile(r"3-clause bsd\b", re.I), "BSD-3-Clause"),
+]
+# PIP_RAW matches only the start of the text, and words after the name can take rights away
+# ("Apache License 2.0 with Commons Clause"). A text with these words is not read as the bare name.
+PIP_RAW_RESTRICTION = re.compile(r"proprietary|commons[ -]?clause|non-?commercial", re.I)
+# The fields a [[package]] or [[path]] table can have besides its key fields. Any other field stops the run.
+DECISION_FIELDS = frozenset(
+    (
+        "version",
+        "license",
+        "verdict",
+        "reason",
+        "status",
+        "decided_by",
+        "decided_on",
+        "review_by",
+        "proposed_on",
+        "scope",
+    )
+)
 LOCKFILE = re.compile(
     r"(^|/)(uv\.lock|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock|go\.mod|go\.sum|requirements[^/]*\.txt)$"
 )
@@ -71,7 +133,6 @@ GO_SIGNATURES = [
 ]
 PIN = re.compile(r"^([A-Za-z0-9_.\-]+)==([^\s;#]+)", re.M)
 NOTES_HEADER = "path\tnote"
-CATEGORIES = ("permissive", "weak", "copyleft", "other")
 ECOSYSTEMS = ("pip", "npm", "cargo", "go")
 TOP_PATHS = {"pip": "uv.lock", "npm": "pnpm-lock.yaml", "cargo": "rust/Cargo.lock"}
 TOP_BASIS = {
@@ -85,7 +146,8 @@ GO_SUM_NOTE = (
     "빌드에 들어가지 않는 모듈(`/go.mod` 줄)까지 담는다"
 )
 GENERATED_NOTE = (
-    "Generated from `wiki/_tools/gen_licenses.py` and `wiki/_tools/licenses-notes.tsv` — Do not edit by hand."
+    "Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml`"
+    " — Do not edit by hand."
 )
 PIP_LABEL = {"E": "SPDX식", "C": "분류자", "R": "원문"}
 
@@ -102,59 +164,370 @@ class Lockfile(NamedTuple):
     counted: bool
 
 
-def spdx_ok(expr: str) -> bool:
-    toks = re.findall(r"\(|\)|[^\s()]+", expr.replace("/", " OR "))
-    pos = 0
-
-    def atom() -> bool:
-        nonlocal pos
-        if pos < len(toks) and toks[pos] == "(":
-            pos += 1
-            v = orx()
-            pos += 1
-            return v
-        v = pos < len(toks) and toks[pos].lower() in ALLOW_LOWER
-        pos += 1
-        if pos < len(toks) and toks[pos].upper() == "WITH":
-            pos += 2
-        return v
-
-    def andx() -> bool:
-        nonlocal pos
-        v = atom()
-        while pos < len(toks) and toks[pos].upper() == "AND":
-            pos += 1
-            v = atom() and v
-        return v
-
-    def orx() -> bool:
-        nonlocal pos
-        v = andx()
-        while pos < len(toks) and toks[pos].upper() == "OR":
-            pos += 1
-            v = andx() or v
-        return v
-
-    return bool(toks) and orx() and pos >= len(toks)
+class Ruling(NamedTuple):
+    verdict: str
+    rule: str
 
 
-def classify(eco: str, lic: str) -> str:
-    # spdx_ok takes one side of an `A OR B`, so a dual license with a permissive option counts as permissive.
-    if spdx_ok(lic[2:] if eco == "pip" and lic.startswith("E:") else lic):
-        return "permissive"
-    if re.search(r"gpl|gnu", lic, re.I):
-        return "copyleft"
-    if re.search(r"\bmpl|mozilla|\bepl\b|eclipse public|cddl", lic, re.I):
-        return "weak"
+class Decision(NamedTuple):
+    """One `[[package]]` or `[[path]]` table of the policy."""
+
+    kind: str
+    key: str
+    ecosystem: str
+    version: str
+    license: str
+    verdict: str
+    status: str
+    scope: str
+    order: int
+    problem: str
+
+    @property
+    def label(self) -> str:
+        return f"[[{self.kind}]] `{self.key}`" + (f" {self.version}" if self.version else "")
+
+
+class Judged(NamedTuple):
+    outcome: str
+    rule: str
+
+
+class Finding(NamedTuple):
+    outcome: str
+    lockfile: str
+    ecosystem: str
+    name: str
+    version: str
+    license: str
+    rule: str
+
+
+def worst(a: Ruling, b: Ruling) -> Ruling:
+    return a if RANK[a.verdict] <= RANK[b.verdict] else b
+
+
+def best(a: Ruling, b: Ruling) -> Ruling:
+    return a if RANK[a.verdict] >= RANK[b.verdict] else b
+
+
+def expand_braces(glob: str) -> list[str]:
+    m = re.search(r"\{([^{}]*)\}", glob)
+    if not m:
+        return [glob]
+    return [g for alt in m.group(1).split(",") for g in expand_braces(glob[: m.start()] + alt + glob[m.end() :])]
+
+
+def glob_regex(glob: str) -> re.Pattern[str]:
+    """Translate a `[[path]]` glob: `**/` is any number of directories, `*` and `?` stay inside one."""
+    parts = []
+    for alt in expand_braces(glob):
+        out, i = [], 0
+        while i < len(alt):
+            if alt.startswith("**/", i):
+                out.append("(?:.*/)?")
+                i += 3
+            elif alt.startswith("**", i):
+                out.append(".*")
+                i += 2
+            elif alt[i] == "*":
+                out.append("[^/]*")
+                i += 1
+            elif alt[i] == "?":
+                out.append("[^/]")
+                i += 1
+            else:
+                out.append(re.escape(alt[i]))
+                i += 1
+        parts.append("".join(out))
+    return re.compile(r"(?:" + "|".join(parts) + r")\Z")
+
+
+def pip_name(name: str) -> str:
+    """Return the PEP 503 form: `requirements.txt` keeps the author's spelling, `uv.lock` does not."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def iso_date(value: object, where: str) -> str:
+    """Return a `review_by` value as YYYY-MM-DD, because the check compares dates as strings."""
+    if isinstance(value, datetime.datetime):
+        value = value.date()
+    if isinstance(value, datetime.date):
+        return value.isoformat()
+    try:
+        return datetime.date.fromisoformat(str(value)).isoformat()
+    except ValueError:
+        sys.exit(f"{POLICY_FILE}: {where} review_by {value!r}; expected YYYY-MM-DD")
+
+
+def is_error(lic: str) -> bool:
+    return lic.startswith(("ERR ", "R:ERR "))
+
+
+def found_expression(eco: str, lic: str) -> str | None:
+    """Return the SPDX expression a collected license string stands for, or None when it names none."""
+    if is_error(lic):
+        return None
+    if eco == "cargo" and lic.startswith("FILE:"):
+        return None
     if eco != "pip":
-        return "permissive" if spdx_ok(lic) else "other"
+        return lic
     kind, _, val = lic.partition(":")
     if kind == "E":
-        return "permissive" if spdx_ok(val) else "other"
+        return val
     if kind == "C":
+        # Several classifiers on one package must all hold, as in an `AND`.
         parts = [p for p in val.split(";") if p not in ("OSI Approved", "DFSG approved")]
-        return "permissive" if parts and all(PIP_SYN.get(p.lower()) for p in parts) else "other"
-    return "permissive" if PIP_RAW.match(val) and "proprietary" not in val.lower() else "other"
+        ids = [PIP_CLASSIFIERS.get(p.lower()) for p in parts]
+        if not ids or None in ids:
+            return None
+        return " AND ".join(dict.fromkeys(i for i in ids if i))
+    text = " ".join(val.split())
+    if not PIP_RAW_RESTRICTION.search(text):
+        for pattern, spdx in PIP_RAW:
+            if pattern.match(text):
+                return spdx
+    return PIP_CLASSIFIERS.get(text.lower(), text) or None
+
+
+class Policy:
+    """`license-policy.toml`, read with `tomllib` and checked against what this script implements."""
+
+    def __init__(self, data: dict[str, Any], today: str) -> None:
+        def fail(message: str) -> NoReturn:
+            sys.exit(f"{POLICY_FILE}: {message}")
+
+        if data.get("schema") != 1:
+            fail(f"schema {data.get('schema')!r}; gen_licenses.py reads schema 1")
+        self.status = data.get("status")
+        if self.status not in ("draft", "adopted"):
+            fail(f"status {self.status!r}; expected draft or adopted")
+        self.review_by = iso_date(data["review_by"], "policy") if data.get("review_by") else ""
+        expression = data.get("expression", {})
+        for key, want in EXPRESSION_RULES.items():
+            if expression.get(key) != want:
+                fail(f"[expression] {key} = {expression.get(key)!r}; gen_licenses.py implements {want!r}")
+        self.alias = {k.lower(): v for k, v in expression.get("alias", {}).items()}
+        self.allow = list(data.get("allow", {}).get("licenses", []))
+        self.exact: dict[str, dict[str, str]] = {}
+        self.prefixes: dict[str, list[str]] = {}
+        seen: dict[str, str] = {}
+        for verdict in ("allow", "deny", "review"):
+            table = data.get(verdict, {})
+            self.exact[verdict] = {x.lower(): x for x in table.get("licenses", [])}
+            self.prefixes[verdict] = list(table.get("prefixes", []))
+            for x in self.exact[verdict]:
+                if x in seen:
+                    fail(f"`{x}` is in both [{seen[x]}] and [{verdict}]")
+                seen[x] = verdict
+        if self.prefixes["allow"]:
+            fail("[allow] prefixes is not read; list the identifiers")
+        self.scope: dict[str, dict[str, str]] = {}
+        for name, rules in data.get("scope", {}).items():
+            if not isinstance(rules, dict) or set(rules) != {"deny", "review"}:
+                fail(f"[scope] {name} needs exactly `deny` and `review`")
+            if any(v not in ("fail", "exempt") for v in rules.values()):
+                fail(f"[scope] {name}: each rule is fail or exempt")
+            self.scope[name] = rules
+        if "distributed" not in self.scope:
+            fail("[scope] distributed is missing")
+        self.require_one_of = list(data.get("approval", {}).get("require_one_of", []))
+        self.packages = [self._decision("package", i, t, today) for i, t in enumerate(data.get("package", []))]
+        self.paths = [self._decision("path", i, t, today) for i, t in enumerate(data.get("path", []))]
+
+    def _decision(self, kind: str, index: int, table: dict[str, Any], today: str) -> Decision:
+        key_field = "name" if kind == "package" else "glob"
+        required = [key_field, "reason", "status"] + (["ecosystem"] if kind == "package" else [])
+        where = f"[[{kind}]] #{index + 1} ({table.get(key_field, '?')})"
+        for field in required:
+            if not table.get(field):
+                sys.exit(f"{POLICY_FILE}: {where} has no `{field}`")
+        unknown = sorted(set(table) - DECISION_FIELDS - {key_field, *required})
+        if unknown:
+            sys.exit(f"{POLICY_FILE}: {where} has unknown fields {unknown}")
+        if kind == "package" and table["ecosystem"] not in ECOSYSTEMS:
+            sys.exit(f"{POLICY_FILE}: {where} ecosystem {table['ecosystem']!r}; expected one of {ECOSYSTEMS}")
+        if table["status"] not in STATUSES:
+            sys.exit(f"{POLICY_FILE}: {where} status {table['status']!r}; expected one of {STATUSES}")
+        if table.get("verdict", "") not in ("", *VERDICTS):
+            sys.exit(f"{POLICY_FILE}: {where} verdict {table['verdict']!r}; expected one of {VERDICTS}")
+        if table.get("scope", "") not in ("", *self.scope):
+            sys.exit(f"{POLICY_FILE}: {where} scope {table['scope']!r}; [scope] has {tuple(self.scope)}")
+        review_by = iso_date(table["review_by"], where) if table.get("review_by") else ""
+        problem = ""
+        if table["status"] == "approved":
+            # A [[path]] matches by glob alone, so a version there pins nothing and cannot stand in for review_by.
+            fields = [f for f in self.require_one_of if kind == "package" or f != "version"]
+            if not any(table.get(f) for f in fields):
+                problem = f"approved without {' or '.join(fields)} ([approval])"
+            elif review_by and review_by < today:
+                problem = f"approval expired on {review_by}"
+        key = table[key_field]
+        return Decision(
+            kind=kind,
+            key=pip_name(key) if table.get("ecosystem") == "pip" else key,
+            ecosystem=table.get("ecosystem", ""),
+            version=str(table.get("version", "")),
+            license=table.get("license", ""),
+            verdict=table.get("verdict", ""),
+            status=table["status"],
+            scope=table.get("scope", ""),
+            order=index,
+            problem=problem,
+        )
+
+    def id_ruling(self, ident: str) -> Ruling:
+        ident = self.alias.get(ident.lower(), ident)
+        # A bare id outside SPDX also meets the `LicenseRef-` entries, so `Commons-Clause` is `LicenseRef-Commons-Clause`.
+        # Only the exact lists and the deny prefixes see that form: the review prefix `LicenseRef-` would catch every unknown id.
+        names = [ident] if ident.lower().startswith("licenseref-") else [ident, "LicenseRef-" + ident]
+        for name in names:
+            for verdict in ("allow", "deny", "review"):
+                if name.lower() in self.exact[verdict]:
+                    return Ruling(verdict, f"[{verdict}] licenses `{self.exact[verdict][name.lower()]}`")
+        for verdict, candidates in (("deny", names), ("review", names[:1])):
+            for name in candidates:
+                for prefix in self.prefixes[verdict]:
+                    if name.lower().startswith(prefix.lower()):
+                        return Ruling(verdict, f"[{verdict}] prefixes `{prefix}`")
+        return Ruling("review", f"`{ident}` is in no list")
+
+    def evaluate(self, expr: str | None) -> Ruling:
+        """Rule on an SPDX expression. Anything that does not parse is review."""
+        not_spdx = Ruling("review", "not an SPDX expression")
+        if not expr or not expr.strip():
+            return not_spdx
+        toks = re.findall(r"\(|\)|[^\s()]+", expr.replace("/", " OR "))
+        pos = 0
+
+        def peek() -> str:
+            return toks[pos].upper() if pos < len(toks) else ""
+
+        def ident() -> str:
+            nonlocal pos
+            tok = toks[pos] if pos < len(toks) else ""
+            if tok.upper() in KEYWORDS or not SPDX_TOKEN.fullmatch(tok):
+                raise ValueError(tok)
+            pos += 1
+            return tok
+
+        def atom() -> Ruling:
+            nonlocal pos
+            if peek() == "(":
+                pos += 1
+                ruling = orx()
+                if peek() != ")":
+                    raise ValueError("(")
+                pos += 1
+                return ruling
+            ruling = self.id_ruling(ident().removesuffix("+"))
+            if peek() == "WITH":
+                pos += 1
+                exception = ident()
+                # An exception may only widen the license, so it changes nothing unless the policy denies it.
+                denied = self.id_ruling(exception)
+                if denied.verdict == "deny":
+                    ruling = Ruling("deny", f"{denied.rule} after `WITH`")
+            return ruling
+
+        def andx() -> Ruling:
+            nonlocal pos
+            ruling = atom()
+            while peek() == "AND":
+                pos += 1
+                ruling = worst(ruling, atom())
+            return ruling
+
+        def orx() -> Ruling:
+            nonlocal pos
+            ruling = andx()
+            while peek() == "OR":
+                pos += 1
+                ruling = best(ruling, andx())
+            return ruling
+
+        try:
+            ruling = orx()
+        except ValueError:
+            return not_spdx
+        return ruling if pos == len(toks) else not_spdx
+
+    def decision_for(self, eco: str, name: str, version: str) -> Decision | None:
+        """Return the [[package]] entry for a dependency: a pinned version first, then an exact name."""
+        if eco == "pip":
+            name = pip_name(name)
+        hits = [
+            d
+            for d in self.packages
+            if d.ecosystem == eco and fnmatch.fnmatchcase(name, d.key) and d.version in ("", version)
+        ]
+        return min(hits, key=lambda d: (d.version == "", d.key != name, d.order), default=None)
+
+    def judge(self, found: Ruling, decision: Decision | None, scope: str) -> Judged:
+        """Apply an entry and the scope to the verdict of the license that was found."""
+        verdict, rule = found
+        if decision is not None and decision.status == "rejected":
+            verdict, rule = "deny", f"{decision.label} status=rejected"
+        elif decision is not None and (decision.status == "proposed" or decision.problem):
+            # Only an approved entry changes the license, the verdict or the scope.
+            why = decision.problem or "status=proposed"
+            if found.verdict == "deny":
+                rule = f"{found.rule}; {decision.label} {why}"
+            else:
+                verdict, rule = "review", f"{decision.label} {why}"
+        elif decision is not None:
+            scope = decision.scope or scope
+            if decision.verdict:
+                verdict, rule = decision.verdict, f"{decision.label} verdict={decision.verdict}"
+            elif decision.license:
+                verdict, rule = self.evaluate(decision.license)
+                rule = f"{decision.label} license=`{decision.license}`: {rule}"
+            if verdict != "deny" and decision.verdict != "review":
+                return Judged("exception", f"{decision.label} status=approved")
+        if verdict != "allow" and self.scope.get(scope, self.scope["distributed"])[verdict] == "exempt":
+            return Judged("exempt", f"{rule}; [scope] {scope} exempts {verdict}")
+        return Judged(verdict, rule)
+
+
+def load_policy(root: Path, today: str) -> Policy:
+    path = root / POLICY_FILE
+    try:
+        data = tomllib.loads(path.read_text())
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        sys.exit(f"{POLICY_FILE}: {e}")
+    return Policy(data, today)
+
+
+def lockfile_scope(path: str) -> str:
+    return "development" if path.startswith(DEVELOPMENT_LOCKFILE_DIRS) else "distributed"
+
+
+def judge_all(policy: Policy, files: list[Lockfile], data: dict[str, list[Entry]], tracked: list[str]) -> list[Finding]:
+    """Rule on every collected dependency and every `[[path]]` entry. The page and `--check` both read this."""
+    eco_of = {f.path: f.ecosystem for f in files}
+    findings = []
+    applied: set[int] = set()
+    for path, entries in data.items():
+        eco = eco_of[path]
+        for e in entries:
+            found = policy.evaluate(found_expression(eco, e.license))
+            decision = policy.decision_for(eco, e.name, e.version)
+            if decision is not None:
+                applied.add(decision.order)
+            judged = policy.judge(found, decision, lockfile_scope(path))
+            findings.append(Finding(judged.outcome, path, eco, e.name, e.version, e.license, judged.rule))
+    for d in policy.packages:
+        if d.order not in applied:
+            print(f"warning: {d.label} applies to no dependency", file=sys.stderr)  # noqa: T201
+    for d in policy.paths:
+        pattern = glob_regex(d.key)
+        matched = sum(1 for p in tracked if pattern.match(p))
+        if not matched:
+            print(f"warning: {d.label} matches no tracked file", file=sys.stderr)  # noqa: T201
+            continue
+        judged = policy.judge(policy.evaluate(d.license), d, "distributed")
+        findings.append(Finding(judged.outcome, f"추적 파일 {matched}개", "path", d.key, "", d.license, judged.rule))
+    return findings
 
 
 class Cache:
@@ -195,10 +568,6 @@ class Cache:
             tmp = f.with_name(f.name + ".tmp")
             tmp.write_text(json.dumps({"tag": self.tag, "answers": self.data[eco]}, sort_keys=True))
             tmp.replace(f)
-
-
-def is_error(lic: str) -> bool:
-    return lic.startswith(("ERR ", "R:ERR "))
 
 
 def lookup_all(
@@ -338,9 +707,10 @@ def npm_keys(path: Path) -> list[tuple[str, str]]:
     return sorted(keys)
 
 
-def list_lockfiles(root: Path) -> list[str]:
-    out = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True).stdout
-    return sorted(p for p in out.splitlines() if LOCKFILE.search(p))
+def git_files(root: Path) -> list[str]:
+    # Without -z, git quotes a path with non-ASCII bytes ("\"a/\\352\\260\\200.png\""), and no [[path]] glob matches it.
+    out = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True, check=True).stdout
+    return [p for p in out.split("\0") if p]
 
 
 def describe(root: Path, path: str) -> Lockfile:
@@ -440,10 +810,6 @@ def short_path(path: str) -> str:
     return path if len(parts) <= 5 else f"{parts[0]}/.../{'/'.join(parts[-2:])}"
 
 
-def tally(entries: list[Entry], eco: str) -> Counter[str]:
-    return Counter(classify(eco, e.license) for e in entries)
-
-
 def render_scope(files: list[Lockfile], notes: dict[str, str]) -> str:
     present = {f.path: f for f in files}
     ordered = [p for p in notes if p in present] + [p for p in present if p not in notes]
@@ -480,20 +846,59 @@ def render_scope(files: list[Lockfile], notes: dict[str, str]) -> str:
     )
 
 
-def render_summary(files: list[Lockfile], notes: dict[str, str], data: dict[str, list[Entry]]) -> str:
-    order = [p for p in notes if p in data] + [f.path for f in files if f.counted and f.path not in notes]
+def md_cell(text: str) -> str:
+    return text.replace("|", "\\|")
+
+
+def render_summary(files: list[Lockfile], notes: dict[str, str], findings: list[Finding]) -> str:
+    counted = [f.path for f in files if f.counted]
+    order = [p for p in notes if p in counted] + [p for p in counted if p not in notes]
     eco_of = {f.path: f.ecosystem for f in files}
+    by_file: dict[str, Counter[str]] = {p: Counter() for p in order}
+    paths: Counter[str] = Counter()
+    for f in findings:
+        (paths if f.ecosystem == "path" else by_file[f.lockfile])[f.outcome] += 1
     rows = []
     for p in order:
-        c = tally(data[p], eco_of[p])
-        rows.append(
-            f"| `{short_path(p)}` | {eco_of[p]} | {len(data[p])} | {c['permissive']} | {c['weak']} | {c['copyleft']} | {c['other']} |"
-        )
+        c = by_file[p]
+        cells = " | ".join(str(c[o]) for o in OUTCOMES)
+        rows.append(f"| `{short_path(p)}` | {eco_of[p]} | {sum(c.values())} | {cells} |")
+    cells = " | ".join(str(paths[o]) for o in OUTCOMES)
+    rows.append(f"| 잠금 파일 밖 파일(`[[path]]` 항목) | path | {sum(paths.values())} | {cells} |")
     return "\n".join(
         [
             GENERATED_NOTE,
             "",
-            "| 파일 | 생태계 | 항목 수 | 허용형 | 약한 카피레프트(MPL, EPL, CDDL) | 강한·라이브러리 카피레프트(GPL, LGPL) | 비OSI·독점·미확인 |",
+            "| 파일 | 생태계 | 항목 수 | allow | 승인된 예외 | review 면제(development) | review | deny |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            *rows,
+        ]
+    )
+
+
+def render_violations(findings: list[Finding]) -> str:
+    groups: dict[tuple[str, str, str, str, str], tuple[set[str], set[str]]] = {}
+    for f in findings:
+        if f.outcome in FAILING:
+            versions, lockfiles = groups.setdefault((f.outcome, f.ecosystem, f.name, f.license, f.rule), (set(), set()))
+            if f.version:
+                versions.add(f.version)
+            lockfiles.add(f.lockfile)
+    rows = []
+    for (outcome, eco, name, lic, rule), (versions, lockfiles) in sorted(
+        groups.items(), key=lambda kv: (kv[0][0] != "deny", kv[0][1], kv[0][2], kv[0][3])
+    ):
+        where = ", ".join(x if eco == "path" else f"`{short_path(x)}`" for x in sorted(lockfiles))
+        cells = [outcome, eco, f"`{name}`", ", ".join(sorted(versions)), f"`{lic}`" if lic else "", where, rule]
+        rows.append("| " + " | ".join(md_cell(c) for c in cells) + " |")
+    failing = [f for f in findings if f.outcome in FAILING]
+    return "\n".join(
+        [
+            GENERATED_NOTE,
+            "",
+            f"`--check`가 실패로 세는 항목: 잠금 파일별 {len(failing)}건, 아래 표 {len(rows)}줄.",
+            "",
+            "| 판정 | 생태계 | 이름 | 버전 | 찾은 라이선스 | 잠금 파일 | 규칙 |",
             "| --- | --- | --- | --- | --- | --- | --- |",
             *rows,
         ]
@@ -527,8 +932,9 @@ def render_top(files: list[Lockfile], data: dict[str, list[Entry]]) -> str:
     return "\n".join([GENERATED_NOTE, "", "| 생태계 | 상위 5개 | 기준 |", "| --- | --- | --- |", *rows])
 
 
-def render_allow() -> str:
-    return "\n".join([GENERATED_NOTE, "", "허용 목록: " + ", ".join(f"`{x}`" for x in ALLOW) + "."])
+def render_allow(policy: Policy) -> str:
+    listed = ", ".join(f"`{x}`" for x in policy.allow)
+    return "\n".join([GENERATED_NOTE, "", f"허용 목록(`{POLICY_FILE}`의 `[allow]`): {listed}."])
 
 
 def replace_region(text: str, name: str, body: str) -> str:
@@ -538,14 +944,40 @@ def replace_region(text: str, name: str, body: str) -> str:
     return pattern.sub(lambda m: f"{m.group(1)}\n{body}\n{m.group(2)}", text, count=1)
 
 
+def tsv_line(f: Finding) -> str:
+    return "\t".join((f.outcome, f.lockfile, f.name, f.version or "-", f.license or "-", f.rule))
+
+
+def report(policy: Policy, findings: list[Finding]) -> bool:
+    """Print every failing finding to stdout and a count to stderr. Return True when the check fails."""
+    failing = [f for f in findings if f.outcome in FAILING]
+    for f in sorted(failing, key=lambda f: (f.outcome != "deny", f.lockfile, f.name, f.version)):
+        print(tsv_line(f))  # noqa: T201
+    counts = Counter(f.outcome for f in failing)
+    unique = len({(f.ecosystem, f.name, f.version) for f in failing})
+    print(  # noqa: T201
+        f"{POLICY_FILE}: {len(failing)} violations ({counts['deny']} deny, {counts['review']} review)"
+        f" over {unique} distinct packages and paths",
+        file=sys.stderr,
+    )
+    if failing and policy.status != "adopted":
+        print(f"{POLICY_FILE}: status is {policy.status}, so violations do not fail the check", file=sys.stderr)  # noqa: T201
+        return False
+    return bool(failing)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     mode = ap.add_mutually_exclusive_group()
-    mode.add_argument("--check", action="store_true", help="exit 1 when licenses.md differs from the output")
+    mode.add_argument(
+        "--check",
+        action="store_true",
+        help="exit 1 on a deny or unapproved review verdict, or when licenses.md differs from the output",
+    )
     mode.add_argument(
         "--list",
         action="store_true",
-        help="print category, lockfile, name, version and license of every entry outside 허용형, and write no page",
+        help="print outcome, lockfile, name, version, license and rule of every entry that is not allow, and write no page",
     )
     ap.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2], help="repository root")
     ap.add_argument("--cache-dir", type=Path, help="directory outside the repository for registry answers")
@@ -561,9 +993,14 @@ def main() -> None:
     if shutil.which("cargo") is None:
         sys.exit("cargo is required for the Rust lockfiles")
 
+    today = datetime.date.today().isoformat()
+    policy = load_policy(root, today)
+    if policy.review_by and policy.review_by < today:
+        print(f"warning: {POLICY_FILE} review_by {policy.review_by} has passed", file=sys.stderr)  # noqa: T201
     page = root / "wiki" / "licenses.md"
     notes = load_notes(root / "wiki" / "_tools" / "licenses-notes.tsv")
-    paths = list_lockfiles(root)
+    tracked = git_files(root)
+    paths = sorted(p for p in tracked if LOCKFILE.search(p))
     files = [describe(root, p) for p in paths]
     unknown = sorted(p for p in set(paths) - set(notes) if not p.endswith("go.sum"))
     stale = sorted(set(notes) - set(paths))
@@ -580,24 +1017,27 @@ def main() -> None:
         for eco, name, version in sorted(failed)[:10]:
             print(f"  {eco} {name} {version}", file=sys.stderr)  # noqa: T201
         sys.exit(1)
+    findings = judge_all(policy, files, data, tracked)
 
     if args.list:
-        for path, entries in data.items():
-            for e in entries:
-                category = classify(eco_of[path], e.license)
-                if category != "permissive":
-                    print("\t".join((category, path, e.name, e.version, e.license)))  # noqa: T201
+        for f in findings:
+            if f.outcome != "allow":
+                print(tsv_line(f))  # noqa: T201
         return
 
     old = page.read_text()
     new = replace_region(old, "scope", render_scope(files, notes))
-    new = replace_region(new, "summary", render_summary(files, notes, data))
+    new = replace_region(new, "summary", render_summary(files, notes, findings))
+    new = replace_region(new, "violations", render_violations(findings))
     new = replace_region(new, "top", render_top(files, data))
-    new = replace_region(new, "allow", render_allow())
+    new = replace_region(new, "allow", render_allow(policy))
 
     if args.check:
+        failed_check = report(policy, findings)
         if new != old:
             print("wiki/licenses.md is out of date; run wiki/_tools/gen_licenses.py", file=sys.stderr)  # noqa: T201
+            failed_check = True
+        if failed_check:
             sys.exit(1)
         return
     if new != old:
