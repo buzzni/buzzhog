@@ -99,6 +99,24 @@ PIP_RAW = [
     (re.compile(r"apache( software)? license,?( version| v)? ?2(\.0)?\b|apache 2\.0\b", re.I), "Apache-2.0"),
     (re.compile(r"3-clause bsd\b", re.I), "BSD-3-Clause"),
 ]
+# PIP_RAW matches only the start of the text, and words after the name can take rights away
+# ("Apache License 2.0 with Commons Clause"). A text with these words is not read as the bare name.
+PIP_RAW_RESTRICTION = re.compile(r"proprietary|commons[ -]?clause|non-?commercial", re.I)
+# The fields a [[package]] or [[path]] table can have besides its key fields. Any other field stops the run.
+DECISION_FIELDS = frozenset(
+    (
+        "version",
+        "license",
+        "verdict",
+        "reason",
+        "status",
+        "decided_by",
+        "decided_on",
+        "review_by",
+        "proposed_on",
+        "scope",
+    )
+)
 LOCKFILE = re.compile(
     r"(^|/)(uv\.lock|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Cargo\.lock|go\.mod|go\.sum|requirements[^/]*\.txt)$"
 )
@@ -115,7 +133,6 @@ GO_SIGNATURES = [
 ]
 PIN = re.compile(r"^([A-Za-z0-9_.\-]+)==([^\s;#]+)", re.M)
 NOTES_HEADER = "path\tnote"
-CATEGORIES = ("permissive", "weak", "copyleft", "other")
 ECOSYSTEMS = ("pip", "npm", "cargo", "go")
 TOP_PATHS = {"pip": "uv.lock", "npm": "pnpm-lock.yaml", "cargo": "rust/Cargo.lock"}
 TOP_BASIS = {
@@ -226,6 +243,27 @@ def glob_regex(glob: str) -> re.Pattern[str]:
     return re.compile(r"(?:" + "|".join(parts) + r")\Z")
 
 
+def pip_name(name: str) -> str:
+    """Return the PEP 503 form: `requirements.txt` keeps the author's spelling, `uv.lock` does not."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def iso_date(value: object, where: str) -> str:
+    """Return a `review_by` value as YYYY-MM-DD, because the check compares dates as strings."""
+    if isinstance(value, datetime.datetime):
+        value = value.date()
+    if isinstance(value, datetime.date):
+        return value.isoformat()
+    try:
+        return datetime.date.fromisoformat(str(value)).isoformat()
+    except ValueError:
+        sys.exit(f"{POLICY_FILE}: {where} review_by {value!r}; expected YYYY-MM-DD")
+
+
+def is_error(lic: str) -> bool:
+    return lic.startswith(("ERR ", "R:ERR "))
+
+
 def found_expression(eco: str, lic: str) -> str | None:
     """Return the SPDX expression a collected license string stands for, or None when it names none."""
     if is_error(lic):
@@ -245,9 +283,10 @@ def found_expression(eco: str, lic: str) -> str | None:
             return None
         return " AND ".join(dict.fromkeys(i for i in ids if i))
     text = " ".join(val.split())
-    for pattern, spdx in PIP_RAW:
-        if pattern.match(text):
-            return spdx
+    if not PIP_RAW_RESTRICTION.search(text):
+        for pattern, spdx in PIP_RAW:
+            if pattern.match(text):
+                return spdx
     return PIP_CLASSIFIERS.get(text.lower(), text) or None
 
 
@@ -263,7 +302,7 @@ class Policy:
         self.status = data.get("status")
         if self.status not in ("draft", "adopted"):
             fail(f"status {self.status!r}; expected draft or adopted")
-        self.review_by = str(data.get("review_by", ""))
+        self.review_by = iso_date(data["review_by"], "policy") if data.get("review_by") else ""
         expression = data.get("expression", {})
         for key, want in EXPRESSION_RULES.items():
             if expression.get(key) != want:
@@ -303,6 +342,9 @@ class Policy:
         for field in required:
             if not table.get(field):
                 sys.exit(f"{POLICY_FILE}: {where} has no `{field}`")
+        unknown = sorted(set(table) - DECISION_FIELDS - {key_field, *required})
+        if unknown:
+            sys.exit(f"{POLICY_FILE}: {where} has unknown fields {unknown}")
         if kind == "package" and table["ecosystem"] not in ECOSYSTEMS:
             sys.exit(f"{POLICY_FILE}: {where} ecosystem {table['ecosystem']!r}; expected one of {ECOSYSTEMS}")
         if table["status"] not in STATUSES:
@@ -311,16 +353,19 @@ class Policy:
             sys.exit(f"{POLICY_FILE}: {where} verdict {table['verdict']!r}; expected one of {VERDICTS}")
         if table.get("scope", "") not in ("", *self.scope):
             sys.exit(f"{POLICY_FILE}: {where} scope {table['scope']!r}; [scope] has {tuple(self.scope)}")
+        review_by = iso_date(table["review_by"], where) if table.get("review_by") else ""
         problem = ""
         if table["status"] == "approved":
-            review_by = str(table.get("review_by", ""))
-            if not any(table.get(f) for f in self.require_one_of):
-                problem = f"approved without {' or '.join(self.require_one_of)} ([approval])"
+            # A [[path]] matches by glob alone, so a version there pins nothing and cannot stand in for review_by.
+            fields = [f for f in self.require_one_of if kind == "package" or f != "version"]
+            if not any(table.get(f) for f in fields):
+                problem = f"approved without {' or '.join(fields)} ([approval])"
             elif review_by and review_by < today:
                 problem = f"approval expired on {review_by}"
+        key = table[key_field]
         return Decision(
             kind=kind,
-            key=table[key_field],
+            key=pip_name(key) if table.get("ecosystem") == "pip" else key,
             ecosystem=table.get("ecosystem", ""),
             version=str(table.get("version", "")),
             license=table.get("license", ""),
@@ -409,6 +454,8 @@ class Policy:
 
     def decision_for(self, eco: str, name: str, version: str) -> Decision | None:
         """Return the [[package]] entry for a dependency: a pinned version first, then an exact name."""
+        if eco == "pip":
+            name = pip_name(name)
         hits = [
             d
             for d in self.packages
@@ -459,12 +506,19 @@ def judge_all(policy: Policy, files: list[Lockfile], data: dict[str, list[Entry]
     """Rule on every collected dependency and every `[[path]]` entry. The page and `--check` both read this."""
     eco_of = {f.path: f.ecosystem for f in files}
     findings = []
+    applied: set[int] = set()
     for path, entries in data.items():
         eco = eco_of[path]
         for e in entries:
             found = policy.evaluate(found_expression(eco, e.license))
-            judged = policy.judge(found, policy.decision_for(eco, e.name, e.version), lockfile_scope(path))
+            decision = policy.decision_for(eco, e.name, e.version)
+            if decision is not None:
+                applied.add(decision.order)
+            judged = policy.judge(found, decision, lockfile_scope(path))
             findings.append(Finding(judged.outcome, path, eco, e.name, e.version, e.license, judged.rule))
+    for d in policy.packages:
+        if d.order not in applied:
+            print(f"warning: {d.label} applies to no dependency", file=sys.stderr)  # noqa: T201
     for d in policy.paths:
         pattern = glob_regex(d.key)
         matched = sum(1 for p in tracked if pattern.match(p))
@@ -514,10 +568,6 @@ class Cache:
             tmp = f.with_name(f.name + ".tmp")
             tmp.write_text(json.dumps({"tag": self.tag, "answers": self.data[eco]}, sort_keys=True))
             tmp.replace(f)
-
-
-def is_error(lic: str) -> bool:
-    return lic.startswith(("ERR ", "R:ERR "))
 
 
 def lookup_all(
@@ -658,8 +708,9 @@ def npm_keys(path: Path) -> list[tuple[str, str]]:
 
 
 def git_files(root: Path) -> list[str]:
-    out = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True).stdout
-    return out.splitlines()
+    # Without -z, git quotes a path with non-ASCII bytes ("\"a/\\352\\260\\200.png\""), and no [[path]] glob matches it.
+    out = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True, check=True).stdout
+    return [p for p in out.split("\0") if p]
 
 
 def describe(root: Path, path: str) -> Lockfile:
@@ -800,8 +851,8 @@ def md_cell(text: str) -> str:
 
 
 def render_summary(files: list[Lockfile], notes: dict[str, str], findings: list[Finding]) -> str:
-    order = [p for p in notes if p in {f.path for f in files if f.counted}]
-    order += [f.path for f in files if f.counted and f.path not in notes]
+    counted = [f.path for f in files if f.counted]
+    order = [p for p in notes if p in counted] + [p for p in counted if p not in notes]
     eco_of = {f.path: f.ecosystem for f in files}
     by_file: dict[str, Counter[str]] = {p: Counter() for p in order}
     paths: Counter[str] = Counter()
@@ -893,11 +944,15 @@ def replace_region(text: str, name: str, body: str) -> str:
     return pattern.sub(lambda m: f"{m.group(1)}\n{body}\n{m.group(2)}", text, count=1)
 
 
+def tsv_line(f: Finding) -> str:
+    return "\t".join((f.outcome, f.lockfile, f.name, f.version or "-", f.license or "-", f.rule))
+
+
 def report(policy: Policy, findings: list[Finding]) -> bool:
     """Print every failing finding to stdout and a count to stderr. Return True when the check fails."""
     failing = [f for f in findings if f.outcome in FAILING]
     for f in sorted(failing, key=lambda f: (f.outcome != "deny", f.lockfile, f.name, f.version)):
-        print("\t".join((f.outcome, f.lockfile, f.name, f.version or "-", f.license or "-", f.rule)))  # noqa: T201
+        print(tsv_line(f))  # noqa: T201
     counts = Counter(f.outcome for f in failing)
     unique = len({(f.ecosystem, f.name, f.version) for f in failing})
     print(  # noqa: T201
@@ -967,7 +1022,7 @@ def main() -> None:
     if args.list:
         for f in findings:
             if f.outcome != "allow":
-                print("\t".join((f.outcome, f.lockfile, f.name, f.version or "-", f.license or "-", f.rule)))  # noqa: T201
+                print(tsv_line(f))  # noqa: T201
         return
 
     old = page.read_text()

@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Tests for the policy classifier of gen_licenses.py. Run: python3 -I wiki/_tools/test_gen_licenses.py"""
-
 from __future__ import annotations
 
 import sys
@@ -10,6 +8,8 @@ from pathlib import Path
 
 import unittest
 
+# The import below would otherwise write gen_licenses' bytecode into wiki/_tools/__pycache__ in the repository.
+sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("gen_licenses", HERE / "gen_licenses.py")
 assert _spec and _spec.loader
@@ -109,6 +109,32 @@ name = "approved-deny"
 reason = "r"
 status = "approved"
 review_by = "2027-01-01"
+
+[[package]]
+ecosystem = "npm"
+name = "glob-*"
+reason = "r"
+status = "proposed"
+
+[[package]]
+ecosystem = "npm"
+name = "glob-exact"
+reason = "r"
+status = "approved"
+review_by = "2027-01-01"
+
+[[package]]
+ecosystem = "pip"
+name = "Rejected_Pip"
+reason = "r"
+status = "rejected"
+
+[[path]]
+glob = "a/b.bin"
+verdict = "allow"
+reason = "r"
+status = "approved"
+version = "1.0.0"
 """
 
 
@@ -158,6 +184,7 @@ class TestFoundExpression(unittest.TestCase):
         ("pip", "C:OSI Approved", None),
         ("pip", "R:Apache License 2.0", "Apache-2.0"),
         ("pip", "R:MIT style", "MIT style"),
+        ("pip", "R:Apache License 2.0 with Commons Clause", "Apache License 2.0 with Commons Clause"),
         ("pip", "R:", None),
         ("pip", "R:ERR timeout", None),
         ("cargo", "FILE:LICENSE", None),
@@ -172,35 +199,49 @@ class TestFoundExpression(unittest.TestCase):
 
 class TestJudge(unittest.TestCase):
     CASES = [
-        # name, version, found license, lockfile scope, outcome
-        ("plain", "1.0.0", "MIT", "distributed", "allow"),
-        ("plain", "1.0.0", "GPL-2.0-only", "distributed", "review"),
-        ("plain", "1.0.0", "GPL-2.0-only", "development", "exempt"),
-        ("plain", "1.0.0", "AGPL-3.0-only", "development", "deny"),
-        ("proposed-mit", "1.0.0", "SEE LICENSE IN LICENSE", "distributed", "review"),
-        ("proposed-agpl", "1.0.0", "AGPL-3.0-only", "development", "deny"),
-        ("rejected-thing", "2.0.0", "MIT", "distributed", "deny"),
-        ("pinned", "1.0.0", "UNKNOWN", "distributed", "exception"),
-        ("pinned", "2.0.0", "UNKNOWN", "distributed", "review"),
-        ("unpinned", "1.0.0", "UNKNOWN", "distributed", "review"),
-        ("expired", "1.0.0", "UNKNOWN", "distributed", "review"),
-        ("approved-license", "1.0.0", "UNKNOWN", "distributed", "exception"),
-        ("approved-deny", "1.0.0", "AGPL-3.0-only", "distributed", "deny"),
+        # ecosystem, name, version, found license, lockfile scope, outcome
+        ("npm", "plain", "1.0.0", "MIT", "distributed", "allow"),
+        ("npm", "plain", "1.0.0", "GPL-2.0-only", "distributed", "review"),
+        ("npm", "plain", "1.0.0", "GPL-2.0-only", "development", "exempt"),
+        ("npm", "plain", "1.0.0", "AGPL-3.0-only", "development", "deny"),
+        ("npm", "proposed-mit", "1.0.0", "SEE LICENSE IN LICENSE", "distributed", "review"),
+        ("npm", "proposed-agpl", "1.0.0", "AGPL-3.0-only", "development", "deny"),
+        ("npm", "rejected-thing", "2.0.0", "MIT", "distributed", "deny"),
+        ("npm", "pinned", "1.0.0", "UNKNOWN", "distributed", "exception"),
+        ("npm", "pinned", "2.0.0", "UNKNOWN", "distributed", "review"),
+        ("npm", "unpinned", "1.0.0", "UNKNOWN", "distributed", "review"),
+        ("npm", "expired", "1.0.0", "UNKNOWN", "distributed", "review"),
+        ("npm", "approved-license", "1.0.0", "UNKNOWN", "distributed", "exception"),
+        ("npm", "approved-deny", "1.0.0", "AGPL-3.0-only", "distributed", "deny"),
+        ("npm", "glob-exact", "1.0.0", "UNKNOWN", "distributed", "exception"),
+        ("pip", "rejected.PIP", "1.0.0", "E:MIT", "distributed", "deny"),
+    ]
+    BAD_POLICIES = [
+        ("another with rule", lambda d: d["expression"].update({"with": "base"})),
+        ("review_by that is not a date", lambda d: d["package"][0].update({"review_by": "TBD"})),
+        ("misspelled field", lambda d: d["package"][0].update({"verison": "1.0.0"})),
     ]
 
     def test_outcomes(self) -> None:
         p = policy()
-        for name, version, lic, scope, outcome in self.CASES:
+        for eco, name, version, lic, scope, outcome in self.CASES:
             with self.subTest(name=name, version=version, scope=scope):
-                found = p.evaluate(gen.found_expression("npm", lic))
-                judged = p.judge(found, p.decision_for("npm", name, version), scope)
+                found = p.evaluate(gen.found_expression(eco, lic))
+                judged = p.judge(found, p.decision_for(eco, name, version), scope)
                 self.assertEqual(judged.outcome, outcome, judged.rule)
 
-    def test_rejects_a_policy_with_another_with_rule(self) -> None:
-        data = tomllib.loads(POLICY)
-        data["expression"]["with"] = "base"
-        with self.assertRaises(SystemExit):
-            gen.Policy(data, TODAY)
+    def test_path_approval_needs_review_by(self) -> None:
+        p = policy()
+        judged = p.judge(p.evaluate(""), p.paths[0], "distributed")
+        self.assertEqual(judged.outcome, "review", judged.rule)
+
+    def test_rejects_a_policy_it_does_not_implement(self) -> None:
+        for label, mutate in self.BAD_POLICIES:
+            with self.subTest(label):
+                data = tomllib.loads(POLICY)
+                mutate(data)
+                with self.assertRaises(SystemExit):
+                    gen.Policy(data, TODAY)
 
     def test_repository_policy_loads(self) -> None:
         gen.load_policy(HERE.parents[1], TODAY)

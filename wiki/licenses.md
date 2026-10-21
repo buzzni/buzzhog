@@ -463,9 +463,9 @@ PostHog Inc.의 고지(루트 `LICENSE`)와 함께 아래 고지도 보존해야
 ### 범위와 승인
 
 - 항목의 `scope`는 `distributed`(기본) 또는 `development`다. 개발·테스트·CI 전용 의존(uv `dev` 그룹, devDependencies, `.github/actions`·`.depot/actions`)은 `development`다. `deny`는 두 범위에 똑같이 걸리고, `review`는 `development`에서 면제한다.
-- 검사는 범위를 두 곳에서만 읽는다. `.github/actions/`·`.depot/actions/` 아래 잠금 파일의 항목은 `development`다. 나머지는 `approved` 항목의 `scope`가 정한다. uv `dev` 그룹과 devDependencies는 잠금 파일에서 읽지 않는다. 프런트엔드는 devDependencies도 번들에 넣으므로, 사람이 패키지마다 `scope = "development"`로 승인해야 면제된다. `proposed` 항목의 `scope`도 `license`·`verdict`처럼 적용하지 않는다.
+- 검사는 범위를 두 곳에서만 읽는다. `.github/actions/`·`.depot/actions/` 아래 잠금 파일의 항목은 `development`다. 나머지는 `distributed`다. `approved` 항목의 `scope`는 그 항목이 `verdict = "review"`를 적었을 때만 차이를 낸다. 다른 `approved` 항목은 `deny`가 아니면 이미 "승인된 예외"로 통과하고, `deny`는 두 범위에 똑같이 걸리기 때문이다. uv `dev` 그룹과 devDependencies는 잠금 파일에서 읽지 않는다. 프런트엔드는 devDependencies도 번들에 넣으므로, 개발 전용 패키지도 사람이 패키지마다 승인해야 통과한다. `proposed` 항목의 `scope`도 `license`·`verdict`처럼 적용하지 않는다.
 - `[[package]]`는 패키지별 결정이다. 레지스트리 값이 비어 있는 패키지의 라이선스를 본문으로 바로잡거나(`license`), 정책 판정을 덮어쓴다(`verdict`). `license`와 `verdict`는 `status`가 `approved`인 항목에만 적용한다. `proposed` 항목에 걸리면 `license`·`verdict`와 상관없이 `review`로 센다(찾은 라이선스가 `deny`면 `deny`). 그래서 라이선스가 `allow`여도 `proposed`는 검사 실패다. `rejected`는 제거·대체가 결정된 것이고, 걸리면 `deny`로 센다.
-- `approved` 항목은 `version`을 고정하거나 `review_by`를 적어야 한다. 둘 다 없으면 검사가 거부한다. 그런 항목과 `review_by`가 지난 항목은 `proposed`처럼 센다.
+- `approved` 항목은 `version`을 고정하거나 `review_by`를 적어야 한다. 둘 다 없으면 검사가 거부한다. 그런 항목과 `review_by`가 지난 항목은 `proposed`처럼 센다. `[[path]]`는 glob으로만 맞추므로 `version`이 아무것도 고정하지 않는다. 그래서 `approved` `[[path]]`는 `review_by`가 있어야 한다. `review_by`는 `YYYY-MM-DD`다.
 - `approved` 항목은 `verdict`가 있으면 그것을, 없으면 `license`를, 그것도 없으면 찾은 라이선스를 판정한다. 결과가 `deny`가 아니면 "승인된 예외"로 통과한다. `deny` 라이선스를 통과시키려면 `verdict = "allow"`를 적는다.
 - `[[path]]`는 잠금 파일 밖 파일(터미널 바이너리, 글꼴, 복사한 이미지, 벤더링한 코드)에 같은 결정을 적는 자리다.
 
@@ -500,14 +500,14 @@ python3 -I wiki/_tools/test_gen_licenses.py                         # 판정 규
 
 ### 분류 규칙
 
-스크립트의 `Policy`가 `license-policy.toml`을 읽어 정한다. 정책 파일이 스크립트가 구현하지 않은 값(`[expression]`의 다른 해석, 모르는 `status`·`scope`)을 적으면 스크립트는 판정하지 않고 끝난다.
+스크립트의 `Policy`가 `license-policy.toml`을 읽어 정한다. 정책 파일이 스크립트가 구현하지 않은 값(`[expression]`의 다른 해석, 모르는 `status`·`scope`, `[[package]]`·`[[path]]`의 모르는 필드, `YYYY-MM-DD`가 아닌 `review_by`)을 적으면 스크립트는 판정하지 않고 끝난다.
 
-1. 찾은 문자열을 SPDX식으로 바꾼다. npm, cargo, go와 pip의 `license_expression`은 그대로 쓴다. pip 분류자는 표(`PIP_CLASSIFIERS`)로 SPDX 식별자로 바꾸고 `AND`로 잇는다. `OSI Approved`, `DFSG approved`는 뺀다. 표에 없는 분류자(`Other/Proprietary License`, `GNU Library or Lesser General Public License (LGPL)` 등)가 하나라도 있으면 SPDX식이 없는 것으로 본다. pip 원문은 `MIT License`, MIT 라이선스 URL, `Apache License 2.0`류, `3-Clause BSD`로 시작하면 그 식별자로 읽고, 아니면 원문을 SPDX식으로 읽어 본다.
+1. 찾은 문자열을 SPDX식으로 바꾼다. npm, cargo, go와 pip의 `license_expression`은 그대로 쓴다. pip 분류자는 표(`PIP_CLASSIFIERS`)로 SPDX 식별자로 바꾸고 `AND`로 잇는다. `OSI Approved`, `DFSG approved`는 뺀다. 표에 없는 분류자(`Other/Proprietary License`, `GNU Library or Lesser General Public License (LGPL)` 등)가 하나라도 있으면 SPDX식이 없는 것으로 본다. pip 원문은 `MIT License`, MIT 라이선스 URL, `Apache License 2.0`류, `3-Clause BSD`로 시작하면 그 식별자로 읽고, 아니면 원문을 SPDX식으로 읽어 본다. 다만 원문에 `proprietary`, `Commons Clause`, `non-commercial`이 있으면 시작 부분으로 읽지 않는다(`Apache License 2.0 with Commons Clause`는 `review`다).
 2. SPDX식이 아니면 `review`다. `UNKNOWN`, `SEE LICENSE IN ...`, `license_file`만 있는 크레이트, `NO-LICENSE-FILE`, 빈 값이 여기에 든다.
-3. 식별자는 대소문자를 가리지 않는다. `[expression.alias]`로 먼저 바꾸고, 끝의 `+`는 뗀다. 정확한 목록(`allow`, `deny`, `review`)이 먼저이고, 다음이 `deny` 접두사, 그다음이 `review` 접두사다. 어디에도 없으면 `review`다.
+3. 식별자는 대소문자를 가리지 않는다. 끝의 `+`를 먼저 떼고, `[expression.alias]`로 바꾼다. 정확한 목록(`allow`, `deny`, `review`)이 먼저이고, 다음이 `deny` 접두사, 그다음이 `review` 접두사다. 어디에도 없으면 `review`다.
 4. SPDX에 없는 맨 식별자(`Proprietary`, `Commons-Clause`)는 `LicenseRef-`를 붙인 이름으로도 정확한 목록과 `deny` 접두사에 맞춰 본다. 그래서 `Commons-Clause`는 `LicenseRef-Commons-Clause`(`deny`)다.
 5. `A OR B`는 더 좋은 쪽, `A AND B`는 더 나쁜 쪽이다(`allow` > `review` > `deny`). `/`는 `OR`다. `X WITH 예외`는 `X`의 판정이고, 예외가 3·4로 `deny`이면 `deny`다.
-6. 판정 뒤에 `[[package]]`·`[[path]]` 항목과 범위를 적용한다([범위와 승인](#범위와-승인)). `[[package]]`는 생태계와 이름(`*` 글롭)으로 맞추고, 버전을 고정한 항목이 먼저, 그다음 정확한 이름이 먼저다. `[[path]]` 글롭은 `git ls-files` 목록에 맞춘다. `**/`는 디렉터리 여러 개, `*`는 한 디렉터리 안, `{a,b}`는 둘 중 하나다. 맞는 파일이 없는 항목은 경고만 낸다.
+6. 판정 뒤에 `[[package]]`·`[[path]]` 항목과 범위를 적용한다([범위와 승인](#범위와-승인)). `[[package]]`는 생태계와 이름(`*` 글롭)으로 맞추고, 버전을 고정한 항목이 먼저, 그다음 정확한 이름이 먼저다. pip 이름은 양쪽 다 PEP 503 형태(소문자, `-`·`_`·`.`의 연속은 `-` 하나)로 바꿔 맞춘다. 어느 의존성에도 적용되지 않는 `[[package]]` 항목은 경고만 낸다. `[[path]]` 글롭은 `git ls-files` 목록에 맞춘다. `**/`는 디렉터리 여러 개, `*`는 한 디렉터리 안, `{a,b}`는 둘 중 하나다. 맞는 파일이 없는 항목은 경고만 낸다.
 
 <!-- generated:allow:begin -->
 Generated from `wiki/_tools/gen_licenses.py`, `wiki/_tools/licenses-notes.tsv` and `license-policy.toml` — Do not edit by hand.
