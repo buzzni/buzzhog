@@ -1,8 +1,8 @@
 # buzzhog 의존성 라이선스 정책
 #
 # 상태: 채택(2026-10-16, 레이븐). 목록과 범위 규칙은 확정이다. [[package]]·[[path]] 항목이 판정을 바꾸는 규칙은 아래 "패키지별 결정" 머리말에 있다.
-# 읽는 곳: wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm). 읽을 곳(예정): PR 게이트(buzzhog-djp9.m0z),
-# 저장소 전체 스캔(buzzhog-djp9.fai), 고지문 생성(buzzhog-djp9.63o). 앞의 세 검사는 판정을 모두 이 한 파일에서 얻게 된다.
+# 읽는 곳: wiki/_tools/gen_licenses.py --check(buzzhog-djp9.9lm), PR 게이트 .github/workflows/license-gate.yml(buzzhog-djp9.m0z).
+# 읽을 곳(예정): 저장소 전체 스캔(buzzhog-djp9.fai), 고지문 생성(buzzhog-djp9.63o). 검사, 게이트, 전체 스캔은 판정을 모두 이 한 파일에서 얻는다.
 # 식별자는 SPDX(https://spdx.org/licenses/)를 쓴다. SPDX에 없는 라이선스는 `LicenseRef-`를 앞에 붙인다.
 # 근거는 wiki/licenses.md다. 이 파일은 법률 자문이 아니다. 최종 판단은 법무 검토다.
 
@@ -46,6 +46,8 @@ licenses = [
   "LicenseRef-Commons-Clause",
   "LicenseRef-Proprietary",
 ]
+# PR 게이트는 LicenseRef- 아닌 접두사를 license-gate.yml의 PREFIX_IDS 표로 SPDX 식별자로 풀어 쓴다.
+# 접두사를 더하면 그 표에도 줄을 더한다. 줄이 없으면 게이트의 deny 목록 단계가 실패한다
 prefixes = [
   "AGPL-", "SSPL-", "BUSL-", "Elastic-",
   "PolyForm-", "LicenseRef-PolyForm-",   # PolyForm Strict는 SPDX에 없다. Noncommercial·Small-Business는 있다
