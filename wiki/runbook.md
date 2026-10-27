@@ -27,7 +27,7 @@
 
 이 포크의 코드를 배포하려면 아래를 모두 직접 해야 한다.
 
-1. 모든 이미지를 빌드해 자기 레지스트리에 올린다. ([이미지 직접 빌드](#이미지-직접-빌드))
+1. 모든 이미지를 빌드해 레지스트리에 올린다. `develop`에 들어간 코드는 [포크 이미지 CI](#포크-이미지-ci-ghcr)가 GHCR에 올린다. 그 밖에는 [이미지 직접 빌드](#이미지-직접-빌드)를 따른다.
 2. `REGISTRY_URL`을 자기 레지스트리로 바꾼다. 이것은 Django와 Node 이미지에만 적용된다.
 3. Rust·Go 서비스는 compose 파일의 `image:` 값을 직접 고친다.
 4. 설치 스크립트가 clone하는 저장소를 이 포크로 바꾼다. 스크립트를 쓰지 않고 [수동 배포](#수동-배포-순서)를 따라도 된다.
@@ -35,8 +35,34 @@
 3번의 수정은 작업 디렉터리의 복사본이 아니라 `posthog/` checkout의 compose 파일에 둔다.
 `bin/upgrade-hobby`가 업그레이드 때마다 `posthog/docker-compose.base.yml`과 `posthog/docker-compose.hobby.yml`을 작업 디렉터리로 다시 복사해 복사본의 수정을 덮어쓰기 때문이다. 근거: `bin/upgrade-hobby`.
 
-이 포크에는 CI 워크플로가 없다. `.github/workflows`가 존재하지 않는다.
-`Dockerfile` 주석이 가리키는 `container-images-cd.yml`도 없으므로, 이미지 빌드와 푸시는 사람이 한다.
+### 포크 이미지 CI (GHCR)
+
+`.github/workflows/fork-images.yml`이 `develop` push와 수동 실행(`workflow_dispatch`)에서 hobby 스택의 이미지를 모두 빌드해 GHCR에 올린다.
+`Dockerfile` 주석이 가리키는 업스트림의 `container-images-cd.yml`은 이 포크에 없고, 이 워크플로가 그 자리를 맡는다.
+
+| 이미지                                                          | Dockerfile                                     | GHCR 경로                                       |
+| --------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------- |
+| Django(web, worker, temporal-django-worker, migrate)           | `Dockerfile`                                   | `ghcr.io/buzzni/buzzhog/posthog`                |
+| Node(plugins, ingestion-\*)                                     | `Dockerfile.node`                              | `ghcr.io/buzzni/buzzhog/posthog-node`           |
+| Rust(바이너리마다 하나)                                         | `rust/Dockerfile --build-arg BIN=<바이너리>`   | `ghcr.io/buzzni/buzzhog/<바이너리>`             |
+| livestream                                                      | `livestream/Dockerfile`                        | `ghcr.io/buzzni/buzzhog/livestream`             |
+| ClickHouse 26.9.13.15 + 설정·UDF(`aggregate_funnel`은 소스 빌드) | `docker/clickhouse/Dockerfile`                 | `ghcr.io/buzzni/buzzhog/clickhouse`             |
+
+Rust 바이너리는 `capture`, `capture-logs`, `property-defs-rs`, `feature-flags`, `personhog-replica`, `personhog-router`, `hypercache-server`, `cymbal`이다.
+Django 경로가 `posthog`, Node 경로가 `posthog-node`라서 `REGISTRY_URL=ghcr.io/buzzni/buzzhog/posthog`로 두면 compose의 `${REGISTRY_URL}-node` 규칙과 맞는다.
+
+- 태그는 `<브랜치>-<YYYYMMDD>-<sha7>`(예: `develop-20261027-da1bb27`)다. 날짜는 커밋 날짜(UTC)라서 같은 커밋을 다시 돌리면 같은 태그가 나온다. `latest`, `master`, `develop` 같은 움직이는 태그는 올리지 않는다.
+- 인증은 `GITHUB_TOKEN`(`permissions: packages: write`)이다. 따로 넣을 비밀값은 없다.
+- runner는 GitHub-hosted(`ubuntu-24.04`) 고정이다. 이 저장소는 public이라 self-hosted runner를 쓰면 포크 PR 코드가 그 runner의 네트워크 안에서 돌 수 있다.
+- Harbor(`harbor.idc1.buzzni.com`)는 사설 IP라 GitHub-hosted runner가 닿지 못한다. IDC로 가져오는 일(Harbor 복제나 proxy cache)은 워크플로 밖에서 Harbor 쪽에 설정한다.
+- `linux/amd64`만 빌드한다.
+- 실행 결과의 job summary에 이미지 참조와 digest가 남는다.
+
+워크플로가 처음 만든 GHCR 패키지는 private이다. 패키지마다 한 번, 패키지 설정(Package settings > Danger Zone > Change visibility)에서 public으로 바꿔야 인증 없이 pull할 수 있다. REST API에는 패키지 가시성을 바꾸는 호출이 없어 워크플로로 하지 않는다.
+
+ClickHouse 이미지는 `docker-compose.hobby.yml`이 마운트하는 설정 파일과 `posthog/user_scripts`를 이미지 안에 넣는다.
+UDF는 데이터 볼륨(`/var/lib/clickhouse`) 밖인 `/usr/local/share/clickhouse/user_scripts`에 두고, `config.d/user-scripts.xml`이 그 경로를 가리킨다.
+빌드 방법은 `docker/clickhouse/Dockerfile` 머리 주석에 있다.
 
 ## 이미지 구성
 
