@@ -121,7 +121,8 @@ hobby compose에 나오는 것은 `capture`, `capture-logs`, `property-defs-rs`,
 주의: `rust/Dockerfile`은 `PROTO_ROOT=../proto`를 쓴다. 크레이트 디렉터리 기준이므로 빌드 컨텍스트 루트에 `proto/`가 있어야 한다.
 `.proto` 파일은 저장소 루트의 `proto/`에 있고 `rust/` 안에는 없다. 근거: `rust/personhog-proto/build.rs`, `rust/cymbal-proto/build.rs` 등.
 그래서 컨텍스트를 `rust/`로 주면 proto 크레이트에 기대는 바이너리(`capture-logs`, `property-defs-rs`, `personhog-*`, `feature-flags`, `cymbal`)는 빌드가 실패할 것으로 보인다.
-컨텍스트를 어떻게 구성해야 하는지는 이 포크에 CI가 없어 확인하지 못했다(**미확인**).
+포크 이미지 CI는 빌드 전에 `cp -r proto rust/proto`로 `proto/`를 컨텍스트 안에 넣는다. 손으로 빌드할 때도 같이 한다.
+이 방식으로 `capture`를 로컬(linux/arm64)에서 빌드해 성공했다. 나머지 바이너리는 CI 실행으로 확인한다(**미확인**).
 
 ### `ee/` 디렉터리가 없다
 
