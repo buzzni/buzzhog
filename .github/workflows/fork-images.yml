@@ -1,0 +1,211 @@
+# Builds this fork's service images and pushes them to Harbor.
+#
+# The compose files default to the upstream images (posthog/posthog, ghcr.io/posthog/posthog/*),
+# which do not carry this fork's code. This workflow builds every image the hobby stack runs from
+# this repository and pushes it to harbor.idc1.buzzni.com/<project>/<image>:<tag>.
+#
+# Tag: <branch>-<YYYYMMDD>-<sha7>, for example develop-20261027-da1bb27. The date is the commit
+# date in UTC, so a re-run of the same commit produces the same tag. No floating tag (latest,
+# master, develop) is ever pushed: a deploy names the exact build it runs.
+#
+# Images (the project defaults to buzzhog, see HARBOR_PROJECT below):
+#   posthog          Dockerfile            Django: web, worker, temporal-django-worker, migrate.
+#                                          REGISTRY_URL=harbor.idc1.buzzni.com/buzzhog/posthog
+#   posthog-node     Dockerfile.node       Node: plugins, ingestion-*. compose names it ${REGISTRY_URL}-node.
+#   <bin>            rust/Dockerfile       One image per BIN, named like the upstream ghcr.io images.
+#   livestream       livestream/Dockerfile
+#   clickhouse       docker/clickhouse/Dockerfile   ClickHouse with the config and the UDFs, including
+#                                          aggregate_funnel compiled from funnel-udf/.
+#
+# Settings, none of them committed:
+#   secrets.HARBOR_USERNAME, secrets.HARBOR_PASSWORD  A Harbor robot account that can push to the project.
+#   vars.HARBOR_PROJECT     Harbor project. Default buzzhog.
+#   vars.FORK_IMAGES_RUNNER A single runner label, for a self-hosted runner that can reach Harbor.
+#                           Default ubuntu-24.04.
+#
+# Only linux/amd64 is built. An arm64 build would run under QEMU on an amd64 runner, which is
+# too slow for the Django and Rust images.
+#
+# The Django build gets no posthog_upload_sourcemaps_cli_api_key secret, so it uploads no
+# sourcemaps to PostHog's own error tracking (see wiki/runbook.md, "빌드 인자와 비밀값").
+name: Fork images
+
+on:
+    push:
+        branches:
+            - develop
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: false
+
+permissions: {}
+
+env:
+    REGISTRY: harbor.idc1.buzzni.com
+    HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'buzzhog' }}
+
+jobs:
+    tag:
+        name: Compute the image tag
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        permissions:
+            contents: read
+        outputs:
+            tag: ${{ steps.tag.outputs.tag }}
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  persist-credentials: false
+                  sparse-checkout: .github
+                  sparse-checkout-cone-mode: false
+
+            - name: Compute the tag
+              id: tag
+              run: |
+                  # A docker tag allows [A-Za-z0-9_.-], so a branch like feat/x becomes feat-x.
+                  branch=$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9_.-' '-')
+                  date=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d "$GITHUB_SHA")
+                  tag="${branch}-${date}-${GITHUB_SHA::7}"
+                  # A docker tag is at most 128 characters. Cut the branch part, never the date or the sha.
+                  if [ "${#tag}" -gt 128 ]; then
+                      suffix="-${date}-${GITHUB_SHA::7}"
+                      tag="${branch::$((128 - ${#suffix}))}${suffix}"
+                  fi
+                  echo "tag=$tag" >> "$GITHUB_OUTPUT"
+                  echo "Image tag: \`$tag\`" >> "$GITHUB_STEP_SUMMARY"
+
+    build:
+        name: Build and push ${{ matrix.image }}
+        needs: tag
+        runs-on: ${{ vars.FORK_IMAGES_RUNNER || 'ubuntu-24.04' }}
+        timeout-minutes: 150
+        permissions:
+            contents: read
+        strategy:
+            # One broken image must not hold back the others. The run still fails when any does.
+            fail-fast: false
+            matrix:
+                include:
+                    - image: posthog
+                      file: Dockerfile
+                      context: .
+                    - image: posthog-node
+                      file: Dockerfile.node
+                      context: .
+                    # rust/Dockerfile builds every crate from the rust/ context with PROTO_ROOT=../proto,
+                    # which is /app/proto, so proto/ is copied into the context first (proto: true).
+                    - image: capture
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=capture
+                      proto: true
+                    - image: capture-logs
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=capture-logs
+                      proto: true
+                    - image: property-defs-rs
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=property-defs-rs
+                      proto: true
+                    - image: feature-flags
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=feature-flags
+                      proto: true
+                    - image: personhog-replica
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=personhog-replica
+                      proto: true
+                    - image: personhog-router
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=personhog-router
+                      proto: true
+                    - image: hypercache-server
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=hypercache-server
+                      proto: true
+                    - image: cymbal
+                      file: rust/Dockerfile
+                      context: rust
+                      build-args: BIN=cymbal
+                      proto: true
+                    - image: livestream
+                      file: livestream/Dockerfile
+                      context: livestream
+                    # The root .dockerignore drops the directories this image needs, so they come in as
+                    # named contexts (see docker/clickhouse/Dockerfile).
+                    - image: clickhouse
+                      file: docker/clickhouse/Dockerfile
+                      context: docker/clickhouse
+                      build-contexts: |
+                          funnel-udf=funnel-udf
+                          user-scripts=posthog/user_scripts
+                          idl=posthog/idl
+        steps:
+            - name: Check the Harbor credentials
+              env:
+                  HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+                  HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+              run: |
+                  if [ -z "$HARBOR_USERNAME" ] || [ -z "$HARBOR_PASSWORD" ]; then
+                      echo "::error::Set the repository secrets HARBOR_USERNAME and HARBOR_PASSWORD (a Harbor robot account)."
+                      exit 1
+                  fi
+
+            # A GitHub-hosted runner has about 14 GB free, and the Django build needs more.
+            # The preinstalled toolchains removed here are not used by any image build.
+            - name: Free disk space
+              if: runner.environment == 'github-hosted'
+              run: |
+                  sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+                  df -h /
+
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  persist-credentials: false
+
+            - name: Copy proto files into the rust build context
+              if: matrix.proto
+              run: cp -r proto rust/proto
+
+            - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+            - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ secrets.HARBOR_USERNAME }}
+                  password: ${{ secrets.HARBOR_PASSWORD }}
+
+            - name: Build and push
+              id: build
+              uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+              with:
+                  context: ${{ matrix.context }}
+                  file: ${{ matrix.file }}
+                  build-contexts: ${{ matrix.build-contexts }}
+                  build-args: |
+                      COMMIT_HASH=${{ github.sha }}
+                      ${{ matrix.build-args }}
+                  platforms: linux/amd64
+                  push: true
+                  tags: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.image }}:${{ needs.tag.outputs.tag }}
+                  labels: |
+                      org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+                      org.opencontainers.image.revision=${{ github.sha }}
+                  # The cache stays in GitHub's cache service, so Harbor holds only the tagged images.
+                  cache-from: type=gha,scope=fork-images-${{ matrix.image }}
+                  cache-to: type=gha,scope=fork-images-${{ matrix.image }},mode=max,ignore-error=true
+
+            - name: Report the image
+              env:
+                  REF: ${{ env.REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.image }}:${{ needs.tag.outputs.tag }}
+                  DIGEST: ${{ steps.build.outputs.digest }}
+              run: echo "- \`$REF\` (\`$DIGEST\`)" >> "$GITHUB_STEP_SUMMARY"

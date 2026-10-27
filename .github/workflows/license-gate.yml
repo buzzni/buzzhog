@@ -33,7 +33,7 @@
 # The exact ids come from [deny] in license-policy.toml on every run. A deny prefix expands
 # through PREFIX_IDS below, which is a copy of the SPDX list that the pinned action bundles.
 #
-# This fork has no other workflow under .github/workflows. Its other CI runs from .depot/workflows.
+# The other workflow under .github/workflows is fork-images.yml. The fork's other CI runs from .depot/workflows.
 name: License gate
 
 on:
