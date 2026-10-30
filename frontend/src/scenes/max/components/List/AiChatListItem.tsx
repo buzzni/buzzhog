@@ -81,7 +81,7 @@ function Actions({ conversationId }: { conversationId: string }): JSX.Element {
                     </ButtonPrimitive>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild disabled>
                     <ButtonPrimitive
                         menuItem
                         disabledReasons={{ [DELETE_CHAT_UNAVAILABLE]: true }}

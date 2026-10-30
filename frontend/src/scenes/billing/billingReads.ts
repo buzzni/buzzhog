@@ -4,6 +4,7 @@ import type { BillingSpendResponse } from './billingSpendLogic'
 import type { BillingUsageResponse } from './billingUsageLogic'
 
 export const BILLING_READS_UNAVAILABLE = "Usage and spend data aren't available in this version."
+export const BILLING_READS_UNAVAILABLE_CODE = 'billing_reads_unavailable'
 
 /** The query parameters the usage and spend pages send with each read. */
 export type BillingReadParams = Record<string, string | number>
@@ -20,14 +21,18 @@ export interface BillingReads {
     reportedProjectIds(): Promise<number[]>
 }
 
-// The billing routes these reads called were removed with ee, so every read fails with one message.
+// This build serves no billing routes. The error carries a code and a detail so that the pages show
+// the detail in place, and not a failure toast that asks the person to try again.
+const billingReadsUnavailable = (): never => {
+    throw Object.assign(new Error(BILLING_READS_UNAVAILABLE), {
+        code: BILLING_READS_UNAVAILABLE_CODE,
+        detail: BILLING_READS_UNAVAILABLE,
+    })
+}
+
 export const unavailableBillingReads: BillingReads = {
-    usageSeries: async () => {
-        throw new Error(BILLING_READS_UNAVAILABLE)
-    },
-    spendSeries: async () => {
-        throw new Error(BILLING_READS_UNAVAILABLE)
-    },
+    usageSeries: async () => billingReadsUnavailable(),
+    spendSeries: async () => billingReadsUnavailable(),
     usageExportUrl: () => null,
     spendExportUrl: () => null,
     reportedProjectIds: async () => [],

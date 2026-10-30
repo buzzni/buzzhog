@@ -246,11 +246,7 @@ export function ExperimentsHoldoutsScene(): JSX.Element {
             </div>
 
             <LemonTable
-                emptyState={
-                    <div className="py-4 text-secondary text-sm text-center">
-                        You have not created any holdouts yet.
-                    </div>
-                }
+                emptyState={<div className="py-4 text-secondary text-sm text-center">{HOLDOUTS_UNAVAILABLE}</div>}
                 loading={holdoutsLoading}
                 dataSource={holdouts}
                 columns={columns as LemonTableColumns<ExperimentHoldoutType>}

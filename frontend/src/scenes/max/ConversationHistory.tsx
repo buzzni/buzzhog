@@ -160,6 +160,7 @@ function ConversationCard({
                     data-attr="max-conversation-delete"
                     aria-label="Delete chat"
                     disabledReason={DELETE_CHAT_UNAVAILABLE}
+                    stopPropagation
                     onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()

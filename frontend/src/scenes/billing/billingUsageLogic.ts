@@ -27,7 +27,7 @@ import {
 } from './billing-utils'
 import { billingLogic } from './billingLogic'
 import type { BillingPeriodMarker } from './BillingPeriodMarkers'
-import { BillingReadParams, BillingReads, billingReadsLogic } from './billingReads'
+import { BILLING_READS_UNAVAILABLE_CODE, BillingReadParams, BillingReads, billingReadsLogic } from './billingReads'
 import { DEFAULT_TOP_PROJECTS } from './constants'
 import type { BillingChartType, BillingFilters } from './types'
 import type { BillingUsageInteractionProps } from './types'
@@ -122,11 +122,15 @@ export interface BillingUsageLogicProps {
  *
  * `usage_breakdown_too_large` means the request would need more than a billing worker holds, and
  * the guidance says what to narrow.
+ *
+ * `billing_reads_unavailable` means this build has no billing reads. A retry cannot help, so the
+ * page states that and does not show the failure toast.
  */
 export const ACTIONABLE_BILLING_ERROR_CODES = [
     'usage_query_timeout',
     'usage_breakdown_too_large',
     'usage_date_range_too_long',
+    BILLING_READS_UNAVAILABLE_CODE,
 ]
 
 export const BILLING_USAGE_QUERY_TOO_LARGE_CODE = 'usage_breakdown_too_large'

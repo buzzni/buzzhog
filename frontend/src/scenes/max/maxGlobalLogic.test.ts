@@ -183,8 +183,8 @@ describe('maxGlobalLogic', () => {
         )
     })
 
-    // A chat and its task are deleted together on the server. The chat list only knows about the
-    // task delete, so it has to be reloaded or the deleted item resurfaces as a chat row.
+    // A chat and its task are deleted together on the server. A task delete does not touch the chat
+    // list, so the chat list has to be reloaded or the deleted item resurfaces as a chat row.
     describe('deleting from the merged list', () => {
         let conversationListRequests = 0
         let tasks: ReturnType<typeof tasksLogic.build>

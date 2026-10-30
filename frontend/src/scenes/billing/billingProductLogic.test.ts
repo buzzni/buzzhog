@@ -392,10 +392,7 @@ describe('billingProductLogic — confirm purchase modal', () => {
         expect(toastErrorSpy).toHaveBeenCalledWith(PAYMENTS_UNAVAILABLE)
     })
 
-    it('auto-closes the modal once activation finishes', async () => {
-        useMocks({
-            post: { '/api/billing/activate': () => [200, { success: false, error: 'x' }] as [number, unknown] },
-        })
+    it('auto-closes the modal once the purchase is handled', async () => {
         logic = billingProductLogic({ product: scaleAddon })
         logic.mount()
         logic.actions.showConfirmPurchaseModal()
@@ -456,14 +453,14 @@ describe('billingProductLogic — confirm purchase modal', () => {
     })
 
     it('does nothing when the product has no upgrade plan', async () => {
-        const activate = jest.fn(() => [200, { success: true }] as [number, unknown])
-        useMocks({ post: { '/api/billing/activate': activate } })
         const productWithoutPlans = { ...scaleAddon, type: BillingPlan.Boost, plans: [] } as BillingProductV2AddonType
         logic = billingProductLogic({ product: productWithoutPlans })
         logic.mount()
 
-        await expectLogic(logic, () => logic.actions.confirmProductPurchase()).toFinishAllListeners()
+        await expectLogic(logic, () => logic.actions.confirmProductPurchase())
+            .toNotHaveDispatchedActions(['handleProductUpgrade'])
+            .toFinishAllListeners()
 
-        expect(activate).not.toHaveBeenCalled()
+        expect(toastErrorSpy).not.toHaveBeenCalled()
     })
 })

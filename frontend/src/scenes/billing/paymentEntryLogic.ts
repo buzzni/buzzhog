@@ -138,7 +138,7 @@ export type paymentEntryLogicType = MakeLogicType<
     paymentEntryLogicMeta
 >
 
-// The billing service routes this flow called were removed with ee.
+// This build serves no billing activation or authorization routes, so every payment step stops here.
 export const PAYMENTS_UNAVAILABLE = "Payments aren't available in this version."
 
 const PAYMENT_ORGANIZATION_ERROR = 'This payment link is missing its organization. Return to billing and start again.'

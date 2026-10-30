@@ -7,7 +7,7 @@ export const scene: SceneExport = {
     component: VercelConnect,
 }
 
-// The /api/vercel/connect routes this page called were removed with ee.
+// This build serves no /api/vercel/connect routes, so the page can only say that linking is unavailable.
 export function VercelConnect(): JSX.Element {
     return (
         <BridgePage view="vercel-connect">

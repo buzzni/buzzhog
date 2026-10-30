@@ -9,6 +9,7 @@ import { billingJson } from '~/mocks/fixtures/_billing'
 import { useMocks } from '~/mocks/jest'
 import { initKeaTests } from '~/test/init'
 
+import { BILLING_READS_UNAVAILABLE, BILLING_READS_UNAVAILABLE_CODE } from './billingReads'
 import {
     BILLING_USAGE_QUERY_TOO_LARGE_CODE,
     BillingUsageResponse,
@@ -110,7 +111,7 @@ describe('billingUsageLogic loader', () => {
         toastErrorSpy.mockRestore()
     })
 
-    it('handles a failed read without failing the loader', async () => {
+    it('shows the unavailable reads in the page rather than as a failure toast', async () => {
         useMocks({ get: { '/api/billing': () => [200, billingJson] } })
 
         billingLogic.mount()
@@ -124,8 +125,11 @@ describe('billingUsageLogic loader', () => {
             .toNotHaveDispatchedActions(['loadBillingUsageFailure'])
             .toFinishAllListeners()
 
-        expect(logic.values.billingUsageError).toEqual(null)
-        expect(toastErrorSpy).toHaveBeenCalledTimes(1)
+        expect(logic.values.billingUsageError).toEqual({
+            code: BILLING_READS_UNAVAILABLE_CODE,
+            detail: BILLING_READS_UNAVAILABLE,
+        })
+        expect(toastErrorSpy).not.toHaveBeenCalled()
     })
 })
 
