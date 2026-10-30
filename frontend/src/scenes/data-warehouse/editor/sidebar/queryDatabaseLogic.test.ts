@@ -211,9 +211,6 @@ describe('queryDatabaseLogic', () => {
         expect(propertyNode()?.children?.[0].record?.propertyDefinition.property_type).toEqual('Boolean')
         expect(logic.values.editingPropertyDefinition).toBeNull()
 
-        logic.actions.updatePropertyDefinition({ ...browserDefinition, hidden: true })
-        expect(propertyNode()?.children?.map((item) => item.name)).toEqual(['No matching properties'])
-
         logic.unmount()
     })
 

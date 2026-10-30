@@ -211,28 +211,6 @@ describe('maxLogic', () => {
         expect(router.values.searchParams).toEqual({ task: 'task-1' })
     })
 
-    // Regression coverage: the `/ai` handler deliberately leaves the previous chat in this logic
-    // while a task is open, and `maxGlobalLogic` clears that chat from every mounted logic when it
-    // is deleted. Mapping `startNewConversation` to a bare `/ai` then dropped `?task=` and closed
-    // the task the user was reading, without the user navigating at all.
-    it('keeps the selected task URL when the retained chat is deleted', async () => {
-        useMocks({ ...maxMocks, delete: { '/api/environments/:team_id/conversations/:id': [200, {}] } })
-        logic = maxLogic({ panelId: 'scene' })
-        logic.mount()
-        logic.actions.openConversation(MOCK_CONVERSATION_ID)
-        await expectLogic(logic).toFinishAllListeners()
-        router.actions.push(urls.aiTask('task-1'))
-        await expectLogic(logic).toFinishAllListeners()
-
-        maxGlobalLogic.actions.deleteConversation(MOCK_CONVERSATION_ID)
-        await expectLogic(maxGlobalLogic).toFinishAllListeners()
-
-        // The stale chat is still released, it just must not take the route with it.
-        expect(logic.values.conversationId).toBeNull()
-        expect(router.values.location.pathname).toBe(urls.currentProject(urls.ai()))
-        expect(router.values.searchParams).toEqual({ task: 'task-1' })
-    })
-
     // The /ai?ask= deep link (e.g. "Start with AI") must not silently vanish when the org hasn't
     // granted AI data-processing consent: askMax no-ops in that case, so the handler has to fall back
     // to prefilling the composer. With consent it auto-sends via askMax instead.

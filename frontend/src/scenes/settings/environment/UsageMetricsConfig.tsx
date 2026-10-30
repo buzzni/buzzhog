@@ -29,9 +29,9 @@ import { MathAvailability } from 'scenes/insights/filters/ActionFilter/ActionFil
 
 import { AnyPropertyFilter, EntityTypes, FilterType } from '~/types'
 
-import type { GroupUsageMetricApi } from 'products/customer_analytics/frontend/generated/api.schemas'
-
 import {
+    SavedUsageMetric,
+    USAGE_METRICS_UNAVAILABLE,
     UsageMetricFiltersDataWarehouse,
     UsageMetricFormData,
     actionFilterValueToSavedFilters,
@@ -49,7 +49,7 @@ function UsageMetricsTable(): JSX.Element {
         minimumAccessLevel: TeamMembershipLevel.Admin,
     })
 
-    const columns: LemonTableColumns<GroupUsageMetricApi> = [
+    const columns: LemonTableColumns<SavedUsageMetric> = [
         {
             title: 'Name',
             key: 'name',
@@ -339,10 +339,6 @@ export function UsageMetricsConfig(): JSX.Element {
     const { openModal } = useActions(usageMetricsConfigLogic)
     const { groupsEnabled } = useValues(groupsAccessLogic)
     const { reportUsageMetricsSettingsViewed } = useActions(eventUsageLogic)
-    const restrictedReason = useRestrictedArea({
-        scope: RestrictionScope.Project,
-        minimumAccessLevel: TeamMembershipLevel.Admin,
-    })
 
     useOnMountEffect(() => {
         reportUsageMetricsSettingsViewed()
@@ -361,7 +357,7 @@ export function UsageMetricsConfig(): JSX.Element {
                     size="small"
                     onClick={openModal}
                     icon={<IconPlusSmall />}
-                    disabledReason={restrictedReason}
+                    disabledReason={USAGE_METRICS_UNAVAILABLE}
                 >
                     Add metric
                 </LemonButton>

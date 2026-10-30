@@ -11,7 +11,7 @@ import { userLogic } from 'scenes/userLogic'
 import { ProductKey } from '~/queries/schema/schema-general'
 import { Conversation, ConversationStatus, ConversationType } from '~/types'
 
-import { openDeleteConversationDialog } from './conversationDialogs'
+import { DELETE_CHAT_UNAVAILABLE, openDeleteConversationDialog } from './conversationDialogs'
 import { maxLogic } from './maxLogic'
 import { formatConversationDate, getSlackThreadUrl } from './utils'
 
@@ -159,6 +159,8 @@ function ConversationCard({
                     status="danger"
                     data-attr="max-conversation-delete"
                     aria-label="Delete chat"
+                    disabledReason={DELETE_CHAT_UNAVAILABLE}
+                    stopPropagation
                     onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()

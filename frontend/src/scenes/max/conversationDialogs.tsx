@@ -1,5 +1,7 @@
 import { LemonDialog } from '@posthog/lemon-ui'
 
+export const DELETE_CHAT_UNAVAILABLE = "Deleting chats isn't available in this version."
+
 export function openDeleteConversationDialog(onConfirm: () => void): void {
     LemonDialog.open({
         title: 'Delete chat?',

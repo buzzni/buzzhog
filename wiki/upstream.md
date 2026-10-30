@@ -47,27 +47,27 @@
 포크 이력(`HEAD`)에 `posthog-foss-sync[bot]`이 만든 커밋 두 개가 있다. 근거: `git log --author=foss-sync`.
 업스트림 끝 `e289996cf97`의 이력에는 `e289996cf97` 하나만 있다. 근거: `git log --author=foss-sync e289996cf97`.
 
-| 커밋 | 날짜 | 제목 |
-| --- | --- | --- |
+| 커밋          | 날짜       | 제목                               |
+| ------------- | ---------- | ---------------------------------- |
 | `b068ff99030` | 2026-10-15 | Sync and remove all non-FOSS parts |
 | `e289996cf97` | 2026-10-16 | Sync and remove all non-FOSS parts |
 
 두 커밋 모두 상태가 `D`(삭제) 1016개와 `M`(수정) 1개다.
 `e289996cf97`이 지운 범위는 아래와 같다. 근거: `git show --name-status e289996cf97`.
 
-| 경로 | 삭제한 파일 수 | 비고 |
-| --- | --- | --- |
-| `ee/hogai` | 490 | |
-| `ee/api` | 129 | |
-| `ee/migrations` | 68 | |
-| `ee/billing` | 45 | |
-| `ee/clickhouse` | 33 | |
-| `ee/partners` | 31 | |
-| `ee/tasks` | 21 | |
-| `ee/models` | 13 | |
-| `ee/` 나머지 | 45 | `vercel`, `management`, `benchmarks`, `support_sidebar_max`, `bin`, `surveys`, `sqs`, `certs`, `admin`, `session_recordings`, `urls.py`, `settings.py`, `middleware.py`, `LICENSE` 등 |
-| `.github/workflows` | 140 | CI 워크플로 전부 |
-| `.github/dependabot.yml` | 1 | |
+| 경로                     | 삭제한 파일 수 | 비고                                                                                                                                                                                  |
+| ------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ee/hogai`               | 490            |                                                                                                                                                                                       |
+| `ee/api`                 | 129            |                                                                                                                                                                                       |
+| `ee/migrations`          | 68             |                                                                                                                                                                                       |
+| `ee/billing`             | 45             |                                                                                                                                                                                       |
+| `ee/clickhouse`          | 33             |                                                                                                                                                                                       |
+| `ee/partners`            | 31             |                                                                                                                                                                                       |
+| `ee/tasks`               | 21             |                                                                                                                                                                                       |
+| `ee/models`              | 13             |                                                                                                                                                                                       |
+| `ee/` 나머지             | 45             | `vercel`, `management`, `benchmarks`, `support_sidebar_max`, `bin`, `surveys`, `sqs`, `certs`, `admin`, `session_recordings`, `urls.py`, `settings.py`, `middleware.py`, `LICENSE` 등 |
+| `.github/workflows`      | 140            | CI 워크플로 전부                                                                                                                                                                      |
+| `.github/dependabot.yml` | 1              |                                                                                                                                                                                       |
 
 수정한 파일은 `LICENSE` 하나다.
 "Portions of this software are licensed as follows" 단락과 그 아래 항목 세 개를 지웠다.
@@ -108,15 +108,17 @@
 같은 파일을 여러 번 고친 경우가 있으므로, 파일별 행 대신 영역별로 묶어 적는다.
 다음 동기화에서 충돌이 나면 영역의 커밋으로 `git log --oneline e289996cf97..HEAD -- <파일>`을 돌려 포크 수정을 찾는다.
 
-| 영역 | 파일 | 이유 | 커밋 | 업스트림 반영 |
-| --- | --- | --- | --- | --- |
-| `ee` import 정리, `posthog/` | 모듈 수십 개. 예: `posthog/api/rest_router.py`, `posthog/tasks/usage_report.py`, `posthog/tasks/scheduled.py` | 지운 `ee/`를 가져오는 import를 없애거나 조건부로 바꿨다. SCIM, billing, 쿼터 제한, 라이선스, Vercel, 구체화 컬럼 관리, PostHog AI temporal 워크플로, Salesforce 보강을 삭제했다 | `1ab1a2084d5`, `7589e6af6ab` | 없음 |
-| `ee` import 정리, `products/` | 34개 제품 모듈. `max_tools.py`를 삭제한 제품이 많다 | 쿼터는 제한 없음, billing 정보 없음, 구독 발송은 꺼짐으로 자른다. 실험의 holdout·saved metric serializer를 `products/experiments/backend/presentation/holdout_serializers.py`로 새로 썼다 | `486af9263a3` | 없음 |
-| RBAC 모델의 앱 레이블 | `products/access_control/backend/models/`, `products/access_control/backend/migrations/0000_rbac_models.py`, `0004_featureflagroleaccess.py`, 의존을 고친 마이그레이션 29개 | `Role`, `RoleMembership`, `AccessControl`, `FeatureFlagRoleAccess`, `OrganizationResourceAccess`가 `ee` 앱에 있어 마이그레이션 그래프가 끊겼다. 앱 레이블을 `access_control`로 옮기고 테이블 이름 `ee_*`는 유지했다 | `84dbc958ac3` | 없음 |
-| 설정 | `posthog/settings/email.py`, `posthog/settings/llm.py`(새 파일), `posthog/settings/__init__.py` | 지운 `ee` 설정만 정의하던 Customer.io와 LLM 제공자 설정 14개를 환경변수로 읽게 했다 | `772ab459cce` | 없음 |
-| 도구 설정 | `tach.toml`, mypy·ruff·import-linter 설정, 소유자 파일 | `ee`를 목록에서 뺐다 | `cfb59cf0e3b` | 없음 |
-| 이미지 | `Dockerfile`, `Dockerfile.llm-analytics`, `.dockerignore` | `ee` 복사와 `compileall` 대상을 뺐다 | `0ac1ea3a6a1` | 없음 |
-| 리뷰 수정 | `posthog/api/authentication.py`, `bin/start-backend`, `services/agent-proxy/` 등 17개 | 도메인이 다른 SSO를 강제할 때 GitHub·GitLab 로그인을 거절하는 단계를 FOSS로 새로 넣었다. 테스트가 쓰던 이름을 고쳤다 | `abcf3ec53fa`, `accf3d0501a` | 없음 |
+| 영역                                 | 파일                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 이유                                                                                                                                                                                                                | 커밋                                                                      | 업스트림 반영 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------- |
+| `ee` import 정리, `posthog/`         | 모듈 수십 개. 예: `posthog/api/rest_router.py`, `posthog/tasks/usage_report.py`, `posthog/tasks/scheduled.py`                                                                                                                                                                                                                                                                                                                                                                                                      | 지운 `ee/`를 가져오는 import를 없애거나 조건부로 바꿨다. SCIM, billing, 쿼터 제한, 라이선스, Vercel, 구체화 컬럼 관리, PostHog AI temporal 워크플로, Salesforce 보강을 삭제했다                                     | `1ab1a2084d5`, `7589e6af6ab`                                              | 없음          |
+| `ee` import 정리, `products/`        | 34개 제품 모듈. `max_tools.py`를 삭제한 제품이 많다                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 쿼터는 제한 없음, billing 정보 없음, 구독 발송은 꺼짐으로 자른다. 실험의 holdout·saved metric serializer를 `products/experiments/backend/presentation/holdout_serializers.py`로 새로 썼다                           | `486af9263a3`                                                             | 없음          |
+| RBAC 모델의 앱 레이블                | `products/access_control/backend/models/`, `products/access_control/backend/migrations/0000_rbac_models.py`, `0004_featureflagroleaccess.py`, 의존을 고친 마이그레이션 29개                                                                                                                                                                                                                                                                                                                                        | `Role`, `RoleMembership`, `AccessControl`, `FeatureFlagRoleAccess`, `OrganizationResourceAccess`가 `ee` 앱에 있어 마이그레이션 그래프가 끊겼다. 앱 레이블을 `access_control`로 옮기고 테이블 이름 `ee_*`는 유지했다 | `84dbc958ac3`                                                             | 없음          |
+| 설정                                 | `posthog/settings/email.py`, `posthog/settings/llm.py`(새 파일), `posthog/settings/__init__.py`                                                                                                                                                                                                                                                                                                                                                                                                                    | 지운 `ee` 설정만 정의하던 Customer.io와 LLM 제공자 설정 14개를 환경변수로 읽게 했다                                                                                                                                 | `772ab459cce`                                                             | 없음          |
+| 도구 설정                            | `tach.toml`, mypy·ruff·import-linter 설정, 소유자 파일                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `ee`를 목록에서 뺐다                                                                                                                                                                                                | `cfb59cf0e3b`                                                             | 없음          |
+| 이미지                               | `Dockerfile`, `Dockerfile.llm-analytics`, `.dockerignore`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `ee` 복사와 `compileall` 대상을 뺐다                                                                                                                                                                                | `0ac1ea3a6a1`                                                             | 없음          |
+| 리뷰 수정                            | `posthog/api/authentication.py`, `bin/start-backend`, `services/agent-proxy/` 등 17개                                                                                                                                                                                                                                                                                                                                                                                                                              | 도메인이 다른 SSO를 강제할 때 GitHub·GitLab 로그인을 거절하는 단계를 FOSS로 새로 넣었다. 테스트가 쓰던 이름을 고쳤다                                                                                                | `abcf3ec53fa`, `accf3d0501a`                                              | 없음          |
+| 지운 라우트의 프런트 호출부, billing | `frontend/src/scenes/billing/billingReads.ts`, `paymentEntryLogic.ts`, `billingUsageLogic.ts`, `billingSpendLogic.ts`, `BillingUsage.tsx`, `BillingSpendView.tsx`와 그 테스트                                                                                                                                                                                                                                                                                                                                      | 재생성된 billing 클라이언트에 없는 함수를 가져와 프런트 빌드가 깨졌다. 사용량·지출 읽기와 결제 단계는 API를 부르지 않고 "이 버전에서는 쓸 수 없음"으로 끝난다                                                       | `83c159fbcc8`, `be7dec8258e`                                              | 없음          |
+| 지운 라우트의 프런트 호출부, 그 밖   | `frontend/src/scenes/max/`(대화 삭제), `frontend/src/scenes/settings/environment/usageMetricsConfigLogic.ts`·`UsageMetricsConfig.tsx`, `frontend/src/scenes/notebooks/Nodes/NotebookNodeUsageMetrics.tsx`, 속성 정의 편집 모달과 `queryDatabaseLogic.tsx`, `products/business_intelligence/frontend/biPropertyFields*.ts`, `frontend/src/scenes/experiments/holdoutsLogic.tsx`, `products/experiments/frontend/scenes/ExperimentsHoldoutsScene.tsx`, `frontend/src/scenes/authentication/vercel/VercelConnect.tsx` | 같은 이유다. 대화 삭제, 사용량 지표 추가, holdout 만들기는 이유를 단 비활성 버튼이 되었다. 속성 정의 편집에서 설명·상태 필드를 뺐다. Vercel 연결 화면은 안내만 보여 준다                                            | `696eedb6ae5`, `eecb551e376`, `79b95d49310`, `180e226c05a`, `be7dec8258e` | 없음          |
 
 ### 이후 기록하는 방법
 
@@ -150,12 +152,12 @@ git 이력에서 구하므로 손으로 갱신하지 않는다.
 
 ### 결정 필요
 
-| 항목 | 제안 | 이유 |
-| --- | --- | --- |
-| 주기 | 2주에 한 번, 보안 수정은 즉시 | 마지막 병합(`70371e9eb38`)은 약 23시간 동안 쌓인 커밋 327개를 가져왔다(`4e824e99423` 2026-10-15 05:35 UTC부터 `7010e516600` 2026-10-16 04:13 UTC까지, 봇 커밋 포함). 같은 속도라면 2주에 수천 개다. 간격이 길수록 충돌이 커진다. |
-| 동기화 브랜치 | `master`에 직접 병합하지 말고 `sync/YYYY-MM-DD`에서 병합한 뒤 PR | 끊어진 `ee` import를 병합 전에 검사할 자리가 생긴다. |
-| 병합 방식 | `git merge`(리베이스 안 함) | 지금까지의 방식과 같고 업스트림 해시가 보존된다. |
-| `upstream` remote 등록 | 등록한다 | 현재 로컬에 없다. |
+| 항목                   | 제안                                                             | 이유                                                                                                                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 주기                   | 2주에 한 번, 보안 수정은 즉시                                    | 마지막 병합(`70371e9eb38`)은 약 23시간 동안 쌓인 커밋 327개를 가져왔다(`4e824e99423` 2026-10-15 05:35 UTC부터 `7010e516600` 2026-10-16 04:13 UTC까지, 봇 커밋 포함). 같은 속도라면 2주에 수천 개다. 간격이 길수록 충돌이 커진다. |
+| 동기화 브랜치          | `master`에 직접 병합하지 말고 `sync/YYYY-MM-DD`에서 병합한 뒤 PR | 끊어진 `ee` import를 병합 전에 검사할 자리가 생긴다.                                                                                                                                                                             |
+| 병합 방식              | `git merge`(리베이스 안 함)                                      | 지금까지의 방식과 같고 업스트림 해시가 보존된다.                                                                                                                                                                                 |
+| `upstream` remote 등록 | 등록한다                                                         | 현재 로컬에 없다.                                                                                                                                                                                                                |
 
 ### 단계
 
@@ -240,4 +242,4 @@ head -1 LICENSE
 - 결정 기록: [ADR 0001: non-FOSS 제거](adr/0001-remove-non-foss.md), [ADR 0002: ee 잔재 제거와 확장 지점](adr/0002-remove-ee-residue-keep-extension-points.md)
 - 용어: [용어집](glossary.md)
 
-Decided in: buzzhog-whby, buzzhog-dsv8
+Decided in: buzzhog-whby, buzzhog-dsv8, buzzhog-miju

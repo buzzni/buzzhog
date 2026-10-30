@@ -1,4 +1,4 @@
-import { EnterprisePropertyDefinitionApi } from '~/generated/core/api.schemas'
+import { PropertyDefinitionApi } from '~/generated/core/api.schemas'
 import { BIField } from '~/queries/schema/schema-business-intelligence'
 import { escapeRawPropertyAsHogQLIdentifier } from '~/queries/utils'
 
@@ -20,7 +20,7 @@ export function getBIPropertyTarget(field: BIField): SidebarPropertyDefinitionTa
     })
 }
 
-export function buildBIPropertyFields(field: BIField, definitions: EnterprisePropertyDefinitionApi[]): BIField[] {
+export function buildBIPropertyFields(field: BIField, definitions: PropertyDefinitionApi[]): BIField[] {
     return definitions.map((definition) => ({
         id: `${field.id}:${JSON.stringify(definition.name)}`,
         name: `${field.name}.${definition.name}`,

@@ -32,7 +32,7 @@ import { urls } from 'scenes/urls'
 import { userLogic } from 'scenes/userLogic'
 
 import { propertyDefinitionsList } from '~/generated/core/api'
-import type { EnterprisePropertyDefinitionApi } from '~/generated/core/api.schemas'
+import type { PropertyDefinitionApi } from '~/generated/core/api.schemas'
 import {
     DatabaseSchemaDataWarehouseTable,
     DatabaseSchemaEndpointTable,
@@ -211,7 +211,7 @@ const getTableFieldsState = (
 export type SidebarPropertyDefinitionList = {
     activeRequestId: string | null
     count: number
-    definitions: EnterprisePropertyDefinitionApi[]
+    definitions: PropertyDefinitionApi[]
     error: boolean
     loading: boolean
     search: string
@@ -367,9 +367,7 @@ const createColumnNode = (
     },
 })
 
-const getPropertyDefinitionFieldType = (
-    propertyDefinition: EnterprisePropertyDefinitionApi
-): DatabaseSchemaField['type'] => {
+const getPropertyDefinitionFieldType = (propertyDefinition: PropertyDefinitionApi): DatabaseSchemaField['type'] => {
     switch (propertyDefinition.property_type) {
         case 'Boolean':
             return 'boolean'
@@ -1731,7 +1729,7 @@ export interface queryDatabaseLogicValues {
     defaultExpandedRootIds: string[]
     displayedTreeData: TreeDataItem[]
     editingDraftId: string | null
-    editingPropertyDefinition: EnterprisePropertyDefinitionApi | null
+    editingPropertyDefinition: PropertyDefinitionApi | null
     effectiveDataWarehouseSavedQueries: DataWarehouseSavedQuerySummary[]
     expandedFolders: string[]
     expandedFoldersByConnection: Record<string, string[]>
@@ -1928,7 +1926,7 @@ export interface queryDatabaseLogicActions {
         requestId: string,
         response: {
             count: number
-            results: EnterprisePropertyDefinitionApi[]
+            results: PropertyDefinitionApi[]
         }
     ) => {
         offset: number
@@ -1936,7 +1934,7 @@ export interface queryDatabaseLogicActions {
         requestId: string
         response: {
             count: number
-            results: EnterprisePropertyDefinitionApi[]
+            results: PropertyDefinitionApi[]
         }
         search: string
     }
@@ -1965,8 +1963,8 @@ export interface queryDatabaseLogicActions {
         dropTargetId: string | null
         viewId: string
     }
-    openPropertyDefinitionEditor: (propertyDefinition: EnterprisePropertyDefinitionApi) => {
-        propertyDefinition: EnterprisePropertyDefinitionApi
+    openPropertyDefinitionEditor: (propertyDefinition: PropertyDefinitionApi) => {
+        propertyDefinition: PropertyDefinitionApi
     }
     openUnsavedQuery: (record: Record<string, any>) => {
         record: Record<string, any>
@@ -2035,8 +2033,8 @@ export interface queryDatabaseLogicActions {
     updateDraggedViewDropTarget: (dropTargetId: string | null) => {
         dropTargetId: string | null
     }
-    updatePropertyDefinition: (propertyDefinition: EnterprisePropertyDefinitionApi) => {
-        propertyDefinition: EnterprisePropertyDefinitionApi
+    updatePropertyDefinition: (propertyDefinition: PropertyDefinitionApi) => {
+        propertyDefinition: PropertyDefinitionApi
     }
 }
 
@@ -2223,18 +2221,18 @@ export const queryDatabaseLogic = kea<queryDatabaseLogicType>([
             search: string,
             offset: number,
             requestId: string,
-            response: { count: number; results: EnterprisePropertyDefinitionApi[] }
+            response: { count: number; results: PropertyDefinitionApi[] }
         ) => ({ propertyFieldKey, search, offset, requestId, response }),
         loadPropertyDefinitionsFailure: (propertyFieldKey: string, search: string, requestId: string) => ({
             propertyFieldKey,
             search,
             requestId,
         }),
-        openPropertyDefinitionEditor: (propertyDefinition: EnterprisePropertyDefinitionApi) => ({
+        openPropertyDefinitionEditor: (propertyDefinition: PropertyDefinitionApi) => ({
             propertyDefinition,
         }),
         closePropertyDefinitionEditor: true,
-        updatePropertyDefinition: (propertyDefinition: EnterprisePropertyDefinitionApi) => ({ propertyDefinition }),
+        updatePropertyDefinition: (propertyDefinition: PropertyDefinitionApi) => ({ propertyDefinition }),
         clearSearch: true,
         clearTableToLocate: true,
         locateTable: (tableName: string) => ({ tableName }),
@@ -2334,7 +2332,7 @@ export const queryDatabaseLogic = kea<queryDatabaseLogicType>([
             },
         ],
         editingPropertyDefinition: [
-            null as EnterprisePropertyDefinitionApi | null,
+            null as PropertyDefinitionApi | null,
             {
                 openPropertyDefinitionEditor: (_, { propertyDefinition }) => propertyDefinition,
                 closePropertyDefinitionEditor: () => null,
@@ -2468,30 +2466,15 @@ export const queryDatabaseLogic = kea<queryDatabaseLogicType>([
                 },
                 updatePropertyDefinition: (state, { propertyDefinition }) =>
                     Object.fromEntries(
-                        Object.entries(state).map(([propertyFieldKey, propertyDefinitionList]) => {
-                            const includesPropertyDefinition = propertyDefinitionList.definitions.some(
-                                (definition) => definition.id === propertyDefinition.id
-                            )
-                            const definitions = propertyDefinition.hidden
-                                ? propertyDefinitionList.definitions.filter(
-                                      (definition) => definition.id !== propertyDefinition.id
-                                  )
-                                : propertyDefinitionList.definitions.map((definition) =>
-                                      definition.id === propertyDefinition.id ? propertyDefinition : definition
-                                  )
-
-                            return [
-                                propertyFieldKey,
-                                {
-                                    ...propertyDefinitionList,
-                                    count:
-                                        propertyDefinition.hidden && includesPropertyDefinition
-                                            ? Math.max(0, propertyDefinitionList.count - 1)
-                                            : propertyDefinitionList.count,
-                                    definitions,
-                                },
-                            ]
-                        })
+                        Object.entries(state).map(([propertyFieldKey, propertyDefinitionList]) => [
+                            propertyFieldKey,
+                            {
+                                ...propertyDefinitionList,
+                                definitions: propertyDefinitionList.definitions.map((definition) =>
+                                    definition.id === propertyDefinition.id ? propertyDefinition : definition
+                                ),
+                            },
+                        ])
                     ),
             },
         ],

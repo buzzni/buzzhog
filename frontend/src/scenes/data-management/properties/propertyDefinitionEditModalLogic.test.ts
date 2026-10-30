@@ -13,11 +13,8 @@ describe('propertyDefinitionEditModalLogic', () => {
         const propertyDefinition = {
             id: 'property-id',
             name: 'plan',
-            description: 'Original description',
             tags: ['billing'],
             property_type: 'String',
-            verified: false,
-            hidden: false,
         } as PropertyDefinitionEditModalProps['propertyDefinition']
 
         useMocks({
@@ -33,11 +30,8 @@ describe('propertyDefinitionEditModalLogic', () => {
         const logic = propertyDefinitionEditModalLogic({ propertyDefinition, onClose, onSave })
         logic.mount()
         logic.actions.setPropertyDefinitionEditFormValues({
-            description: 'Used for billing reports',
-            hidden: true,
             property_type: 'Boolean',
             tags: ['billing', 'reporting'],
-            verified: false,
         })
 
         await expectLogic(logic, () => logic.actions.submitPropertyDefinitionEditForm())
@@ -45,11 +39,8 @@ describe('propertyDefinitionEditModalLogic', () => {
             .toFinishAllListeners()
 
         expect(requestBody).toEqual({
-            description: 'Used for billing reports',
-            hidden: true,
             property_type: 'Boolean',
             tags: ['billing', 'reporting'],
-            verified: false,
         })
         expect(onSave).toHaveBeenCalledWith(expect.objectContaining(requestBody as object))
         expect(onClose).not.toHaveBeenCalled()

@@ -4,12 +4,10 @@ import { useEffect } from 'react'
 import { IconPlusSmall, IconRefresh } from '@posthog/icons'
 
 import { ProductIntroduction } from 'lib/components/ProductIntroduction/ProductIntroduction'
-import { RestrictionScope, useRestrictedArea } from 'lib/components/RestrictedArea'
-import { TeamMembershipLevel } from 'lib/constants'
 import { useAttachedLogic } from 'lib/logic/scenes/useAttachedLogic'
 import { eventUsageLogic } from 'lib/utils/eventUsageLogic'
 import { UsageMetricsConfig, UsageMetricsModal } from 'scenes/settings/environment/UsageMetricsConfig'
-import { usageMetricsConfigLogic } from 'scenes/settings/environment/usageMetricsConfigLogic'
+import { USAGE_METRICS_UNAVAILABLE, usageMetricsConfigLogic } from 'scenes/settings/environment/usageMetricsConfigLogic'
 
 import { dataNodeLogic } from '~/queries/nodes/DataNode/dataNodeLogic'
 import { NodeKind, UsageMetric, UsageMetricsQueryResponse } from '~/queries/schema/schema-general'
@@ -56,17 +54,13 @@ const Component = ({ attributes }: NotebookNodeProps<NotebookNodeUsageMetricsAtt
     const usageMetricsConfigLogicProps = { logicKey: attributes.nodeId, onMetricsChanged: loadData }
     const { openModal } = useActions(usageMetricsConfigLogic(usageMetricsConfigLogicProps))
     const { reportUsageMetricsCreateButtonClicked } = useActions(eventUsageLogic)
-    const restrictedReason = useRestrictedArea({
-        scope: RestrictionScope.Project,
-        minimumAccessLevel: TeamMembershipLevel.Admin,
-    })
 
     useEffect(() => {
         const removeMenuItem = getCustomerProfileRemoveMenuItem(NotebookNodeType.UsageMetrics)
         const addMetricMenuItem = {
             label: 'Add metric',
             sideIcon: <IconPlusSmall />,
-            disabledReason: restrictedReason ?? undefined,
+            disabledReason: USAGE_METRICS_UNAVAILABLE,
             'data-attr': 'usage-metrics-node-add-metric',
             onClick: () => {
                 reportUsageMetricsCreateButtonClicked()
@@ -84,7 +78,7 @@ const Component = ({ attributes }: NotebookNodeProps<NotebookNodeUsageMetricsAtt
         }
         setMenuItems([addMetricMenuItem, refreshMenuItem])
         // oxlint-disable-next-line exhaustive-deps
-    }, [restrictedReason])
+    }, [])
 
     if (!expanded) {
         return null
@@ -127,10 +121,6 @@ const Component = ({ attributes }: NotebookNodeProps<NotebookNodeUsageMetricsAtt
 
 function UsageMetricsEmptyState(): JSX.Element {
     const { openModal } = useActions(usageMetricsConfigLogic)
-    const restrictedReason = useRestrictedArea({
-        scope: RestrictionScope.Project,
-        minimumAccessLevel: TeamMembershipLevel.Admin,
-    })
     return (
         <ProductIntroduction
             thingName="usage metric"
@@ -138,7 +128,7 @@ function UsageMetricsEmptyState(): JSX.Element {
             isEmpty={true}
             className="border-none"
             action={() => openModal()}
-            disabledReason={restrictedReason ?? undefined}
+            disabledReason={USAGE_METRICS_UNAVAILABLE}
         />
     )
 }

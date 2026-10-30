@@ -1,110 +1,52 @@
-import { MakeLogicType, connect, kea, path, selectors } from 'kea'
-
-import { FEATURE_FLAGS } from 'lib/constants'
-import { FeatureFlagsSet, featureFlagLogic } from 'lib/logic/featureFlagLogic'
-import { toParams } from 'lib/utils/url'
-
-import {
-    billingProjectList,
-    billingSpendRetrieve,
-    billingSpendTimeseriesRetrieve,
-    billingUsageRetrieve,
-    billingUsageTeamOptionsRetrieve,
-    billingUsageTimeseriesRetrieve,
-    getBillingSpendExportDownloadUrl,
-    getBillingUsageExportDownloadUrl,
-} from 'products/billing/frontend/generated/api'
-import type {
-    BillingSpendExportDownloadParams,
-    BillingSpendTimeseriesRetrieveParams,
-    BillingTimeSeriesPointApi,
-    BillingUsageExportDownloadParams,
-    BillingUsageTimeseriesRetrieveParams,
-} from 'products/billing/frontend/generated/api.schemas'
+import { MakeLogicType, kea, path, selectors } from 'kea'
 
 import type { BillingSpendResponse } from './billingSpendLogic'
 import type { BillingUsageResponse } from './billingUsageLogic'
 
+export const BILLING_READS_UNAVAILABLE = "Usage and spend data aren't available in this version."
+export const BILLING_READS_UNAVAILABLE_CODE = 'billing_reads_unavailable'
+
+/** The query parameters the usage and spend pages send with each read. */
+export type BillingReadParams = Record<string, string | number>
+
 /**
- * The billing reads the usage and spend pages make, one set per source. The pages never name a route.
- *
- * Each method returns what the pages consume, and each source maps its own answer into it, so neither
- * source takes the other's shape.
+ * The billing reads the usage and spend pages make. The pages never name a route.
  */
 export interface BillingReads {
-    usageSeries(params: BillingUsageTimeseriesRetrieveParams): Promise<BillingUsageResponse>
-    spendSeries(params: BillingSpendTimeseriesRetrieveParams): Promise<BillingSpendResponse>
-    usageExportUrl(params: BillingUsageExportDownloadParams): string
-    spendExportUrl(params: BillingSpendExportDownloadParams): string
+    usageSeries(params: BillingReadParams): Promise<BillingUsageResponse>
+    spendSeries(params: BillingReadParams): Promise<BillingSpendResponse>
+    usageExportUrl(params: BillingReadParams): string | null
+    spendExportUrl(params: BillingReadParams): string | null
     /** The ids of the projects that reported usage, live and deleted. */
     reportedProjectIds(): Promise<number[]>
 }
 
-// Both sources describe a series with every field optional, and the charts draw only complete ones.
-// The pages' breakdown enums hold the same strings as the generated one.
-function chartSeries<Response extends BillingUsageResponse | BillingSpendResponse>(
-    points: BillingTimeSeriesPointApi[]
-): Response['results'] {
-    return points.map((point) => ({
-        id: point.id ?? 0,
-        label: point.label ?? '',
-        data: point.data ?? [],
-        dates: point.dates ?? [],
-        breakdown_type: point.breakdown_type ?? null,
-        breakdown_value: (point.breakdown_value as string | string[] | null | undefined) ?? null,
-    })) as Response['results']
+// This build serves no billing routes. The error carries a code and a detail so that the pages show
+// the detail in place, and not a failure toast that asks the person to try again.
+const billingReadsUnavailable = (): never => {
+    throw Object.assign(new Error(BILLING_READS_UNAVAILABLE), {
+        code: BILLING_READS_UNAVAILABLE_CODE,
+        detail: BILLING_READS_UNAVAILABLE,
+    })
 }
 
-export const organizationBillingReads: BillingReads = {
-    usageSeries: async (params) => {
-        const { count, next, previous, results } = await billingUsageTimeseriesRetrieve('@current', params)
-        return { count, next, previous, results: chartSeries<BillingUsageResponse>(results) }
-    },
-    spendSeries: async (params) => {
-        const { count, next, previous, results } = await billingSpendTimeseriesRetrieve('@current', params)
-        return { count, next, previous, results: chartSeries<BillingSpendResponse>(results) }
-    },
-    usageExportUrl: (params) => getBillingUsageExportDownloadUrl('@current', params),
-    spendExportUrl: (params) => getBillingSpendExportDownloadUrl('@current', params),
-    reportedProjectIds: async () => (await billingProjectList('@current')).results.map((project) => project.id),
-}
-
-// The legacy routes, for organizations the organization billing API is not on for yet. Delete this
-// and the switch below when the flag is at 100%.
-export const legacyBillingReads: BillingReads = {
-    usageSeries: async (params) => {
-        const { results, next } = await billingUsageRetrieve(params)
-        return {
-            count: results.length,
-            next: next ?? null,
-            previous: null,
-            results: chartSeries<BillingUsageResponse>(results),
-        }
-    },
-    spendSeries: async (params) => {
-        const { results, next } = await billingSpendRetrieve(params)
-        return {
-            count: results.length,
-            next: next ?? null,
-            previous: null,
-            results: chartSeries<BillingSpendResponse>(results),
-        }
-    },
-    usageExportUrl: (params) => `/api/billing/usage/export/?${toParams(params)}`,
-    spendExportUrl: (params) => `/api/billing/spend/export/?${toParams(params)}`,
-    reportedProjectIds: async () => (await billingUsageTeamOptionsRetrieve()).team_id_options ?? [],
+export const unavailableBillingReads: BillingReads = {
+    usageSeries: async () => billingReadsUnavailable(),
+    spendSeries: async () => billingReadsUnavailable(),
+    usageExportUrl: () => null,
+    spendExportUrl: () => null,
+    reportedProjectIds: async () => [],
 }
 
 // Generated by kea-typegen. Update if you're an agent, ignore if you're human.
 export interface billingReadsLogicValues {
-    featureFlags: FeatureFlagsSet // featureFlagLogic
     billingReads: BillingReads
 }
 
 // Generated by kea-typegen. Update if you're an agent, ignore if you're human.
 export interface billingReadsLogicMeta {
     __keaTypeGenInternalSelectorTypes: {
-        billingReads: (featureFlags: FeatureFlagsSet) => BillingReads
+        billingReads: () => BillingReads
     }
 }
 
@@ -117,12 +59,7 @@ export type billingReadsLogicType = MakeLogicType<
 
 export const billingReadsLogic = kea<billingReadsLogicType>([
     path(['scenes', 'billing', 'billingReadsLogic']),
-    connect(() => ({ values: [featureFlagLogic, ['featureFlags']] })),
     selectors({
-        billingReads: [
-            (s) => [s.featureFlags],
-            (featureFlags: FeatureFlagsSet): BillingReads =>
-                featureFlags[FEATURE_FLAGS.ORGANIZATION_BILLING_API] ? organizationBillingReads : legacyBillingReads,
-        ],
+        billingReads: [() => [], (): BillingReads => unavailableBillingReads],
     }),
 ])
