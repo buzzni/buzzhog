@@ -1,0 +1,315 @@
+# Promotes the images running on buzzhog-dev to buzzhog-prod, without a rebuild.
+#
+# fork-images.yml (deploy-dev) points k8s-idc/buzzhog-dev/ in buzzni/k8s-manifests at each develop
+# build. This workflow copies the tags dev runs now into k8s-idc/buzzhog-prod/: it reads every
+# ghcr.io/buzzni/buzzhog/<image> image line under k8s-idc/buzzhog-dev/, and sets the image line at
+# the same position (same file name under buzzhog-prod/, same container, same order) to the dev
+# image. It commits to k8s-manifests main and pushes. The prod ArgoCD Application has no auto
+# sync, so the push is not the deploy: a person syncs k8s-idc-buzzhog-prod in the ArgoCD UI
+# (see wiki/runbook.md, "prod 승격").
+#
+# It fails, and changes nothing, when:
+#   - a dev file with buzzhog images has no counterpart under buzzhog-prod/ (prod app/ not added),
+#   - a file has a different number of buzzhog image lines in dev and prod, or prod has buzzhog
+#     image lines in a file dev does not have,
+#   - the container name or the image repository at a position differs between dev and prod,
+#   - a dev tag is not in GHCR,
+#   - the staged diff changes anything but those image lines (the same guard as deploy-dev).
+# When prod already runs every dev tag, it ends with "Nothing to promote." and no commit.
+#
+# Only workflow_dispatch, and only in buzzni/buzzhog: this is a public repository, so the deploy key
+# is never given to a pull_request run, and nothing promotes without a person starting it.
+name: Promote to prod
+
+on:
+    workflow_dispatch:
+        inputs:
+            components:
+                description: 'Images to promote, separated by spaces or commas (for example: posthog posthog-node). Empty promotes every image.'
+                required: false
+                default: ''
+                type: string
+
+concurrency:
+    group: ${{ github.workflow }}
+    cancel-in-progress: false
+
+permissions: {}
+
+env:
+    REGISTRY: ghcr.io
+
+jobs:
+    promote:
+        name: Promote buzzhog-dev images to buzzhog-prod
+        if: ${{ github.repository == 'buzzni/buzzhog' }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+        permissions:
+            contents: read
+            packages: read
+        env:
+            PREFIX: ghcr.io/buzzni/buzzhog
+            MANIFESTS_REPO: git@github.com:buzzni/k8s-manifests.git
+            MANIFESTS_BRANCH: main
+            SOURCE_DIR: k8s-idc/buzzhog-dev
+            TARGET_DIR: k8s-idc/buzzhog-prod
+        steps:
+            - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Clone, promote, validate, and push the manifests
+              shell: bash
+              env:
+                  K8S_MANIFESTS_DEPLOY_KEY: ${{ secrets.K8S_MANIFESTS_DEPLOY_KEY }}
+                  COMPONENTS: ${{ inputs.components }}
+              run: |
+                  set -euo pipefail
+                  [[ "${PREFIX}" == "ghcr.io/buzzni/buzzhog" ]]
+                  if [[ -z "${K8S_MANIFESTS_DEPLOY_KEY}" ]]; then
+                      echo "::error::K8S_MANIFESTS_DEPLOY_KEY is not available. buzzni/buzzhog has to be in the selected repositories of the organization secret."
+                      exit 1
+                  fi
+
+                  # Image names to promote. Empty means every image.
+                  declare -A wanted=()
+                  read -ra components <<< "${COMPONENTS//,/ }"
+                  for name in "${components[@]}"; do
+                      [[ "${name}" =~ ^[a-z0-9-]+$ ]] || {
+                          echo "::error::Not an image name in components: ${name}"
+                          exit 1
+                      }
+                      wanted[${name}]=1
+                  done
+
+                  umask 077
+                  WORK_DIR=$(mktemp -d)
+                  trap 'rm -rf "${WORK_DIR}"' EXIT
+                  KEY_FILE="${WORK_DIR}/deploy-key"
+                  printf '%s\n' "${K8S_MANIFESTS_DEPLOY_KEY}" > "${KEY_FILE}"
+                  # GitHub's published host key, so the clone does not depend on the runner's known_hosts.
+                  printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+                      > "${WORK_DIR}/known_hosts"
+                  GIT_SSH_COMMAND="ssh -i ${KEY_FILE}"
+                  GIT_SSH_COMMAND+=" -o IdentitiesOnly=yes"
+                  GIT_SSH_COMMAND+=" -o StrictHostKeyChecking=yes"
+                  GIT_SSH_COMMAND+=" -o UserKnownHostsFile=${WORK_DIR}/known_hosts"
+                  export GIT_SSH_COMMAND
+
+                  # One row per changed image line: <prod file> <container> <old tag> <new tag>.
+                  rows=()
+                  outcome="failed, nothing pushed"
+                  # shellcheck disable=SC2329 # called from the EXIT trap
+                  summary() {
+                      {
+                          echo "### buzzhog-prod manifests"
+                          echo
+                          echo "Components: \`${COMPONENTS:-all}\`"
+                          echo
+                          echo "Result: ${outcome}"
+                          echo
+                          if [[ "${#rows[@]}" -gt 0 ]]; then
+                              if [[ "${outcome}" != pushed* ]]; then
+                                  echo "Prepared before the run stopped, not pushed:"
+                                  echo
+                              fi
+                              echo "| File | Container | Before → After |"
+                              echo "|---|---|---|"
+                              local row file container old new
+                              for row in "${rows[@]}"; do
+                                  read -r file container old new <<< "${row}"
+                                  echo "| \`${file}\` | ${container} | \`${old}\` → \`${new}\` |"
+                              done
+                          fi
+                      } >> "${GITHUB_STEP_SUMMARY}"
+                  }
+                  trap 'summary; rm -rf "${WORK_DIR}"' EXIT
+
+                  git clone --quiet --branch "${MANIFESTS_BRANCH}" --single-branch \
+                      "${MANIFESTS_REPO}" "${WORK_DIR}/k8s-manifests"
+                  cd "${WORK_DIR}/k8s-manifests"
+                  CHECKOUT_ROOT=$(realpath -e .)
+                  YQ_IMAGE='docker.io/mikefarah/yq@sha256:11a1f0b604b13dbbdc662260d8db6f644b22d8553122a25c1b5b2e8713ca6977'
+                  YQ=(docker run --rm --user "$(id -u):$(id -g)"
+                      --volume "${CHECKOUT_ROOT}:/workdir" --workdir /workdir
+                      --env REPO_PREFIX
+                      "${YQ_IMAGE}")
+                  export REPO_PREFIX="${PREFIX}/"
+                  repo_re="${PREFIX//./\\.}"
+                  # An image line of a buzzhog image, as the line reads in the file.
+                  line_re="^[[:space:]]+image: ${repo_re}/[a-z0-9-]+:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$"
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+                  check_file() {
+                      local file=$1
+                      [[ "${file}" != *".."* ]]
+                      git ls-files --error-unmatch -- "${file}" > /dev/null
+                      [[ "$(git ls-files -s -- "${file}" | cut -d' ' -f1)" == "100644" ]]
+                      [[ ! -L "${file}" ]]
+                      case "$(realpath -e "${file}")" in
+                          "${CHECKOUT_ROOT}"/*) ;;
+                          *) echo "Manifest resolves outside the checkout: ${file}" >&2; exit 1 ;;
+                      esac
+                  }
+
+                  # Prints "<line> <container> <image>" for each buzzhog image line of a file, in file
+                  # order. awk gives the line numbers, yq the container that owns each image; both
+                  # have to list the same images in the same order, or the file is not read.
+                  read_images() {
+                      local file=$1 by_line by_yaml
+                      by_line=$(awk -v re="${line_re}" '$0 ~ re { sub(/^[[:space:]]+image: /, ""); print NR " " $0 }' "${file}")
+                      by_yaml=$("${YQ[@]}" eval-all '[.. | select(tag == "!!map") | select(has("image") and (.image | tag) == "!!str")
+                          | select(.image | test("^" + strenv(REPO_PREFIX)))] | .[] | (.name // "-") + " " + .image' "${file}")
+                      if [[ "$(cut -d' ' -f2 <<< "${by_line}")" != "$(cut -d' ' -f2 <<< "${by_yaml}")" ]]; then
+                          echo "::error::${file}: the image lines and the containers yq reads do not match. Every buzzhog image has to be a plain \`image: <ref>\` line of a container."
+                          exit 1
+                      fi
+                      [[ -n "${by_line}" ]] || return 0
+                      paste -d' ' <(cut -d' ' -f1 <<< "${by_line}") <(cut -d' ' -f1 <<< "${by_yaml}") <(cut -d' ' -f2 <<< "${by_line}")
+                  }
+
+                  for attempt in 1 2 3 4; do
+                      git fetch --quiet origin "${MANIFESTS_BRANCH}"
+                      git reset --quiet --hard "origin/${MANIFESTS_BRANCH}"
+                      git clean -fdxq
+                      rows=()
+
+                      [[ -d "${SOURCE_DIR}" ]] || { echo "::error::${SOURCE_DIR} is not in ${MANIFESTS_BRANCH}"; exit 1; }
+                      [[ -d "${TARGET_DIR}" ]] || { echo "::error::${TARGET_DIR} is not in ${MANIFESTS_BRANCH}"; exit 1; }
+                      mapfile -t source_files < <(git grep -lE "${line_re}" -- "${SOURCE_DIR}/" || true)
+                      mapfile -t target_files < <(git grep -lE "${line_re}" -- "${TARGET_DIR}/" || true)
+                      if [[ "${#source_files[@]}" -eq 0 ]]; then
+                          echo "::error::${SOURCE_DIR} has no ${PREFIX} image line"
+                          exit 1
+                      fi
+
+                      # Every dev file needs its prod file, and prod may not run buzzhog images elsewhere.
+                      missing=()
+                      files=()
+                      for source in "${source_files[@]}"; do
+                          target="${TARGET_DIR}/${source#"${SOURCE_DIR}/"}"
+                          [[ -f "${target}" ]] || missing+=("${target}")
+                          files+=("${target}")
+                      done
+                      if [[ "${#missing[@]}" -gt 0 ]]; then
+                          echo "::error::buzzhog-prod has no counterpart for ${#missing[@]} dev manifest(s): ${missing[*]}. Add the prod manifests (same file names as buzzhog-dev) first."
+                          exit 1
+                      fi
+                      for target in "${target_files[@]}"; do
+                          printf '%s\n' "${files[@]}" | grep -qxF -- "${target}" || {
+                              echo "::error::${target} runs ${PREFIX} images, but ${SOURCE_DIR} has no such file to promote from"
+                              exit 1
+                          }
+                      done
+
+                      declare -A changed_images=()
+                      seen_images=" "
+                      for i in "${!source_files[@]}"; do
+                          source="${source_files[$i]}"
+                          target="${files[$i]}"
+                          check_file "${source}"
+                          check_file "${target}"
+                          # Through files, not a process substitution, so an exit in read_images ends the job.
+                          read_images "${source}" > "${WORK_DIR}/dev-rows"
+                          read_images "${target}" > "${WORK_DIR}/prod-rows"
+                          mapfile -t dev_rows < "${WORK_DIR}/dev-rows"
+                          mapfile -t prod_rows < "${WORK_DIR}/prod-rows"
+                          if [[ "${#dev_rows[@]}" != "${#prod_rows[@]}" ]]; then
+                              echo "::error::${target}: ${#prod_rows[@]} ${PREFIX} image lines, ${source} has ${#dev_rows[@]}. The prod manifest has to run the same containers as dev."
+                              exit 1
+                          fi
+                          for j in "${!dev_rows[@]}"; do
+                              read -r _ dev_name dev_image <<< "${dev_rows[$j]}"
+                              read -r prod_line prod_name prod_image <<< "${prod_rows[$j]}"
+                              image="${dev_image%:*}"
+                              image="${image#"${PREFIX}/"}"
+                              if [[ "${dev_name}" != "${prod_name}" || "${dev_image%:*}" != "${prod_image%:*}" ]]; then
+                                  echo "::error::${target}: image line $((j + 1)) is ${prod_name} (${prod_image%:*}), ${source} has ${dev_name} (${dev_image%:*}) there"
+                                  exit 1
+                              fi
+                              seen_images+="${image} "
+                              if [[ "${#wanted[@]}" -gt 0 && -z "${wanted[${image}]:-}" ]]; then
+                                  continue
+                              fi
+                              [[ "${dev_image}" != "${prod_image}" ]] || continue
+                              # Rewrite only that line, so nothing else in the file is reformatted.
+                              awk -v n="${prod_line}" -v old="${prod_image}" -v new="${dev_image}" '
+                                  NR == n { i = index($0, "image: " old); if (i == 0 || substr($0, i + 7) != old) exit 1
+                                            $0 = substr($0, 1, i + 6) new }
+                                  { print }' "${target}" > "${WORK_DIR}/rewrite"
+                              cat "${WORK_DIR}/rewrite" > "${target}"
+                              changed_images[${image}]="${dev_image##*:}"
+                              rows+=("${target} ${prod_name} ${prod_image##*:} ${dev_image##*:}")
+                          done
+                      done
+                      for name in "${!wanted[@]}"; do
+                          [[ "${seen_images}" == *" ${name} "* ]] || {
+                              echo "::error::components names ${name}, which no ${SOURCE_DIR} manifest runs"
+                              exit 1
+                          }
+                      done
+
+                      # Every dev tag that is going to prod has to be pullable, or a prod pod (the
+                      # migrate Sync hook first) would sit in ImagePullBackOff.
+                      for name in "${!changed_images[@]}"; do
+                          if ! docker buildx imagetools inspect "${PREFIX}/${name}:${changed_images[${name}]}" > /dev/null 2>&1; then
+                              echo "::error::${PREFIX}/${name}:${changed_images[${name}]} is not in GHCR"
+                              exit 1
+                          fi
+                      done
+
+                      git add -- "${files[@]}"
+                      if git diff --cached --quiet; then
+                          outcome="nothing to promote, prod already runs the dev tags"
+                          echo "Nothing to promote."
+                          exit 0
+                      fi
+
+                      # Staged-diff guard: only the prod files read above, no mode/rename/copy, and every
+                      # changed line is a buzzhog image line, one removed for each added.
+                      while read -r staged; do
+                          printf '%s\n' "${files[@]}" | grep -qxF -- "${staged}" || {
+                              echo "Unexpected staged path: ${staged}" >&2
+                              exit 1
+                          }
+                      done < <(git diff --cached --name-only)
+                      [[ -z "$(git diff --cached --summary)" ]] || {
+                          echo "File mode, rename, or copy change detected" >&2
+                          exit 1
+                      }
+                      added=0
+                      removed=0
+                      while IFS= read -r line; do
+                          [[ "${line:1}" =~ ${line_re} ]] || {
+                              echo "Unexpected changed line: ${line}" >&2
+                              exit 1
+                          }
+                          case "${line}" in
+                              '>'*) added=$((added + 1)) ;;
+                              '<'*) removed=$((removed + 1)) ;;
+                          esac
+                      done < <(git diff --cached -U0 --no-color --output-indicator-new='>' --output-indicator-old='<' \
+                          | grep -vE '^(diff |index |@@ |--- |\+\+\+ )')
+                      [[ "${added}" -gt 0 && "${added}" == "${removed}" && "${added}" == "${#rows[@]}" ]] || {
+                          echo "Added (${added}) and removed (${removed}) image lines do not pair up with ${#rows[@]} changes" >&2
+                          exit 1
+                      }
+
+                      tags=$(printf '%s\n' "${changed_images[@]}" | sort -u | paste -sd' ' -)
+                      images=$(printf '%s\n' "${!changed_images[@]}" | sort | paste -sd' ' -)
+                      git commit --quiet -m "[k8s-idc] buzzhog-prod: promote images from buzzhog-dev (${tags})" \
+                          -m "Images: ${images}" \
+                          -m "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+                      if git push --quiet origin "HEAD:${MANIFESTS_BRANCH}"; then
+                          outcome="pushed \`$(git rev-parse --short HEAD)\` to ${MANIFESTS_BRANCH}. Sync k8s-idc-buzzhog-prod in ArgoCD to deploy it."
+                          exit 0
+                      fi
+                      unset changed_images
+                      sleep $((attempt * 5))
+                  done
+                  echo "Push failed after 4 attempts" >&2
+                  exit 1

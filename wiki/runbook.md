@@ -93,7 +93,7 @@ k8s-manifests의 `docs/guides/developer/cicd.md`와 `docs/examples/github-action
 - `posthog` 컨테이너 네 개는 한 커밋에서 함께 바뀐다. migrate Job과 web·worker가 서로 다른 Django 빌드를 보지 않는다.
 - 없는 `posthog` 태그로 바꾸면 migrate Sync hook이 `ImagePullBackOff`로 sync를 최대 1시간(`activeDeadlineSeconds`) 붙잡는다. 그래서 GHCR에 없는 태그로는 바꾸지 않는다.
 - ClickHouse 태그가 바뀌면 CH pod가 다시 뜬다. 지금 배포된 태그의 커밋과 이번 커밋에서 빌드 입력(`docker/clickhouse`, `funnel-udf`, `posthog/user_scripts`, `posthog/idl`, 이 워크플로 파일)의 git tree가 같으면 바꾸지 않는다. 같은지 확인하지 못하면 바꾼다.
-- `cymbal`, browserless(외부 이미지), alpine initContainer, prod 매니페스트는 건드리지 않는다.
+- `cymbal`, browserless(외부 이미지), alpine initContainer, prod 매니페스트는 건드리지 않는다. prod는 [prod 승격](#prod-승격-k8s-manifests)으로 올린다.
 - 매니페스트에 workload를 더하거나 빼면 `DEPLOY_IMAGES`의 개수도 고쳐야 한다. 안 고치면 job이 실패하고 아무것도 바뀌지 않는다.
 - 이 저장소는 public이라 deploy key는 `push: develop`과 `workflow_dispatch`에서만 쓴다. `pull_request` 트리거는 없다. runner는 GitHub-hosted다.
 
@@ -103,6 +103,42 @@ k8s-manifests의 `docs/guides/developer/cicd.md`와 `docs/examples/github-action
 - dev Application의 auto sync를 켠다. Django 이미지가 GHCR에 올라온 뒤에 켠다.
 
 확인: 가짜 GHCR·로컬 bare 저장소로 이 step을 돌려 봤다(Django 미빌드 시 건너뜀, 재실행 no-op, image 외 줄 변경 시 실패, 개수 불일치 시 실패, ClickHouse 입력 변경 시에만 갱신). GitHub Actions에서 실제로 push해 보지는 않았다(미확인).
+
+### prod 승격 (k8s-manifests)
+
+prod는 다시 빌드하지 않는다. dev에 지금 배포된 이미지 태그를 그대로 prod로 올린다.
+워크플로는 `.github/workflows/promote-prod.yml`(`Promote to prod`)이고, 사람이 Actions 화면에서 `Run workflow`로 시작할 때만 돈다(`workflow_dispatch`만 있다. push·tag·`pull_request` 트리거는 없다). 저장소가 `buzzni/buzzhog`가 아니면 job이 돌지 않는다.
+
+입력 `components`는 선택이다. 비우면 모든 이미지를 올리고, `posthog posthog-node`처럼 이미지 이름을 공백이나 쉼표로 적으면 그 이미지만 올린다. dev 매니페스트에 없는 이름을 적으면 실패한다.
+
+흐름:
+
+1. `deploy-dev`와 같은 방식으로 k8s-manifests `main`을 clone한다(조직 secret `K8S_MANIFESTS_DEPLOY_KEY`, `umask 077` 임시 디렉터리와 `trap` 삭제, 고정 github.com ed25519 host key).
+2. `k8s-idc/buzzhog-dev/` 아래에서 `ghcr.io/buzzni/buzzhog/<이미지>:<태그>` image 줄이 있는 파일을 모두 찾는다. 파일마다 image 줄을 순서대로 읽고, yq로 그 줄이 어느 컨테이너의 것인지 맞춰 본다.
+3. 같은 이름의 `k8s-idc/buzzhog-prod/` 파일에서 같은 순서의 image 줄을 읽는다. 컨테이너 이름과 이미지 저장소가 위치마다 같아야 한다.
+4. 태그가 다른 줄만 dev 태그로 바꾼다. 그 줄 하나만 고쳐 쓰고 파일의 나머지는 건드리지 않는다.
+5. 바뀌는 태그가 GHCR에 있는지 본다(`docker buildx imagetools inspect`). 없으면 실패한다.
+6. staged-diff 가드: 바뀐 파일이 위에서 읽은 prod 파일뿐이고, mode·rename 변경이 없고, 바뀐 줄이 모두 buzzhog image 줄이며 지운 줄과 더한 줄의 수가 바꾼 줄 수와 같은지 확인한다.
+7. 바뀐 것이 없으면 `Nothing to promote.`를 찍고 커밋 없이 성공한다. 있으면 `[k8s-idc] buzzhog-prod: promote images from buzzhog-dev (<새 태그>)` 커밋을 `main`에 push한다. push가 거절되면 최신 `main`에서 처음부터 다시 만들어 최대 4번 시도한다.
+8. job summary에 결과(push한 커밋, 바꿀 것 없음, 실패)와 바뀐 줄마다 (파일, 컨테이너, 이전 태그 → 새 태그)를 표로 남긴다. 실패한 실행의 표는 push하지 않은 준비분이다.
+
+다음일 때 아무것도 push하지 않고 실패한다:
+
+- dev 파일에 대응하는 prod 파일이 없다. 예: `k8s-idc/buzzhog-prod/app/`이 아직 없다. 오류에 없는 파일 목록이 나온다.
+- 한 파일의 buzzhog image 줄 수가 dev와 prod에서 다르다. 또는 dev에는 없는 파일에서 prod가 buzzhog 이미지를 쓴다.
+- 같은 위치의 컨테이너 이름이나 이미지 저장소가 다르다.
+- image 줄과 yq가 읽은 컨테이너 목록이 맞지 않는다(한 줄에 image가 두 번, 따옴표·anchor로 쓴 image 등).
+
+prod에 반영하는 방법:
+
+1. dev에서 확인한 뒤 `Promote to prod`를 실행한다. 일부 이미지만 올리려면 `components`를 채운다. `posthog`는 web·worker·temporal-django-worker·migrate가 한 커밋에서 같이 바뀐다.
+2. job summary에서 바뀐 태그를 확인한다.
+3. ArgoCD UI에서 `k8s-idc-buzzhog-prod`를 sync한다. prod Application은 auto sync가 꺼져 있어서 push만으로는 배포되지 않는다. sync하면 migrate Sync hook이 먼저 돈다.
+4. ClickHouse 태그가 바뀌었으면 sync 때 CH pod가 다시 뜬다. dev에서 ClickHouse 태그가 바뀌지 않았으면 prod도 바뀌지 않는다(`deploy-dev`가 빌드 입력이 같을 때 ClickHouse 태그를 그대로 두기 때문이다).
+
+되돌리기: k8s-manifests에서 승격 커밋을 revert하고 다시 sync한다. 이 워크플로로는 되돌릴 수 없다. dev 태그를 prod로 복사만 한다.
+
+확인: k8s-manifests `origin/main`을 bare 저장소로 복제해 이 step을 로컬에서 돌려 봤다(docker·GHCR 조회는 가짜). prod `app/`이 없을 때 실패, 태그가 다를 때 image 줄 20개만 바뀐 커밋 1개, 재실행 no-op, `components` 필터, 없는 component, GHCR에 없는 태그, 줄 수 불일치 실패. GitHub Actions에서 실제로 push해 보지는 않았다(미확인).
 
 ## 이미지 구성
 
@@ -678,5 +714,6 @@ ADR 0002는 "이 포크 코드로 `migrate`한 DB는 없다"를 안전 근거로
 - 전체 개발 스택(`hogli start`)이 이 포크에서 처음부터 끝까지 도는지
 - GitHub 인증이 있을 때 `hogli`의 스키마 복원 지름길이 업스트림 스키마를 가져오는지(코드로만 읽음)
 - `fork-images.yml`의 `deploy-dev` job이 GitHub Actions에서 k8s-manifests에 실제로 push하는지(deploy key, GHCR 조회, `gh api`는 로컬에서 가짜로 대신했다)
+- `promote-prod.yml`이 GitHub Actions에서 k8s-manifests에 실제로 push하는지(deploy key, GHCR 조회, yq 컨테이너는 로컬에서 가짜로 대신했다)
 
 Decided in: buzzhog-uxbl, buzzhog-dsv8, buzzhog-ozkf
