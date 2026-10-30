@@ -1,7 +1,7 @@
 import { expectLogic } from 'kea-test-utils'
 
 import * as api from '~/generated/core/api'
-import { EnterprisePropertyDefinitionApi } from '~/generated/core/api.schemas'
+import { PropertyDefinitionApi } from '~/generated/core/api.schemas'
 import { BIField } from '~/queries/schema/schema-business-intelligence'
 import { initKeaTests } from '~/test/init'
 
@@ -18,8 +18,8 @@ const field: BIField = {
 }
 const definition = (
     name: string,
-    property_type: EnterprisePropertyDefinitionApi['property_type'] = 'String'
-): EnterprisePropertyDefinitionApi => ({ name, property_type }) as EnterprisePropertyDefinitionApi
+    property_type: PropertyDefinitionApi['property_type'] = 'String'
+): PropertyDefinitionApi => ({ name, property_type }) as PropertyDefinitionApi
 
 describe('BI properties', () => {
     beforeEach(() => initKeaTests())

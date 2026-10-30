@@ -18,7 +18,7 @@ import { loaders } from 'kea-loaders'
 import { projectLogic } from 'scenes/projectLogic'
 
 import * as api from '~/generated/core/api'
-import { PaginatedEnterprisePropertyDefinitionListApi } from '~/generated/core/api.schemas'
+import { PaginatedPropertyDefinitionListApi } from '~/generated/core/api.schemas'
 import { BIField } from '~/queries/schema/schema-business-intelligence'
 
 import { captureBIWorksheetAction } from './biEditorAnalytics'
@@ -39,7 +39,7 @@ export interface biPropertyFieldsLogicValues {
     fields: BIField[]
     localSearch: string
     manuallyExpanded: boolean
-    page: PaginatedEnterprisePropertyDefinitionListApi | null
+    page: PaginatedPropertyDefinitionListApi | null
     pageLoading: boolean
     search: string
 }
@@ -57,18 +57,18 @@ export interface biPropertyFieldsLogicActions {
         errorObject?: any
     }
     loadPageSuccess: (
-        page: PaginatedEnterprisePropertyDefinitionListApi | null,
+        page: PaginatedPropertyDefinitionListApi | null,
         payload?: {
             offset: number
         }
     ) => {
-        page: PaginatedEnterprisePropertyDefinitionListApi | null
+        page: PaginatedPropertyDefinitionListApi | null
         payload?: {
             offset: number
         }
     }
-    restorePage: (page: PaginatedEnterprisePropertyDefinitionListApi | null) => {
-        page: PaginatedEnterprisePropertyDefinitionListApi | null
+    restorePage: (page: PaginatedPropertyDefinitionListApi | null) => {
+        page: PaginatedPropertyDefinitionListApi | null
     }
     setSearch: (search: string) => {
         search: string
@@ -84,7 +84,7 @@ export interface biPropertyFieldsLogicMeta {
     __keaTypeGenInternalSelectorTypes: {
         expanded: (manuallyExpanded: boolean, arg: any) => boolean
         search: (localSearch: string, arg: any) => string
-        fields: (page: PaginatedEnterprisePropertyDefinitionListApi | null) => BIField[]
+        fields: (page: PaginatedPropertyDefinitionListApi | null) => BIField[]
     }
 }
 
@@ -103,16 +103,16 @@ export const biPropertyFieldsLogic: LogicWrapper<biPropertyFieldsLogicType> = ke
     actions({
         toggleExpanded: true,
         setSearch: (search: string) => ({ search }),
-        restorePage: (page: PaginatedEnterprisePropertyDefinitionListApi | null) => ({ page }),
+        restorePage: (page: PaginatedPropertyDefinitionListApi | null) => ({ page }),
     }),
     loaders(({ props, values, cache }) => ({
         page: [
-            null as PaginatedEnterprisePropertyDefinitionListApi | null,
+            null as PaginatedPropertyDefinitionListApi | null,
             {
                 loadPage: async (
                     { offset }: { offset: number },
                     breakpoint
-                ): Promise<PaginatedEnterprisePropertyDefinitionListApi | null> => {
+                ): Promise<PaginatedPropertyDefinitionListApi | null> => {
                     const searchVersion = cache.searchVersion
                     const target = getBIPropertyTarget(props.field)
                     if (!target || !values.currentProjectId) {
@@ -163,7 +163,7 @@ export const biPropertyFieldsLogic: LogicWrapper<biPropertyFieldsLogicType> = ke
         manuallyExpanded: [false, { toggleExpanded: (expanded) => !expanded }],
         localSearch: ['', { setSearch: (_, { search }) => search }],
         page: [
-            null as PaginatedEnterprisePropertyDefinitionListApi | null,
+            null as PaginatedPropertyDefinitionListApi | null,
             {
                 loadPage: (page, { offset }) => (offset ? page : null),
                 restorePage: (_, { page }) => page,
@@ -192,7 +192,7 @@ export const biPropertyFieldsLogic: LogicWrapper<biPropertyFieldsLogicType> = ke
         ],
         fields: [
             (s) => [s.page],
-            (page: PaginatedEnterprisePropertyDefinitionListApi | null): BIField[] =>
+            (page: PaginatedPropertyDefinitionListApi | null): BIField[] =>
                 buildBIPropertyFields(props.field, page?.results ?? []),
         ],
     })),

@@ -17,7 +17,7 @@ import { AnyPropertyFilter, EventDefinition, EventDefinitionType, PropertyDefini
 import { eventDefinitionsBulkUpdateVerifiedCreate } from 'products/event_definitions/frontend/generated/api'
 import type {
     EventDefinitionBulkUpdateVerifiedResponseApi,
-    PaginatedEnterpriseEventDefinitionListApi,
+    PaginatedEventDefinitionRecordListApi,
 } from 'products/event_definitions/frontend/generated/api.schemas'
 
 import type {
@@ -26,7 +26,7 @@ import type {
 } from '../../../../../products/event_definitions/frontend/generated/api.schemas'
 
 export interface EventDefinitionsPaginatedResponse
-    extends PaginatedResponse<EventDefinition>, Pick<PaginatedEnterpriseEventDefinitionListApi, 'count_is_capped'> {
+    extends PaginatedResponse<EventDefinition>, Pick<PaginatedEventDefinitionRecordListApi, 'count_is_capped'> {
     current?: string
     count?: number
     page?: number

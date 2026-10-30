@@ -22,11 +22,8 @@ describe('PropertyDefinitionEditModal', () => {
         const propertyDefinition = {
             id: 'property-id',
             name: 'plan',
-            description: 'Billing plan',
             tags: ['billing'],
             property_type: 'String',
-            verified: false,
-            hidden: false,
         } as PropertyDefinitionEditModalProps['propertyDefinition']
 
         render(
@@ -41,8 +38,6 @@ describe('PropertyDefinitionEditModal', () => {
         expect(within(dialog).getByText('Edit definition')).toBeInTheDocument()
         expect(within(dialog).getByText('plan')).toBeInTheDocument()
         expect(within(dialog).getByText('Tags')).toBeInTheDocument()
-        expect(within(dialog).getByText('Description')).toBeInTheDocument()
-        expect(within(dialog).getByText('Status')).toBeInTheDocument()
         expect(within(dialog).getByText('Property type')).toBeInTheDocument()
         expect(dialog.querySelector('[data-attr="save-property-definition"]')).toHaveAttribute('aria-disabled', 'true')
     })

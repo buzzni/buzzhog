@@ -3,14 +3,11 @@ import { Form } from 'kea-forms'
 
 import { LemonButton, LemonModal, LemonSelect, LemonTag } from '@posthog/lemon-ui'
 
-import { PropertyStatusControl } from 'lib/components/DefinitionPopover/DefinitionPopoverContents'
 import { ObjectTags } from 'lib/components/ObjectTags/ObjectTags'
 import { LemonField } from 'lib/lemon-ui/LemonField'
-import { LemonTextArea } from 'lib/lemon-ui/LemonTextArea/LemonTextArea'
 
 import type { PropertyTypeEnumApi } from '~/generated/core/api.schemas'
 import { tagsModel } from '~/models/tagsModel'
-import { isCoreFilter } from '~/taxonomy/helpers'
 
 import { PropertyDefinitionEditModalProps, propertyDefinitionEditModalLogic } from './propertyDefinitionEditModalLogic'
 
@@ -26,7 +23,6 @@ export function PropertyDefinitionEditModal(props: PropertyDefinitionEditModalPr
     const { propertyDefinitionEditFormChanged, isPropertyDefinitionEditFormSubmitting } = useValues(logic)
     const { closeModal, submitPropertyDefinitionEditForm } = useActions(logic)
     const { tags, tagsLoading } = useValues(tagsModel)
-    const allowVerification = !isCoreFilter(props.propertyDefinition.name)
 
     return (
         <LemonModal
@@ -80,34 +76,6 @@ export function PropertyDefinitionEditModal(props: PropertyDefinitionEditModalPr
                                 onChange={onChange}
                                 tagsAvailable={tags}
                             />
-                        )}
-                    </LemonField>
-                </div>
-
-                <div className="ph-ignore-input">
-                    <LemonField name="description" label="Description" data-attr="definition-description">
-                        <LemonTextArea />
-                    </LemonField>
-                </div>
-
-                <div className="ph-ignore-input">
-                    <LemonField name="verified" label="Status" data-attr="definition-status">
-                        {({ value: verified, onChange }) => (
-                            <LemonField name="hidden">
-                                {({ value: hidden, onChange: onHiddenChange }) => (
-                                    <PropertyStatusControl
-                                        isProperty
-                                        verified={verified}
-                                        hidden={hidden}
-                                        showHiddenOption
-                                        allowVerification={allowVerification}
-                                        onChange={({ verified: newVerified, hidden: newHidden }) => {
-                                            onChange(newVerified)
-                                            onHiddenChange(newHidden)
-                                        }}
-                                    />
-                                )}
-                            </LemonField>
                         )}
                     </LemonField>
                 </div>
