@@ -9,7 +9,12 @@ import { billingJson } from '~/mocks/fixtures/_billing'
 import { useMocks } from '~/mocks/jest'
 import { initKeaTests } from '~/test/init'
 
-import { BILLING_READS_UNAVAILABLE, BILLING_READS_UNAVAILABLE_CODE } from './billingReads'
+import {
+    BILLING_READS_UNAVAILABLE,
+    BILLING_READS_UNAVAILABLE_CODE,
+    BillingReadParams,
+    unavailableBillingReads,
+} from './billingReads'
 import {
     BILLING_USAGE_QUERY_TOO_LARGE_CODE,
     BillingUsageResponse,
@@ -18,6 +23,7 @@ import {
     getBillingUsageError,
     billingUsageLogic,
 } from './billingUsageLogic'
+import type { BillingFilters } from './types'
 
 const series = (label: string, usageType: string, data: number[]): BillingUsageResponse['results'][number] => ({
     id: 1,
@@ -253,4 +259,140 @@ describe('billing section URL scoping', () => {
 
         expect(logic.values.dateFrom).toEqual('2026-01-01')
     })
+})
+
+describe('billingUsageLogic toggleAllSeries', () => {
+    let logic: ReturnType<typeof billingUsageLogic.build>
+
+    const usageResponse = (totals: number[]): BillingUsageResponse => ({
+        count: totals.length,
+        next: null,
+        previous: null,
+        results: totals.map((total, id) => ({ ...series(`series ${id}`, 'events', [total]), id })),
+    })
+
+    const mountWith = async (totals: number[]): Promise<void> => {
+        billingLogic.mount()
+        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
+        logic = billingUsageLogic()
+        logic.mount()
+        await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+        logic.actions.loadBillingUsageSuccess(usageResponse(totals))
+    }
+
+    beforeEach(() => {
+        initKeaTests()
+        useMocks({ get: { '/api/billing': () => [200, billingJson] } })
+    })
+
+    afterEach(() => {
+        logic?.unmount()
+    })
+
+    it('hides every series when all are visible, then shows them all again', async () => {
+        await mountWith([1, 2, 3])
+
+        logic.actions.toggleAllSeries()
+        expect(logic.values.userHiddenSeries).toEqual([0, 1, 2])
+
+        logic.actions.toggleAllSeries()
+        expect(logic.values.userHiddenSeries).toEqual([])
+    })
+
+    it('shows all when only some are hidden', async () => {
+        await mountWith([1, 2, 3])
+
+        logic.actions.toggleSeries(1)
+        logic.actions.toggleAllSeries()
+
+        expect(logic.values.userHiddenSeries).toEqual([])
+    })
+
+    // With the exclusion on, the header checkbox acts only on the series the table can show.
+    // An empty series that is also hidden by hand must not stop it from hiding all, and hiding
+    // all keeps that id, so the series stays hidden when the exclusion goes off. An empty
+    // series that only the exclusion hides stays out of the hand-hidden list.
+    it.each<[string, number[], number[]]>([
+        ['nothing hidden by hand', [], [1, 2]],
+        ['the empty series hidden by hand', [0], [0, 1, 2]],
+    ])('hides only the series the exclusion leaves, with %s', async (_name, hiddenByHand, expected) => {
+        await mountWith([0, 2, 3])
+        logic.actions.setExcludeEmptySeries(true, false)
+        hiddenByHand.forEach((id) => logic.actions.toggleSeries(id))
+
+        logic.actions.toggleAllSeries()
+
+        expect(logic.values.userHiddenSeries).toEqual(expected)
+        expect(new Set(logic.values.finalHiddenSeries)).toEqual(new Set([0, 1, 2]))
+    })
+})
+
+describe('billing usage load triggers', () => {
+    let logic: ReturnType<typeof billingUsageLogic.build>
+
+    beforeEach(() => {
+        initKeaTests()
+        useMocks({ get: { '/api/billing': () => [200, billingJson] } })
+    })
+
+    afterEach(() => {
+        logic?.unmount()
+        jest.restoreAllMocks()
+    })
+
+    const usageParams = (spy: jest.SpyInstance): BillingReadParams[] => spy.mock.calls.map(([params]) => params)
+
+    // The unavailable reads return no export URL, so the export selectors would only ever read
+    // null. Echo the params instead, to see what each export would ask for.
+    const echoExportParams = (): void => {
+        jest.spyOn(unavailableBillingReads, 'usageExportUrl').mockImplementation((params) => JSON.stringify(params))
+    }
+    const exportParams = (url: string | null): BillingReadParams => JSON.parse(url ?? '{}')
+
+    // afterMount, and urlToAction once for the filters and once for the dates, each ask to load on
+    // arrival. The breakpoint must keep only the last call, and that call must carry the dates from
+    // the URL. Billing loads before the mount here, so the billing subscriptions do not fire.
+    it('takes the filters and dates from the URL on arrival', async () => {
+        const usageSeries = jest.spyOn(unavailableBillingReads, 'usageSeries')
+        router.actions.push(urls.organizationBillingSection('usage'), {
+            breakdowns: ['type', 'team'],
+            date_from: '2026-01-01',
+        })
+        billingLogic.mount()
+        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
+
+        logic = billingUsageLogic({ syncWithUrl: true })
+        logic.mount()
+        await expectLogic(logic).toFinishAllListeners()
+
+        expect(logic.values.dateFrom).toEqual('2026-01-01')
+        expect(logic.values.filters.breakdowns).toEqual(['type', 'team'])
+        expect(usageParams(usageSeries)).toHaveLength(1)
+        expect(usageParams(usageSeries)[0].start_date).toEqual('2026-01-01')
+    })
+
+    // The full export holds every project in the period, so it never carries the cap. The chart
+    // export holds the series as the chart draws them, so it carries the cap where the request does.
+    it.each<[string, BillingFilters['breakdowns'], number | null, number | undefined]>([
+        ['with a project breakdown', ['type', 'team'], 20, 20],
+        ['without a project breakdown', ['type'], 20, undefined],
+        ['when the cap is off', ['type', 'team'], null, undefined],
+    ])(
+        'sends the project cap only where it ranks something, and never in the full export, %s',
+        async (_name, breakdowns, topProjects, expected) => {
+            const usageSeries = jest.spyOn(unavailableBillingReads, 'usageSeries')
+            echoExportParams()
+            billingLogic.mount()
+            await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
+            logic = billingUsageLogic({ initialFilters: { breakdowns, top_projects: topProjects } })
+            logic.mount()
+            await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+
+            const calls = usageParams(usageSeries)
+            expect(calls).toHaveLength(1)
+            expect(calls[0].top_projects).toEqual(expected)
+            expect(exportParams(logic.values.usageChartExportUrl).top_projects).toEqual(expected)
+            expect(exportParams(logic.values.usageExportUrl).top_projects).toBeUndefined()
+        }
+    )
 })
