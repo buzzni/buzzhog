@@ -981,7 +981,8 @@ export const billingUsageLogic = kea<billingUsageLogicType>([
                 actions.loadBillingUsage()
             }
         },
-        // Flags can arrive after the page mounts. When they switch the routes, read again from the new ones.
+        // When the reads source changes after the page mounts, the shown data came from the old source,
+        // so read again from the new one.
         billingReads: (reads: BillingReads, previousReads: BillingReads | undefined) => {
             if (previousReads !== undefined && reads !== previousReads) {
                 actions.loadReportedProjectIds()
