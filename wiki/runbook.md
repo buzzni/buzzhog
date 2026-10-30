@@ -64,6 +64,46 @@ ClickHouse 이미지는 `docker-compose.hobby.yml`이 마운트하는 설정 파
 UDF는 데이터 볼륨(`/var/lib/clickhouse`) 밖인 `/usr/local/share/clickhouse/user_scripts`에 두고, `config.d/user-scripts.xml`이 그 경로를 가리킨다.
 빌드 방법은 `docker/clickhouse/Dockerfile` 머리 주석에 있다.
 
+### dev 클러스터 자동 배포 (k8s-manifests)
+
+같은 워크플로의 `deploy-dev` job이 빌드 뒤에 `buzzni/k8s-manifests` `main`의 `k8s-idc/buzzhog-dev/` 이미지 태그를 이번 실행의 태그로 바꾸는 커밋을 push한다.
+ArgoCD Application `k8s-idc-buzzhog-dev`가 그 커밋을 클러스터에 반영한다. auto sync가 꺼져 있으면 사람이 sync해야 반영된다.
+k8s-manifests의 `docs/guides/developer/cicd.md`와 `docs/examples/github-actions/build-and-update-manifest.yaml`을 따른다.
+
+흐름:
+
+1. `tag` job이 태그를 정하고, `build` 매트릭스가 이미지를 GHCR에 올린다. 일부 이미지가 실패해도 다른 이미지는 계속 빌드한다.
+2. `deploy-dev`는 `develop` 브랜치이고 저장소가 `buzzni/buzzhog`일 때만 돈다. 빌드 일부가 실패해도 돈다(`!cancelled()`).
+3. 이미지마다 GHCR에 이번 태그가 있는지 본다(`docker buildx imagetools inspect`). 없는 이미지(빌드 실패)는 지금 태그를 그대로 둔다.
+4. deploy key로 k8s-manifests를 임시 디렉터리(`umask 077`, `trap`으로 삭제)에 clone한다.
+5. 이미지 이름과 같은 이름의 컨테이너 중 이미지 저장소가 `ghcr.io/buzzni/buzzhog/<이미지>`인 것을 모두 같은 태그로 바꾼다(digest 고정 yq 컨테이너). 바뀌는 컨테이너 수가 `DEPLOY_IMAGES`의 기대값과 다르면 job이 실패한다.
+6. staged-diff 가드: 바뀐 파일이 `DEPLOY_FILES` 안에 있고, mode·rename 변경이 없고, 바뀐 줄이 모두 `image:` 줄인지 확인한다.
+7. 바뀐 것이 없으면 커밋 없이 성공한다. 있으면 `deploy: buzzhog (dev): automated image update (<sha7>)` 커밋을 push한다. push가 거절되면 최신 `main`에서 처음부터 다시 만들어 최대 4번 시도한다.
+8. job summary에 이미지마다 갱신·변경 없음·건너뜀과 그 이유를 표로 남긴다.
+
+| 이미지          | 컨테이너 수 | 매니페스트                                                      |
+| --------------- | ----------- | --------------------------------------------------------------- |
+| `posthog`       | 4           | `app/django.yaml`(web, worker, temporal-django-worker), `app/migrate-job.yaml`(migrate) |
+| `posthog-node`  | 6           | `app/node.yaml`(plugins, ingestion-\*, recording-api)            |
+| `capture`       | 2           | `app/rust.yaml`(capture, replay-capture)                         |
+| 그 밖의 Rust    | 1씩         | `app/rust.yaml`(capture-logs, feature-flags, hypercache-server, personhog-replica, personhog-router, property-defs-rs) |
+| `livestream`    | 1           | `app/livestream.yaml`                                            |
+| `clickhouse`    | 1           | `clickhouse/clickhouse-installation.yaml`                        |
+
+- `posthog` 컨테이너 네 개는 한 커밋에서 함께 바뀐다. migrate Job과 web·worker가 서로 다른 Django 빌드를 보지 않는다.
+- 없는 `posthog` 태그로 바꾸면 migrate Sync hook이 `ImagePullBackOff`로 sync를 최대 1시간(`activeDeadlineSeconds`) 붙잡는다. 그래서 GHCR에 없는 태그로는 바꾸지 않는다.
+- ClickHouse 태그가 바뀌면 CH pod가 다시 뜬다. 지금 배포된 태그의 커밋과 이번 커밋에서 빌드 입력(`docker/clickhouse`, `funnel-udf`, `posthog/user_scripts`, `posthog/idl`, 이 워크플로 파일)의 git tree가 같으면 바꾸지 않는다. 같은지 확인하지 못하면 바꾼다.
+- `cymbal`, browserless(외부 이미지), alpine initContainer, prod 매니페스트는 건드리지 않는다.
+- 매니페스트에 workload를 더하거나 빼면 `DEPLOY_IMAGES`의 개수도 고쳐야 한다. 안 고치면 job이 실패하고 아무것도 바뀌지 않는다.
+- 이 저장소는 public이라 deploy key는 `push: develop`과 `workflow_dispatch`에서만 쓴다. `pull_request` 트리거는 없다. runner는 GitHub-hosted다.
+
+사람이 할 일:
+
+- 조직 secret `K8S_MANIFESTS_DEPLOY_KEY`의 selected repositories에 `buzzni/buzzhog`를 넣는다(조직 관리자). 없으면 `deploy-dev`가 "K8S_MANIFESTS_DEPLOY_KEY is not available"로 실패한다.
+- dev Application의 auto sync를 켠다. Django 이미지가 GHCR에 올라온 뒤에 켠다.
+
+확인: 가짜 GHCR·로컬 bare 저장소로 이 step을 돌려 봤다(Django 미빌드 시 건너뜀, 재실행 no-op, image 외 줄 변경 시 실패, 개수 불일치 시 실패, ClickHouse 입력 변경 시에만 갱신). GitHub Actions에서 실제로 push해 보지는 않았다(미확인).
+
 ## 이미지 구성
 
 | Dockerfile                                    | 이미지                                                   | 내용                                                                                                                   | 비고                                                                                           |
@@ -637,5 +677,6 @@ ADR 0002는 "이 포크 코드로 `migrate`한 DB는 없다"를 안전 근거로
 - `posthog` 마이그레이션이 덜 적용된 DB에서 `access_control.0000`이 `DuplicateTable`로 멈추는지
 - 전체 개발 스택(`hogli start`)이 이 포크에서 처음부터 끝까지 도는지
 - GitHub 인증이 있을 때 `hogli`의 스키마 복원 지름길이 업스트림 스키마를 가져오는지(코드로만 읽음)
+- `fork-images.yml`의 `deploy-dev` job이 GitHub Actions에서 k8s-manifests에 실제로 push하는지(deploy key, GHCR 조회, `gh api`는 로컬에서 가짜로 대신했다)
 
 Decided in: buzzhog-uxbl, buzzhog-dsv8, buzzhog-ozkf
