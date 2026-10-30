@@ -16,7 +16,7 @@ import {
 
 import { AccessControlAction } from 'lib/components/AccessControlAction'
 import { LemonSlider } from 'lib/lemon-ui/LemonSlider'
-import { NEW_HOLDOUT, holdoutsLogic } from 'scenes/experiments/holdoutsLogic'
+import { HOLDOUTS_UNAVAILABLE, NEW_HOLDOUT, holdoutsLogic } from 'scenes/experiments/holdoutsLogic'
 
 import { AccessControlLevel, AccessControlResourceType, ExperimentHoldoutType } from '~/types'
 
@@ -235,7 +235,12 @@ export function ExperimentsHoldoutsScene(): JSX.Element {
                 </div>
             </LemonBanner>
             <div className="flex justify-end">
-                <LemonButton type="primary" onClick={openCreateModal} data-attr="add-holdout">
+                <LemonButton
+                    type="primary"
+                    onClick={openCreateModal}
+                    disabledReason={HOLDOUTS_UNAVAILABLE}
+                    data-attr="add-holdout"
+                >
                     New holdout
                 </LemonButton>
             </div>
