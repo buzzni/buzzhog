@@ -941,3 +941,10 @@
 {"ts":"2026-10-30T06:41:54Z","id":"buzzhog-oky5","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"holdout 화면과 실험 테스트의 experiment_holdouts 목을 걷어 낼지 결정"}
 {"ts":"2026-10-30T06:41:54Z","id":"buzzhog-zuw7","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"VercelConnect 씬·라우트를 걷어 낼지 결정"}
 {"ts":"2026-10-30T06:44:14Z","id":"buzzhog-4rnt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Person (2026-10-30): when this work is done, put its epic under milestone buzzhog-tfjd."}
+{"ts":"2026-10-30T06:50:53Z","id":"buzzhog-miju.t4s","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"review — 지운 생성 API 호출부 정리 전체"}
+{"ts":"2026-10-30T06:50:59Z","id":"buzzhog-miju.am2","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-30T06:50:59Z","id":"buzzhog-miju.40g","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-30T06:50:59Z","id":"buzzhog-miju.ru2","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-30T06:50:59Z","id":"buzzhog-miju.osk","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-30T06:50:59Z","id":"buzzhog-miju.zm7","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"in_progress","to":"review"}
+{"ts":"2026-10-30T06:50:59Z","id":"buzzhog-miju.t4s","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
