@@ -918,3 +918,16 @@
 {"ts":"2026-10-21T05:54:59Z","id":"buzzhog-djp9","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Report-checked: 172e30fe109 (m0z merged into milestone/buzzhog-sy8u, review ml6 done, worktree gone; only deferred fai, 63o, 756j, 284d left). model: anthropic/claude-sonnet-5-5 high (develop), anthropic/claude-opus-5-5 xhigh (review). For the person: dependency graph likely off (403), LICENSE_GATE_ENFORCE, required check \"License gate pass\"; wiki/testing.md:14 and wiki/branding.md:183 now say no .github/workflows."}
 {"ts":"2026-10-21T06:44:57Z","id":"buzzhog-sy8u","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Merged into develop at cde5679cff7 and pushed on 2026-10-21 at the person request. Left: deferred fai, 63o, 756j, 284d and six research backlogs (9ies, wrap, 2txv, ra0l, auf6, nhi6)."}
 {"ts":"2026-10-30T06:15:31Z","id":"buzzhog-4rnt","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Sent: subagent a4709b86cc00104a5 (opus medium; person 2026-10-30: build first, product decisions later; base develop; breaks image build run 40660071668)"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"지운 생성 API를 부르는 프런트 호출부 정리"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju.am2","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"billing 화면의 지운 billing 생성 함수 호출 걷기"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju.40g","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"사용량 지표 설정의 groupsTypesMetrics 호출 걷기"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju.ru2","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"Max 대화 삭제의 conversationsDestroy 호출 걷기"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju.osk","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"속성·이벤트 정의 타입을 재생성된 이름으로 바꾸기"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju.zm7","kind":"create","by":"레이븐","by_email":"raven@buzzni.com","title":"holdout·Vercel connect의 지운 라우트 호출 끄기"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-miju","kind":"note","by":"레이븐","by_email":"raven@buzzni.com","text":"Unfolded from buzzhog-4rnt — 프런트가 ee와 함께 지운 라우트·타입을 부름 — billing·사용량 지표·Max 대화 삭제·속성 정의 편집·holdout·Vercel 연결"}
+{"ts":"2026-10-30T06:18:43Z","id":"buzzhog-4rnt","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"done","note":"Unfolded into buzzhog-miju, 5 issues"}
+{"ts":"2026-10-30T06:18:48Z","id":"buzzhog-miju.am2","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-30T06:18:48Z","id":"buzzhog-miju.40g","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-30T06:18:48Z","id":"buzzhog-miju.ru2","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-30T06:18:48Z","id":"buzzhog-miju.osk","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
+{"ts":"2026-10-30T06:18:48Z","id":"buzzhog-miju.zm7","kind":"status","by":"레이븐","by_email":"raven@buzzni.com","from":"todo","to":"in_progress"}
