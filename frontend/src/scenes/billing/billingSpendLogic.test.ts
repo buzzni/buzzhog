@@ -107,7 +107,10 @@ describe('billingSpendLogic chart type', () => {
             await mount()
             logic.actions.loadBillingSpendSuccess(spendResponse([1, 2, 3]))
 
-            logic.actions.toggleAllSeries()
+            // One action for every series, because a dispatch per series re-renders the table once per series.
+            await expectLogic(logic, () => logic.actions.toggleAllSeries())
+                .toNotHaveDispatchedActions(['toggleSeries'])
+                .toDispatchActions(['setHiddenSeries'])
             expect(logic.values.userHiddenSeries).toEqual([0, 1, 2])
 
             logic.actions.toggleAllSeries()
@@ -125,10 +128,11 @@ describe('billingSpendLogic chart type', () => {
             expect(logic.values.userHiddenSeries).toEqual([])
         })
 
-        // With the exclusion on, the header checkbox acts only on the series the table can show.
-        // An empty series that is also hidden by hand must not stop it from hiding all, and hiding
-        // all keeps that id, so the series stays hidden when the exclusion goes off. An empty
-        // series that only the exclusion hides stays out of the hand-hidden list.
+        // With the exclusion on, the header checkbox looks only at the series the table can show to
+        // decide whether all are visible, and it hides only those series. An empty series that is
+        // also hidden by hand must not stop it from hiding all, and hiding all keeps that id, so the
+        // series stays hidden when the exclusion goes off. An empty series that only the exclusion
+        // hides stays out of the hand-hidden list.
         it.each<[string, number[], number[]]>([
             ['nothing hidden by hand', [], [1, 2]],
             ['the empty series hidden by hand', [0], [0, 1, 2]],

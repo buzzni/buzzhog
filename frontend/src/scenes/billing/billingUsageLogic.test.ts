@@ -1,3 +1,5 @@
+import { MOCK_TEAM_ID } from 'lib/api.mock'
+
 import { router } from 'kea-router'
 import { expectLogic } from 'kea-test-utils'
 
@@ -17,8 +19,11 @@ import {
 } from './billingReads'
 import {
     BILLING_USAGE_QUERY_TOO_LARGE_CODE,
+    BillingUsageError,
+    BillingUsageLogicProps,
     BillingUsageResponse,
     BillingUsageResponseBreakdownType,
+    DEFAULT_BILLING_USAGE_DATE_TO,
     convertDesktopUsageSeries,
     getBillingUsageError,
     billingUsageLogic,
@@ -33,6 +38,19 @@ const series = (label: string, usageType: string, data: number[]): BillingUsageR
     breakdown_type: BillingUsageResponseBreakdownType.TYPE,
     breakdown_value: usageType,
 })
+
+// Billing decides whether the person may see usage, so it loads before the usage logic mounts.
+// Otherwise the usage load returns before it reads anything.
+const mountUsageLogic = async (
+    props: BillingUsageLogicProps = {}
+): Promise<ReturnType<typeof billingUsageLogic.build>> => {
+    billingLogic.mount()
+    await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
+    const logic = billingUsageLogic(props)
+    logic.mount()
+    await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+    return logic
+}
 
 describe('convertDesktopUsageSeries', () => {
     it.each([
@@ -114,7 +132,42 @@ describe('billingUsageLogic loader', () => {
 
     afterEach(() => {
         logic?.unmount()
-        toastErrorSpy.mockRestore()
+        jest.restoreAllMocks()
+    })
+
+    // Guidance the person can act on shows in the page and raises no toast. Any other failure
+    // raises the toast and leaves no guidance in the page.
+    it.each<[string, BillingUsageError, BillingUsageError | null, number]>([
+        [
+            'a query-size error',
+            { code: BILLING_USAGE_QUERY_TOO_LARGE_CODE, detail: 'Select a product.' },
+            { code: BILLING_USAGE_QUERY_TOO_LARGE_CODE, detail: 'Select a product.' },
+            0,
+        ],
+        ['a server error', { code: 'server_error', detail: 'A server error occurred.' }, null, 1],
+    ])('handles %s without failing the loader', async (_name, failure, pageError, toasts) => {
+        useMocks({ get: { '/api/billing': () => [200, billingJson] } })
+        jest.spyOn(unavailableBillingReads, 'usageSeries').mockRejectedValue(failure)
+
+        logic = await mountUsageLogic()
+
+        expect(logic.values.billingUsageError).toEqual(pageError)
+        expect(toastErrorSpy).toHaveBeenCalledTimes(toasts)
+    })
+
+    // A project deleted since its usage was reported still has usage to filter by, so the project
+    // filter lists it after the live projects. A live project with usage is listed once.
+    it('lists the projects with usage beside the live ones', async () => {
+        useMocks({ get: { '/api/billing': () => [200, billingJson] } })
+        jest.spyOn(unavailableBillingReads, 'reportedProjectIds').mockResolvedValue([17, MOCK_TEAM_ID, 3])
+
+        logic = await mountUsageLogic()
+
+        expect(logic.values.teamOptions.map((option) => option.key)).toEqual([String(MOCK_TEAM_ID), '3', '17'])
+        expect(logic.values.teamOptions.slice(1)).toEqual([
+            { key: '3', label: 'ID: 3 (deleted)' },
+            { key: '17', label: 'ID: 17 (deleted)' },
+        ])
     })
 
     it('shows the unavailable reads in the page rather than as a failure toast', async () => {
@@ -151,11 +204,7 @@ describe('billingUsageLogic chart type', () => {
     })
 
     const mount = async (): Promise<void> => {
-        billingLogic.mount()
-        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
-        logic = billingUsageLogic()
-        logic.mount()
-        await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+        logic = await mountUsageLogic()
     }
 
     beforeEach(() => {
@@ -272,11 +321,7 @@ describe('billingUsageLogic toggleAllSeries', () => {
     })
 
     const mountWith = async (totals: number[]): Promise<void> => {
-        billingLogic.mount()
-        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
-        logic = billingUsageLogic()
-        logic.mount()
-        await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+        logic = await mountUsageLogic()
         logic.actions.loadBillingUsageSuccess(usageResponse(totals))
     }
 
@@ -292,7 +337,10 @@ describe('billingUsageLogic toggleAllSeries', () => {
     it('hides every series when all are visible, then shows them all again', async () => {
         await mountWith([1, 2, 3])
 
-        logic.actions.toggleAllSeries()
+        // One action for every series, because a dispatch per series re-renders the table once per series.
+        await expectLogic(logic, () => logic.actions.toggleAllSeries())
+            .toNotHaveDispatchedActions(['toggleSeries'])
+            .toDispatchActions(['setHiddenSeries'])
         expect(logic.values.userHiddenSeries).toEqual([0, 1, 2])
 
         logic.actions.toggleAllSeries()
@@ -308,10 +356,11 @@ describe('billingUsageLogic toggleAllSeries', () => {
         expect(logic.values.userHiddenSeries).toEqual([])
     })
 
-    // With the exclusion on, the header checkbox acts only on the series the table can show.
-    // An empty series that is also hidden by hand must not stop it from hiding all, and hiding
-    // all keeps that id, so the series stays hidden when the exclusion goes off. An empty
-    // series that only the exclusion hides stays out of the hand-hidden list.
+    // With the exclusion on, the header checkbox looks only at the series the table can show to
+    // decide whether all are visible, and it hides only those series. An empty series that is
+    // also hidden by hand must not stop it from hiding all, and hiding all keeps that id, so the
+    // series stays hidden when the exclusion goes off. An empty series that only the exclusion
+    // hides stays out of the hand-hidden list.
     it.each<[string, number[], number[]]>([
         ['nothing hidden by hand', [], [1, 2]],
         ['the empty series hidden by hand', [0], [0, 1, 2]],
@@ -347,28 +396,43 @@ describe('billing usage load triggers', () => {
     const echoExportParams = (): void => {
         jest.spyOn(unavailableBillingReads, 'usageExportUrl').mockImplementation((params) => JSON.stringify(params))
     }
-    const exportParams = (url: string | null): BillingReadParams => JSON.parse(url ?? '{}')
+    const exportParams = (url: string | null): BillingReadParams => {
+        // A missing URL would read as "no cap" and pass the checks below without an export at all.
+        expect(url).not.toBeNull()
+        return JSON.parse(url as string)
+    }
 
     // afterMount, and urlToAction once for the filters and once for the dates, each ask to load on
-    // arrival. The breakpoint must keep only the last call, and that call must carry the dates from
-    // the URL. Billing loads before the mount here, so the billing subscriptions do not fire.
+    // arrival. The breakpoint must keep only the last call, and that call must carry the filters and
+    // dates from the URL. Billing loads before the mount here, so the billing subscriptions do not fire.
     it('takes the filters and dates from the URL on arrival', async () => {
         const usageSeries = jest.spyOn(unavailableBillingReads, 'usageSeries')
         router.actions.push(urls.organizationBillingSection('usage'), {
             breakdowns: ['type', 'team'],
             date_from: '2026-01-01',
         })
-        billingLogic.mount()
-        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
 
-        logic = billingUsageLogic({ syncWithUrl: true })
-        logic.mount()
-        await expectLogic(logic).toFinishAllListeners()
+        logic = await mountUsageLogic({ syncWithUrl: true })
 
         expect(logic.values.dateFrom).toEqual('2026-01-01')
         expect(logic.values.filters.breakdowns).toEqual(['type', 'team'])
-        expect(usageParams(usageSeries)).toHaveLength(1)
-        expect(usageParams(usageSeries)[0].start_date).toEqual('2026-01-01')
+        const calls = usageParams(usageSeries)
+        expect(calls).toHaveLength(1)
+        expect(calls[0]).toMatchObject({ start_date: '2026-01-01', breakdowns: JSON.stringify(['type', 'team']) })
+    })
+
+    // "This year" carries only a start. The picker recognizes its own preset only while the end
+    // stays empty, so the logic keeps the end empty and fills it in on the request alone.
+    it('keeps an open-ended preset open, and asks for a range that ends yesterday', async () => {
+        const usageSeries = jest.spyOn(unavailableBillingReads, 'usageSeries')
+        logic = await mountUsageLogic()
+
+        logic.actions.setDateRange('yStart', null, false)
+        await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+
+        expect(logic.values.dateTo).toBeNull()
+        const calls = usageParams(usageSeries)
+        expect(calls[calls.length - 1]).toMatchObject({ start_date: 'yStart', end_date: DEFAULT_BILLING_USAGE_DATE_TO })
     })
 
     // The full export holds every project in the period, so it never carries the cap. The chart
@@ -382,17 +446,15 @@ describe('billing usage load triggers', () => {
         async (_name, breakdowns, topProjects, expected) => {
             const usageSeries = jest.spyOn(unavailableBillingReads, 'usageSeries')
             echoExportParams()
-            billingLogic.mount()
-            await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
-            logic = billingUsageLogic({ initialFilters: { breakdowns, top_projects: topProjects } })
-            logic.mount()
-            await expectLogic(logic).toDispatchActions(['loadBillingUsageSuccess']).toFinishAllListeners()
+            logic = await mountUsageLogic({ initialFilters: { breakdowns, top_projects: topProjects } })
 
             const calls = usageParams(usageSeries)
             expect(calls).toHaveLength(1)
             expect(calls[0].top_projects).toEqual(expected)
             expect(exportParams(logic.values.usageChartExportUrl).top_projects).toEqual(expected)
-            expect(exportParams(logic.values.usageExportUrl).top_projects).toBeUndefined()
+            const fullExport = exportParams(logic.values.usageExportUrl)
+            expect(fullExport.top_projects).toBeUndefined()
+            expect(fullExport.breakdowns).toEqual(JSON.stringify(breakdowns))
         }
     )
 })
