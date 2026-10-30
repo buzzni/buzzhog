@@ -7,16 +7,13 @@ import { eventUsageLogic } from 'lib/utils/eventUsageLogic'
 import { projectLogic } from 'scenes/projectLogic'
 import { teamLogic } from 'scenes/teamLogic'
 
-import { ProductIntentContext, ProductKey } from '~/queries/schema/schema-general'
-import { FilterType } from '~/types'
-
 import {
-    groupsTypesMetricsCreate,
-    groupsTypesMetricsDestroy,
-    groupsTypesMetricsList,
-    groupsTypesMetricsUpdate,
-} from 'products/customer_analytics/frontend/generated/api'
-import type { GroupUsageMetricApi } from 'products/customer_analytics/frontend/generated/api.schemas'
+    ProductIntentContext,
+    ProductKey,
+    UsageMetricDisplay,
+    UsageMetricFormat,
+} from '~/queries/schema/schema-general'
+import { FilterType } from '~/types'
 
 import type { ProductIntentProperties } from '../../../lib/utils/product-intents'
 
@@ -29,10 +26,21 @@ export type UsageMetricFiltersDataWarehouse = {
     key_field?: string | null
 }
 
-export type UsageMetricFormData = Omit<GroupUsageMetricApi, 'id' | 'filters'> & {
+export const USAGE_METRICS_UNAVAILABLE = "Usage metric definitions can't be saved in this version."
+
+// The API that stored usage metric definitions is gone, so there is no generated type for this form.
+export interface UsageMetricFormData {
     id?: string
+    name: string
+    format?: UsageMetricFormat
+    interval?: number
+    display?: UsageMetricDisplay
     filters: FilterType | UsageMetricFiltersDataWarehouse
+    math?: 'count' | 'sum'
+    math_property?: string | null
 }
+
+export type SavedUsageMetric = UsageMetricFormData & { id: string }
 
 const NEW_USAGE_METRIC: UsageMetricFormData = {
     name: '',
@@ -113,9 +121,6 @@ export function actionFilterValueToSavedFilters(
     } as FilterType
 }
 
-// Hardcoded to 0 — the backend model is coupled to groups but will be refactored to be group-agnostic
-const GROUP_TYPE_INDEX = 0
-
 export interface UsageMetricsConfigLogicProps {
     logicKey?: string
     onMetricsChanged?: () => void
@@ -137,7 +142,7 @@ export interface usageMetricsConfigLogicValues {
     usageMetricTouched: boolean
     usageMetricTouches: Record<string, boolean>
     usageMetricValidationErrors: DeepPartialMap<UsageMetricFormData, ValidationErrorType>
-    usageMetrics: GroupUsageMetricApi[]
+    usageMetrics: SavedUsageMetric[]
     usageMetricsLoading: boolean
 }
 
@@ -158,12 +163,12 @@ export interface usageMetricsConfigLogicActions {
         errorObject?: any
     }
     addUsageMetricSuccess: (
-        usageMetrics: GroupUsageMetricApi[],
+        usageMetrics: SavedUsageMetric[],
         payload?: {
             metric: UsageMetricFormData
         }
     ) => {
-        usageMetrics: GroupUsageMetricApi[]
+        usageMetrics: SavedUsageMetric[]
         payload?: {
             metric: UsageMetricFormData
         }
@@ -180,10 +185,10 @@ export interface usageMetricsConfigLogicActions {
         errorObject?: any
     }
     loadUsageMetricsSuccess: (
-        usageMetrics: GroupUsageMetricApi[],
+        usageMetrics: SavedUsageMetric[],
         payload?: any
     ) => {
-        usageMetrics: GroupUsageMetricApi[]
+        usageMetrics: SavedUsageMetric[]
         payload?: any
     }
     openModal: () => {
@@ -200,12 +205,12 @@ export interface usageMetricsConfigLogicActions {
         errorObject?: any
     }
     removeUsageMetricSuccess: (
-        usageMetrics: GroupUsageMetricApi[],
+        usageMetrics: SavedUsageMetric[],
         payload?: {
             id: string
         }
     ) => {
-        usageMetrics: GroupUsageMetricApi[]
+        usageMetrics: SavedUsageMetric[]
         payload?: {
             id: string
         }
@@ -256,12 +261,12 @@ export interface usageMetricsConfigLogicActions {
         errorObject?: any
     }
     updateUsageMetricSuccess: (
-        usageMetrics: GroupUsageMetricApi[],
+        usageMetrics: SavedUsageMetric[],
         payload?: {
             metric: UsageMetricFormData
         }
     ) => {
-        usageMetrics: GroupUsageMetricApi[]
+        usageMetrics: SavedUsageMetric[]
         payload?: {
             metric: UsageMetricFormData
         }
@@ -312,38 +317,19 @@ export const usageMetricsConfigLogic = kea<usageMetricsConfigLogicType>([
         ],
     }),
 
-    lazyLoaders(({ values }) => ({
+    lazyLoaders(() => ({
         usageMetrics: [
-            [] as GroupUsageMetricApi[],
+            [] as SavedUsageMetric[],
             {
-                loadUsageMetrics: async () => {
-                    const response = await groupsTypesMetricsList(String(values.currentProjectId), GROUP_TYPE_INDEX)
-                    return response.results
+                loadUsageMetrics: async () => [],
+                addUsageMetric: async () => {
+                    throw new Error(USAGE_METRICS_UNAVAILABLE)
                 },
-                addUsageMetric: async ({ metric }) => {
-                    const { id: _id, ...payload } = metric
-                    const newMetric = await groupsTypesMetricsCreate(
-                        String(values.currentProjectId),
-                        GROUP_TYPE_INDEX,
-                        payload as GroupUsageMetricApi
-                    )
-                    return [...values.usageMetrics, newMetric]
+                updateUsageMetric: async () => {
+                    throw new Error(USAGE_METRICS_UNAVAILABLE)
                 },
-                updateUsageMetric: async ({ metric }) => {
-                    if (!metric.id) {
-                        throw new Error('Cannot update a metric without an id')
-                    }
-                    const updatedMetric = await groupsTypesMetricsUpdate(
-                        String(values.currentProjectId),
-                        GROUP_TYPE_INDEX,
-                        metric.id,
-                        metric as GroupUsageMetricApi
-                    )
-                    return [...values.usageMetrics.filter((m) => m.id !== metric.id), updatedMetric]
-                },
-                removeUsageMetric: async ({ id }) => {
-                    await groupsTypesMetricsDestroy(String(values.currentProjectId), GROUP_TYPE_INDEX, id)
-                    return values.usageMetrics.filter((m) => m.id !== id)
+                removeUsageMetric: async () => {
+                    throw new Error(USAGE_METRICS_UNAVAILABLE)
                 },
             },
         ],
