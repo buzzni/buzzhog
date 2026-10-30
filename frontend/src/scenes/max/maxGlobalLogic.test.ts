@@ -183,27 +183,22 @@ describe('maxGlobalLogic', () => {
         )
     })
 
-    // A chat and its task are deleted together on the server. Each list only knows about its own
-    // delete, so the other list has to be reloaded or the deleted item resurfaces as the other row.
+    // A chat and its task are deleted together on the server. The chat list only knows about the
+    // task delete, so it has to be reloaded or the deleted item resurfaces as a chat row.
     describe('deleting from the merged list', () => {
-        let taskListRequests = 0
         let conversationListRequests = 0
         let tasks: ReturnType<typeof tasksLogic.build>
 
         beforeEach(async () => {
             useMocks({
                 get: {
-                    '/api/projects/:team_id/tasks/': () => {
-                        taskListRequests += 1
-                        return [200, { results: [], count: 0 }]
-                    },
+                    '/api/projects/:team_id/tasks/': { results: [], count: 0 },
                     '/api/environments/:team_id/conversations/': () => {
                         conversationListRequests += 1
                         return [200, { results: [] }]
                     },
                 },
                 delete: {
-                    '/api/environments/:team_id/conversations/:id/': () => [204, null],
                     '/api/projects/:team_id/tasks/:id/': () => [204, null],
                 },
             })
@@ -211,7 +206,6 @@ describe('maxGlobalLogic', () => {
             tasks.mount()
             await expectLogic(tasks).toFinishAllListeners()
             await expectLogic(logic).toFinishAllListeners()
-            taskListRequests = 0
             conversationListRequests = 0
         })
 
@@ -225,14 +219,6 @@ describe('maxGlobalLogic', () => {
             await expectLogic(logic).toFinishAllListeners()
 
             expect(conversationListRequests).toBe(1)
-        })
-
-        it('reloads the tasks when a chat is deleted', async () => {
-            logic.actions.deleteConversation('conversation-id')
-            await expectLogic(logic).toFinishAllListeners()
-            await expectLogic(tasks).toFinishAllListeners()
-
-            expect(taskListRequests).toBe(1)
         })
     })
 

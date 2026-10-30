@@ -19,15 +19,15 @@ import { urls } from 'scenes/urls'
 import { sidePanelStateLogic } from '~/layout/navigation-3000/sidepanel/sidePanelStateLogic'
 import { Conversation, ConversationDetail, SidePanelTab } from '~/types'
 
-import { conversationsDestroy } from 'products/posthog_ai/frontend/generated/api'
 import { tasksLogic } from 'products/posthog_ai/frontend/logics/tasksLogic'
 
 import type { FeatureFlagsSet } from '../../lib/logic/featureFlagLogic'
 import type { OrganizationType, PreflightStatus } from '../../types'
 import type { SceneConfig } from '../sceneTypes'
+import { DELETE_CHAT_UNAVAILABLE } from './conversationDialogs'
 import { TOOL_DEFINITIONS, ToolRegistration } from './max-constants'
 import { PHAI_VIEW_MODE_KEY } from './max-storage-keys'
-import { maxLogic, mergeConversationHistory, mergeConversations, sidePanelMaxLogic } from './maxLogic'
+import { mergeConversationHistory, mergeConversations, sidePanelMaxLogic } from './maxLogic'
 
 /**
  * Which PostHog AI implementation the Max scene renders. `'new'` is the posthog_ai/frontend surface
@@ -431,26 +431,8 @@ export const maxGlobalLogic = kea<maxGlobalLogicType>([
         loadConversationHistoryFailure: ({ errorObject }) => {
             lemonToast.error(errorObject?.data?.detail || 'Failed to load conversation history.')
         },
-        deleteConversation: async ({ id }) => {
-            try {
-                await conversationsDestroy(String(values.currentTeamIdStrict), id)
-                if (values.currentConversationId === id) {
-                    router.actions.push(urls.aiHistory())
-                }
-                for (const logic of maxLogic.findAllMounted()) {
-                    if (logic.values.conversationId === id) {
-                        logic.actions.startNewConversation()
-                    }
-                }
-                actions.loadConversationHistory()
-                // The chat's task is deleted with it; the merged list must not keep its task row.
-                const tasks = tasksLogic.findMounted()
-                if (tasks) {
-                    tasks.actions.loadTasks(tasks.values.taskListParams)
-                }
-            } catch {
-                lemonToast.error('Failed to delete chat')
-            }
+        deleteConversation: () => {
+            lemonToast.error(DELETE_CHAT_UNAVAILABLE)
         },
     })),
     afterMount(({ actions }) => {

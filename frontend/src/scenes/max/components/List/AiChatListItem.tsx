@@ -14,7 +14,7 @@ import { urls } from 'scenes/urls'
 import { BrowserLikeMenuItems } from '~/layout/panel-layout/ProjectTree/menus/BrowserLikeMenuItems'
 import { ConversationStatus } from '~/types'
 
-import { openDeleteConversationDialog } from '../../conversationDialogs'
+import { DELETE_CHAT_UNAVAILABLE, openDeleteConversationDialog } from '../../conversationDialogs'
 import { maxGlobalLogic } from '../../maxGlobalLogic'
 import { formatConversationDate } from '../../utils'
 
@@ -84,6 +84,7 @@ function Actions({ conversationId }: { conversationId: string }): JSX.Element {
                 <DropdownMenuItem asChild>
                     <ButtonPrimitive
                         menuItem
+                        disabledReasons={{ [DELETE_CHAT_UNAVAILABLE]: true }}
                         onClick={() => openDeleteConversationDialog(() => deleteConversation(conversationId))}
                     >
                         <IconTrash className="size-4 text-danger" />
