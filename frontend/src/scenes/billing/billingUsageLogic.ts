@@ -17,11 +17,6 @@ import { urls } from 'scenes/urls'
 
 import { DateMappingOption, OrganizationType } from '~/types'
 
-import type {
-    BillingUsageExportDownloadParams,
-    BillingUsageTimeseriesRetrieveParams,
-} from 'products/billing/frontend/generated/api.schemas'
-
 import type { BillingPeriod, BillingType } from '../../types'
 import {
     buildTrackingProperties,
@@ -32,7 +27,7 @@ import {
 } from './billing-utils'
 import { billingLogic } from './billingLogic'
 import type { BillingPeriodMarker } from './BillingPeriodMarkers'
-import { BillingReads, billingReadsLogic } from './billingReads'
+import { BillingReadParams, BillingReads, billingReadsLogic } from './billingReads'
 import { DEFAULT_TOP_PROJECTS } from './constants'
 import type { BillingChartType, BillingFilters } from './types'
 import type { BillingUsageInteractionProps } from './types'
@@ -201,8 +196,8 @@ export interface billingUsageLogicValues {
         key: string
         label: string
     }[]
-    usageChartExportUrl: string
-    usageExportUrl: string
+    usageChartExportUrl: string | null
+    usageExportUrl: string | null
     userHiddenSeries: number[]
 }
 
@@ -307,7 +302,7 @@ export interface billingUsageLogicMeta {
             dateTo: string | null,
             effectiveTeamIds: number[] | undefined,
             billingReads: BillingReads
-        ) => string
+        ) => string | null
         usageChartExportUrl: (
             filters: {
                 breakdowns?: ('team' | 'type')[] | undefined
@@ -320,7 +315,7 @@ export interface billingUsageLogicMeta {
             dateTo: string | null,
             effectiveTeamIds: number[] | undefined,
             billingReads: BillingReads
-        ) => string
+        ) => string | null
         dateOptions: (billingPeriodUTC: BillingPeriod) => DateMappingOption[]
         billingPeriodMarkers: (
             billingPeriodUTC: BillingPeriod,
@@ -426,8 +421,8 @@ function usageExportUrlFor(
     effectiveTeamIds: number[] | undefined,
     withChartCap: boolean,
     billingReads: BillingReads
-): string {
-    const params: BillingUsageExportDownloadParams = {
+): string | null {
+    const params: BillingReadParams = {
         ...(filters.usage_types?.length ? { usage_types: JSON.stringify(filters.usage_types) } : {}),
         ...(effectiveTeamIds?.length ? { team_ids: JSON.stringify(effectiveTeamIds) } : {}),
         ...(filters.breakdowns?.length ? { breakdowns: JSON.stringify(filters.breakdowns) } : {}),
@@ -518,7 +513,7 @@ export const billingUsageLogic = kea<billingUsageLogicType>([
                     // Only meaningful with a project breakdown - without one there is no
                     // per-project series to fold, and sending it would just be noise.
                     const breakingDownByTeam = !!breakdowns?.includes('team')
-                    const params: BillingUsageTimeseriesRetrieveParams = {
+                    const params: BillingReadParams = {
                         ...(usage_types && usage_types.length > 0 ? { usage_types: JSON.stringify(usage_types) } : {}),
                         ...(team_ids && team_ids.length > 0 ? { team_ids: JSON.stringify(team_ids) } : {}),
                         ...(breakdowns && breakdowns.length > 0 ? { breakdowns: JSON.stringify(breakdowns) } : {}),
@@ -622,7 +617,7 @@ export const billingUsageLogic = kea<billingUsageLogicType>([
                 dateTo: string | null,
                 effectiveTeamIds: number[] | undefined,
                 billingReads: BillingReads
-            ): string =>
+            ): string | null =>
                 // Every project in the period: the page's filters without the chart's project cap,
                 // which is how the chart is drawn and not part of the data.
                 usageExportUrlFor(filters, dateFrom, dateTo, effectiveTeamIds, false, billingReads),
@@ -635,7 +630,7 @@ export const billingUsageLogic = kea<billingUsageLogicType>([
                 dateTo: string | null,
                 effectiveTeamIds: number[] | undefined,
                 billingReads: BillingReads
-            ): string =>
+            ): string | null =>
                 // The chart's series as billing built them, cap and folded row included.
                 usageExportUrlFor(filters, dateFrom, dateTo, effectiveTeamIds, true, billingReads),
         ],

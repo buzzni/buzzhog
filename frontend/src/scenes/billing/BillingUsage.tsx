@@ -22,6 +22,7 @@ import { BillingEarlyAccessBanner } from './BillingEarlyAccessBanner'
 import { BillingEmptyState } from './BillingEmptyState'
 import { billingLogic } from './billingLogic'
 import { BillingNoAccess } from './BillingNoAccess'
+import { BILLING_READS_UNAVAILABLE } from './billingReads'
 import { billingUsageLogic } from './billingUsageLogic'
 import { TOP_PROJECTS_OPTIONS } from './constants'
 import type { BillingChartType } from './types'
@@ -258,12 +259,13 @@ export function BillingUsage(): JSX.Element {
                                             !selectionCoversEveryProject(filters.team_ids, teamOptions)
                                                 ? `Selected projects in this period (${filters.team_ids.length})`
                                                 : 'All projects in this period',
-                                        onClick: () => window.location.assign(usageExportUrl),
+                                        onClick: () => usageExportUrl && window.location.assign(usageExportUrl),
                                     },
                                     filters.breakdowns?.includes('team') && filters.top_projects
                                         ? {
                                               label: `The chart's series (top ${filters.top_projects} and the rest folded)`,
-                                              onClick: () => window.location.assign(usageChartExportUrl),
+                                              onClick: () =>
+                                                  usageChartExportUrl && window.location.assign(usageChartExportUrl),
                                           }
                                         : null,
                                 ]}
@@ -273,7 +275,10 @@ export function BillingUsage(): JSX.Element {
                                     type="secondary"
                                     size="medium"
                                     sideIcon={<IconChevronDown />}
-                                    disabledReason={exportAccessControlDisabledReason ?? undefined}
+                                    disabledReason={
+                                        exportAccessControlDisabledReason ??
+                                        (usageExportUrl ? undefined : BILLING_READS_UNAVAILABLE)
+                                    }
                                 >
                                     Export CSV
                                 </LemonButton>

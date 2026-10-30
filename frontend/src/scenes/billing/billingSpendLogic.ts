@@ -17,11 +17,6 @@ import { urls } from 'scenes/urls'
 
 import { DateMappingOption, OrganizationType } from '~/types'
 
-import type {
-    BillingSpendExportDownloadParams,
-    BillingSpendTimeseriesRetrieveParams,
-} from 'products/billing/frontend/generated/api.schemas'
-
 import type { BillingPeriod, BillingType } from '../../types'
 import {
     buildSpendTrackingProperties,
@@ -33,7 +28,7 @@ import {
 } from './billing-utils'
 import { billingLogic } from './billingLogic'
 import type { BillingPeriodMarker } from './BillingPeriodMarkers'
-import { BillingReads, billingReadsLogic } from './billingReads'
+import { BillingReadParams, BillingReads, billingReadsLogic } from './billingReads'
 import {
     ACTIONABLE_BILLING_ERROR_CODES,
     fitsOneRequest,
@@ -129,8 +124,8 @@ export interface billingSpendLogicValues {
     }[]
     showEmptyState: boolean
     showSeries: boolean
-    spendChartExportUrl: string
-    spendExportUrl: string
+    spendChartExportUrl: string | null
+    spendExportUrl: string | null
     teamOptions: {
         key: string
         label: string
@@ -252,7 +247,7 @@ export interface billingSpendLogicMeta {
             dateTo: string | null,
             effectiveTeamIds: number[] | undefined,
             billingReads: BillingReads
-        ) => string
+        ) => string | null
         spendChartExportUrl: (
             filters: {
                 breakdowns?: ('team' | 'type')[] | undefined
@@ -265,7 +260,7 @@ export interface billingSpendLogicMeta {
             dateTo: string | null,
             effectiveTeamIds: number[] | undefined,
             billingReads: BillingReads
-        ) => string
+        ) => string | null
         series: (billingSpendResponse: BillingSpendResponse | null) => {
             breakdown_type: BillingSpendResponseBreakdownType | null
             breakdown_value: string | string[] | null
@@ -353,8 +348,8 @@ function spendExportUrlFor(
     effectiveTeamIds: number[] | undefined,
     withChartCap: boolean,
     billingReads: BillingReads
-): string {
-    const params: BillingSpendExportDownloadParams = {
+): string | null {
+    const params: BillingReadParams = {
         ...(filters.usage_types?.length ? { usage_types: JSON.stringify(filters.usage_types) } : {}),
         ...(effectiveTeamIds?.length ? { team_ids: JSON.stringify(effectiveTeamIds) } : {}),
         ...(filters.breakdowns?.length ? { breakdowns: JSON.stringify(filters.breakdowns) } : {}),
@@ -444,7 +439,7 @@ export const billingSpendLogic = kea<billingSpendLogicType>([
                     // Only meaningful with a project breakdown - there is nothing to rank
                     // otherwise, and sending it would just be noise.
                     const breakingDownByTeam = !!breakdowns?.includes('team')
-                    const params: BillingSpendTimeseriesRetrieveParams = {
+                    const params: BillingReadParams = {
                         ...(usage_types && usage_types.length > 0 ? { usage_types: JSON.stringify(usage_types) } : {}),
                         ...(team_ids && team_ids.length > 0 ? { team_ids: JSON.stringify(team_ids) } : {}),
                         ...(breakdowns && breakdowns.length > 0 ? { breakdowns: JSON.stringify(breakdowns) } : {}),
@@ -555,7 +550,7 @@ export const billingSpendLogic = kea<billingSpendLogicType>([
                 dateTo: string | null,
                 effectiveTeamIds: number[] | undefined,
                 billingReads: BillingReads
-            ): string =>
+            ): string | null =>
                 // Every project in the period: the page's filters without the chart's project cap,
                 // which is how the chart is drawn and not part of the data.
                 spendExportUrlFor(filters, dateFrom, dateTo, effectiveTeamIds, false, billingReads),
@@ -568,7 +563,7 @@ export const billingSpendLogic = kea<billingSpendLogicType>([
                 dateTo: string | null,
                 effectiveTeamIds: number[] | undefined,
                 billingReads: BillingReads
-            ): string =>
+            ): string | null =>
                 // The chart's series as billing built them, cap and folded row included.
                 spendExportUrlFor(filters, dateFrom, dateTo, effectiveTeamIds, true, billingReads),
         ],

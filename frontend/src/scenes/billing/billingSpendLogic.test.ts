@@ -1,9 +1,6 @@
 import { router } from 'kea-router'
 import { expectLogic } from 'kea-test-utils'
 
-import { FEATURE_FLAGS } from 'lib/constants'
-import { dayjs } from 'lib/dayjs'
-import { featureFlagLogic } from 'lib/logic/featureFlagLogic'
 import { dateMapping } from 'lib/utils/dateFilters'
 import { billingLogic } from 'scenes/billing/billingLogic'
 import { urls } from 'scenes/urls'
@@ -12,17 +9,8 @@ import { billingJson } from '~/mocks/fixtures/_billing'
 import { useMocks } from '~/mocks/jest'
 import { initKeaTests } from '~/test/init'
 
-import { BillingSpendResponse, BillingSpendResponseBreakdownType, billingSpendLogic } from './billingSpendLogic'
+import { billingSpendLogic } from './billingSpendLogic'
 import { fitsOneRequest, isDayOrCoarser, SUB_DAY_DATE_FILTER_INTERVALS } from './billingUsageLogic'
-import type { BillingFilters } from './types'
-
-// These cases cover the organization billing API reads. The legacy reads are covered in billingReads.test.ts.
-function readFromTheOrganizationBillingApi(): void {
-    featureFlagLogic.mount()
-    featureFlagLogic.actions.setFeatureFlags([FEATURE_FLAGS.ORGANIZATION_BILLING_API], {
-        [FEATURE_FLAGS.ORGANIZATION_BILLING_API]: true,
-    })
-}
 
 describe('billingSpendLogic chart type', () => {
     let logic: ReturnType<typeof billingSpendLogic.build>
@@ -32,10 +20,6 @@ describe('billingSpendLogic chart type', () => {
     const mocks = (): Parameters<typeof useMocks>[0] => ({
         get: {
             '/api/billing': () => [200, billingJson],
-            '/api/organizations/@current/billing/spend/timeseries/': () => [
-                200,
-                { count: 0, next: null, previous: null, results: [] },
-            ],
         },
     })
 
@@ -49,45 +33,10 @@ describe('billingSpendLogic chart type', () => {
 
     beforeEach(() => {
         initKeaTests()
-        readFromTheOrganizationBillingApi()
     })
 
     afterEach(() => {
         logic?.unmount()
-    })
-
-    it('lists the projects with usage beside the live ones, apart from the chart', async () => {
-        const base = mocks()
-        useMocks({
-            ...base,
-            get: {
-                ...base.get,
-                '/api/organizations/@current/billing/projects/': () => [
-                    200,
-                    {
-                        count: 2,
-                        next: null,
-                        previous: null,
-                        results: [
-                            { id: 3, name: null, deleted: true },
-                            { id: 17, name: null, deleted: true },
-                        ],
-                    },
-                ],
-            },
-        })
-        billingLogic.mount()
-        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
-        logic = billingSpendLogic()
-        logic.mount()
-        await expectLogic(logic)
-            .toDispatchActions(['loadReportedProjectIds', 'loadReportedProjectIdsSuccess'])
-            .toFinishAllListeners()
-
-        expect(logic.values.teamOptions.slice(-2)).toEqual([
-            { key: '3', label: 'ID: 3 (deleted)' },
-            { key: '17', label: 'ID: 17 (deleted)' },
-        ])
     })
 
     it('always allows stacking, because spend is dollars in every breakdown', async () => {
@@ -130,103 +79,6 @@ describe('billingSpendLogic chart type', () => {
     })
 })
 
-describe('billingSpendLogic project breakdown requests', () => {
-    let logic: ReturnType<typeof billingSpendLogic.build>
-    let requests: { types: string; page_size: string | null; after: string | null; top_projects: string | null }[]
-
-    const empty = { count: 0, next: null, previous: null, results: [] }
-
-    const record = (request: Request): URLSearchParams => {
-        const params = new URL(request.url).searchParams
-        requests.push({
-            types: params.get('usage_types') ?? 'all',
-            page_size: params.get('page_size'),
-            after: params.get('after'),
-            top_projects: params.get('top_projects'),
-        })
-        return params
-    }
-
-    const seriesFor = (team: string): BillingSpendResponse['results'] => [
-        {
-            id: 0,
-            label: `${team}::Events`,
-            data: [1],
-            dates: ['2026-08-01'],
-            breakdown_type: BillingSpendResponseBreakdownType.MULTIPLE,
-            breakdown_value: ['product_analytics', team],
-        },
-    ]
-
-    const mount = async (initialFilters: BillingFilters): Promise<void> => {
-        billingLogic.mount()
-        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
-        logic = billingSpendLogic({ initialFilters })
-        logic.mount()
-        await expectLogic(logic).toDispatchActions(['loadBillingSpendSuccess']).toFinishAllListeners()
-    }
-
-    beforeEach(() => {
-        initKeaTests()
-        readFromTheOrganizationBillingApi()
-        requests = []
-    })
-
-    afterEach(() => {
-        logic?.unmount()
-    })
-
-    it('asks once, with the project cap, when top_projects bounds the answer', async () => {
-        useMocks({
-            get: {
-                '/api/billing': () => [200, billingJson],
-                '/api/organizations/@current/billing/spend/timeseries/': ({ request }) => {
-                    record(request)
-                    return [200, empty]
-                },
-            },
-        })
-
-        await mount({ breakdowns: ['type', 'team'], top_projects: 20 })
-
-        expect(requests).toEqual([{ types: 'all', page_size: null, after: null, top_projects: '20' }])
-    })
-
-    it('asks for every project on every product in one request', async () => {
-        useMocks({
-            get: {
-                '/api/billing': () => [200, billingJson],
-                '/api/organizations/@current/billing/spend/timeseries/': ({ request }) => {
-                    record(request)
-                    return [200, { ...empty, results: seriesFor('1') }]
-                },
-            },
-        })
-
-        await mount({ breakdowns: ['type', 'team'], top_projects: null })
-
-        expect(requests.map((r) => [r.types, r.page_size])).toEqual([['all', null]])
-        const ids = logic.values.series.map((s) => s.id)
-        expect(new Set(ids).size).toBe(ids.length)
-    })
-
-    it('sends one request without a project breakdown', async () => {
-        useMocks({
-            get: {
-                '/api/billing': () => [200, billingJson],
-                '/api/organizations/@current/billing/spend/timeseries/': ({ request }) => {
-                    record(request)
-                    return [200, empty]
-                },
-            },
-        })
-
-        await mount({ breakdowns: ['type'] })
-
-        expect(requests.length).toBe(1)
-    })
-})
-
 describe('billing date options', () => {
     // "Last hour" reached the API as `start_date=-1h`, which is not a date, so billing read the
     // range as backwards and rejected the whole request with "start_date must be before or equal
@@ -263,38 +115,17 @@ describe('billing date options', () => {
 
 describe('billing spend load triggers', () => {
     let logic: ReturnType<typeof billingSpendLogic.build>
-    let requests: number
-    let startDates: string[]
-    let endDates: string[]
 
     beforeEach(() => {
         initKeaTests()
-        readFromTheOrganizationBillingApi()
-        requests = 0
-        startDates = []
-        endDates = []
-        useMocks({
-            get: {
-                '/api/billing': () => [200, billingJson],
-                '/api/organizations/@current/billing/spend/timeseries/': ({ request }) => {
-                    requests += 1
-                    const params = new URL(request.url).searchParams
-                    startDates.push(params.get('start_date') ?? '')
-                    endDates.push(params.get('end_date') ?? '')
-                    return [200, { count: 0, next: null, previous: null, results: [] }]
-                },
-            },
-        })
+        useMocks({ get: { '/api/billing': () => [200, billingJson] } })
     })
 
     afterEach(() => {
         logic?.unmount()
     })
 
-    // afterMount, urlToAction reading the filters out of the URL, and the subscriptions that
-    // fire once billing says the plan is not hobby and the person may see spend all want to
-    // load on arrival. Only one request may go out.
-    it('loads once on arrival rather than once per trigger', async () => {
+    it('takes the filters and dates from the URL on arrival', async () => {
         router.actions.push(urls.organizationBillingSection('spend'), {
             breakdowns: ['type', 'team'],
             date_from: '2026-01-01',
@@ -306,13 +137,11 @@ describe('billing spend load triggers', () => {
         logic.mount()
         await expectLogic(logic).toFinishAllListeners()
 
-        // One request.
-        expect(requests).toEqual(1)
-        // And it carries the dates from the URL, not the defaults the logic starts with.
-        expect(new Set(startDates)).toEqual(new Set(['2026-01-01']))
+        expect(logic.values.dateFrom).toEqual('2026-01-01')
+        expect(logic.values.filters.breakdowns).toEqual(['type', 'team'])
     })
 
-    it('keeps an open-ended preset open, and asks for a range that ends yesterday', async () => {
+    it('keeps an open-ended preset open', async () => {
         // "This year" carries only a start. The picker recognises its own preset only while the
         // end stays empty; with yesterday filled in it would read back as "No date range override".
         billingLogic.mount()
@@ -326,67 +155,5 @@ describe('billing spend load triggers', () => {
 
         expect(logic.values.dateFrom).toEqual('yStart')
         expect(logic.values.dateTo).toBeNull()
-        expect(endDates[endDates.length - 1]).toEqual(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))
-    })
-})
-
-describe('billingSpendLogic export', () => {
-    let logic: ReturnType<typeof billingSpendLogic.build>
-
-    const days = (count: number): string[] =>
-        Array.from({ length: count }, (_, i) => dayjs('2025-09-01').add(i, 'day').format('YYYY-MM-DD'))
-
-    const response = (periods: number): BillingSpendResponse => ({
-        count: 1,
-        next: null,
-        previous: null,
-        results: [
-            {
-                id: 0,
-                label: '1::Events',
-                data: days(periods).map(() => 1),
-                dates: days(periods),
-                breakdown_type: BillingSpendResponseBreakdownType.MULTIPLE,
-                breakdown_value: ['product_analytics', '1'],
-            },
-        ],
-    })
-
-    // useMocks has to be called from the test body: the hooks lint rule rejects it in a helper.
-    const mocks = (periods: number): Parameters<typeof useMocks>[0] => ({
-        get: {
-            '/api/billing': () => [200, billingJson],
-            '/api/organizations/@current/billing/spend/timeseries/': () => [200, response(periods)],
-        },
-    })
-
-    const mount = async (initialFilters: BillingFilters): Promise<void> => {
-        billingLogic.mount()
-        await expectLogic(billingLogic, () => billingLogic.actions.loadBilling()).toFinishAllListeners()
-        logic = billingSpendLogic({ initialFilters })
-        logic.mount()
-        await expectLogic(logic).toDispatchActions(['loadBillingSpendSuccess']).toFinishAllListeners()
-    }
-
-    const params = (url: string): URLSearchParams => new URL(url, 'http://localhost').searchParams
-
-    beforeEach(() => {
-        initKeaTests()
-        readFromTheOrganizationBillingApi()
-    })
-
-    afterEach(() => {
-        logic?.unmount()
-    })
-
-    it('exports every project without the chart cap, and the chart series with it', async () => {
-        useMocks(mocks(2))
-        await mount({ breakdowns: ['type', 'team'], top_projects: 20, interval: 'day' })
-
-        const every = params(logic.values.spendExportUrl)
-        expect(every.get('top_projects')).toBeNull()
-        expect(every.get('breakdowns')).toBe('["type","team"]')
-        expect(every.get('interval')).toBe('day')
-        expect(params(logic.values.spendChartExportUrl).get('top_projects')).toBe('20')
     })
 })

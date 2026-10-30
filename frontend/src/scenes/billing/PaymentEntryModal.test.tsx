@@ -13,7 +13,7 @@ import { organizationLogic } from 'scenes/organizationLogic'
 import { useMocks } from '~/mocks/jest'
 import { initKeaTests } from '~/test/init'
 
-import { paymentEntryLogic } from './paymentEntryLogic'
+import { PAYMENTS_UNAVAILABLE, paymentEntryLogic } from './paymentEntryLogic'
 import { PaymentEntryModal, PaymentForm } from './PaymentEntryModal'
 
 const mockConfirmPayment = jest.fn((_: { confirmParams: { return_url: string } }) => new Promise(() => {}))
@@ -82,7 +82,7 @@ describe('PaymentEntryModal', () => {
         await userEvent.click(contactSupport)
 
         await waitFor(() => expect(supportLogic.values.sendSupportRequest.billing_issue).toBe(true))
-        expect(supportLogic.values.sendSupportRequest.message).toContain('Failed to initialize payment')
+        expect(supportLogic.values.sendSupportRequest.message).toContain(PAYMENTS_UNAVAILABLE)
         expect(paymentEntryLogic.values.paymentEntryModalOpen).toBe(false)
     })
 
